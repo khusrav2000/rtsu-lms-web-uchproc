@@ -1,5 +1,7 @@
-<%
-# Copyright (C) 2014 - present Instructure, Inc.
+# frozen_string_literal: true
+
+#
+# Copyright (C) 2016 - present Instructure, Inc.
 #
 # This file is part of Canvas.
 #
@@ -14,16 +16,9 @@
 #
 # You should have received a copy of the GNU Affero General Public License along
 # with this program. If not, see <http://www.gnu.org/licenses/>.
-%>
 
-<% if Lti::QuizzesNextHelper.userless_launch?(@current_user, @tool) %>
-  <div class="alert alert-danger lock_explanation" role="alert">
-    <%= t 'The quiz is unavailable if you are not logged in' %>
-  </div>
-<% elsif Lti::QuizzesNextHelper.unavailable_for_students?(@context, @current_user, @tool) %>
-  <div class="alert alert-danger lock_explanation" role="alert">
-    <%= t 'This quiz is no longer available as your enrollment has been concluded.' %>
-  </div>
-<% else %>
-  <%= render 'lti/lti_message' %>
-<% end %>
+class AutoextendSpec::TestLaterMethod
+  def self.a_method
+    true
+  end
+end
