@@ -1,0 +1,76 @@
+<table>
+  <%=  render :partial => 'terms_parameters', :locals => { :all_terms_option => true } %>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[faculty]"   %>
+        <%= t('uchproc_sync.default.users.check_box','Faculty') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[specialty]"   %>
+        <%= t('uchproc_sync.default.accounts.check_box','Specialty') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[kurs]"   %>
+        <%= t('uchproc_sync.default.terms.check_box','Kurs') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[groups]"   %>
+        <%= t('uchproc_sync.default.courses.check_box','Groups') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[students]"   %>
+        <%= t('uchproc_sync.default.sections.check_box','Students') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[teachers]"   %>
+        <%= t('uchproc_sync.default.enrollments.check_box','Teachers') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[terms]"   %>
+        <%= t('uchproc_sync.default.groups.check_box','Terms') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[courses]"   %>
+        <%= t('uchproc_sync.default.group_membership.login.check_box','Courses') %>
+      </label>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <label class="checkbox">
+        <%= check_box_tag "parameters[recount_assessments]"   %>
+        <%= t('uchproc_sync.default.group_membership.login.check_box','Recount assessments') %>
+      </label>
+    </td>
+  </tr>
+</table>

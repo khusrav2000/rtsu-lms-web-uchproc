@@ -983,6 +983,18 @@ CanvasRails::Application.routes.draw do
   get 'terms_of_use' => 'legal_information#terms_of_use', as: 'terms_of_use_redirect'
   get 'privacy_policy' => 'legal_information#privacy_policy', as: 'privacy_policy_redirect'
 
+  #Uchproc routses
+  scope(controller: :journals) do
+    get 'journals', action: :index
+  end
+
+  scope('/journals') do
+    resources :point_journal, only: :index
+    resources :attendance_journal, only: :index
+    get 'my_attendance_journal' => 'attendance_journal_student#index'
+    get 'my_point_journal' => 'point_journal_student#index'
+  end
+
   ### API routes ###
 
   # TODO: api routes can't yet take advantage of concerns for DRYness, because of
@@ -2370,6 +2382,22 @@ CanvasRails::Application.routes.draw do
       get 'courses/:course_id/pace_plans/:id', action: :api_show
       put 'courses/:course_id/pace_plans/:id', action: :update
       post 'courses/:course_id/pace_plans/:id/publish', action: :publish
+    end
+    #uchproc
+    scope(controller: :point_journal_api) do
+      get 'uchproc/main_filter', action: :main_filter
+      get 'courses/:course_id/point_journal', action: :points
+      post 'courses/:course_id/point_journal', action: :update_week_points
+      put  'courses/:course_id/students/:student_id/points', action: :student_points_update
+      get 'courses/:course_id/my_points', action: :my_points
+    end
+    scope(controller: :uchproc_group_api) do
+      get 'isugrp/', action: :index
+      get 'isugrp/:isu_grp_id', action: :show
+      get 'uchproc/group/:ugroup_id/courses', action: :courses
+      get 'uchproc/group/:ugroup_id/last/courses', action: :courses_current_period
+      get 'uchproc/group/:ugroup_id/last/attendance/courses', action: :courses_for_att_current_period
+      get 'uchproc/group/:ugroup_id/courses/:kvd/tema', action: :tema
     end
   end
 

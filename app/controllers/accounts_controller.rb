@@ -1724,6 +1724,7 @@ class AccountsController < ApplicationController
                                    { :enable_offline_web_export => [:value] }.freeze,
                                    { :disable_rce_media_uploads => [:value] }.freeze,
                                    :enable_profiles, :enable_gravatar, :enable_turnitin, :equella_endpoint,
+                                   :attendance_point_journal_relation,
                                    :equella_teaser, :external_notification_warning, :global_includes,
                                    :google_docs_domain, :help_link_icon, :help_link_name,
                                    :include_integration_ids_in_gradebook_exports,

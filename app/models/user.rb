@@ -2902,6 +2902,38 @@ class User < ActiveRecord::Base
     "#{crocodoc_id!},#{short_name.delete(',')}"
   end
 
+  def can_access_journals?
+    journals_rights = [:point_journal_view, :point_journal_edit, :attendance_journal_view,
+                        :attendance_journal_edit, :student_points, :student_attendance]
+    return true if can_access_any_account_journals?(journals_rights) || can_access_any_course_journals?(journals_rights)
+    false
+  end
+
+  def can_access_week?(context, week_number, is_current_week = false)
+    point_journal_edit = context.grants_any_right?(self, :point_journal_edit)
+    return (point_journal_edit && account.grants_any_right?(self, :"point_journal_week_#{week_number}")) ||
+      (point_journal_edit && is_current_week)
+  end
+
+  def can_access_any_account_journals?(rights)
+    accounts = self.associated_accounts.active
+    accounts.map do |account|
+      if account.grants_any_right?(self, *Array(rights))
+        return true
+      end
+    end
+    return  false
+  end
+  def can_access_any_course_journals?(rights)
+    courses = self.all_courses
+    courses.map do |course|
+      if course.grants_any_right?(self, *Array(rights))
+        return true
+      end
+    end
+    return  false
+  end
+
   def moderated_grading_ids(create_crocodoc_id = false)
     {
       crocodoc_id: create_crocodoc_id ? crocodoc_id! : crocodoc_id,

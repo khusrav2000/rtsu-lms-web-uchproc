@@ -55,7 +55,7 @@ class Course < ActiveRecord::Base
   belongs_to :template_course, :class_name => 'Course'
   has_many :templated_courses, :class_name => 'Course', :foreign_key => 'template_course_id'
   has_many :templated_accounts, class_name: 'Account', foreign_key: 'course_template_id'
-
+  has_one :course_ext, :dependent => :destroy, :class_name => 'CourseExt'
   belongs_to :linked_homeroom_course, class_name: 'Course', foreign_key: 'homeroom_course_id'
 
   has_many :course_sections
@@ -391,6 +391,24 @@ class Course < ActiveRecord::Base
     Rails.cache.fetch(['module_based_course', self].cache_key) do
       self.context_modules.active.except(:order).any? { |m| m.completion_requirements && !m.completion_requirements.empty? }
     end
+  end
+
+  def journal_point_type
+    journal_point_type = 'Dividing'
+    key_journal_point_type = 'journal_point_type'
+    if self.settings.present? && self.settings.has_key?(key_journal_point_type)
+      journal_point_type = self.settings[key_journal_point_type]
+    end
+    journal_point_type
+  end
+
+  def attendance_point_journal_relation
+    relation = nil
+    key = attendance_point_journal_relation
+    if self.settings.present? && self.settings.has_key?(key)
+      relation = self.settings[key]
+    end
+    relation
   end
 
   def has_modules?
@@ -866,6 +884,11 @@ class Course < ActiveRecord::Base
     teacher_ids.empty? ?
       none :
       where("EXISTS (?)", Enrollment.active.where("enrollments.course_id=courses.id AND enrollments.type='TeacherEnrollment' AND enrollments.user_id IN (?)", teacher_ids))
+  }
+  scope :by_teachers_or_assistants, lambda { |ids|
+    ids.empty? ?
+      none :
+      where("EXISTS (?)", Enrollment.active.where("enrollments.course_id=courses.id AND (enrollments.type='TeacherEnrollment' OR enrollments.type='TaEnrollment') AND enrollments.user_id IN (?)", ids))
   }
   scope :by_associated_accounts, lambda { |account_ids|
     account_ids.empty? ?
@@ -3368,6 +3391,8 @@ class Course < ActiveRecord::Base
   add_setting :public_syllabus, :boolean => true, :default => false
   add_setting :public_syllabus_to_auth, :boolean => true, :default => false
   add_setting :course_format
+  add_setting :attendance_point_journal_relation
+  add_setting :journal_point_type
   add_setting :newquizzes_engine_selected
   add_setting :image_id
   add_setting :image_url

@@ -289,6 +289,8 @@ class Account < ActiveRecord::Base
   add_setting :can_change_pronouns, :boolean => true, :root_only => true, :default => true
   add_setting :enable_sis_export_pronouns, boolean: true, root_only: true, default: true
 
+  add_setting :attendance_point_journal_relation, boolean: true, default: false
+
   add_setting :self_enrollment
   add_setting :equella_endpoint
   add_setting :equella_teaser
@@ -601,6 +603,7 @@ class Account < ActiveRecord::Base
     self.shard.activate do
       if xlog_location
         timeout = Setting.get("account_cache_clear_replication_timeout", "60").to_i.seconds
+        logger.info "Time out is #{timeout}"
         unless self.class.wait_for_replication(start: xlog_location, timeout: timeout)
           delay(run_at: Time.now + timeout, singleton: "Account#clear_downstream_caches/#{global_id}")
             .clear_downstream_caches(*keys_to_clear, xlog_location: xlog_location, is_retry: true)

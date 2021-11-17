@@ -92,3 +92,17 @@ schema.graphql
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+.idea/webServers.xml
+.idea/vcs.xml
+.idea/uchproc.iml
+.idea/sshConfigs.xml
+.idea/modules.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/deployment.xml
+.idea/deployment.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/modules.xml
+.idea/sshConfigs.xml
+.idea/uchproc.iml
+.idea/vcs.xml
+.idea/workspace.xml
