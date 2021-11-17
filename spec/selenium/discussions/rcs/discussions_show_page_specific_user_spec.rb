@@ -23,7 +23,7 @@ describe "discussions" do
   include_context "in-process server selenium tests"
   include DiscussionsCommon
 
-  let(:course) { course_model.tap { |course| course.offer! } }
+  let(:course) { course_model.tap(&:offer!) }
   let(:student) { student_in_course(course: course, name: 'student', active_all: true).user }
   let(:teacher) { teacher_in_course(course: course, name: 'teacher', active_all: true).user }
   let(:student_topic) { course.discussion_topics.create!(user: student, title: 'student topic title', message: 'student topic message') }
@@ -52,7 +52,7 @@ describe "discussions" do
     @g1.save!
   end
 
-  before(:each) do
+  before do
     stub_rcs_config
   end
 
@@ -62,7 +62,7 @@ describe "discussions" do
     context "as a student" do
       let(:topic) { student_topic }
 
-      before(:each) do
+      before do
         user_session(student)
       end
 
@@ -146,7 +146,7 @@ describe "discussions" do
     context "as a teacher" do
       let(:topic) { teacher_topic }
 
-      before(:each) do
+      before do
         user_session(teacher)
       end
 

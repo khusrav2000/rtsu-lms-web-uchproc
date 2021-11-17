@@ -40,17 +40,17 @@ class CourseProgress
   end
 
   def current_module
-    if read_only
-      @_current_module ||= begin
-        progressions_by_mod_id = module_progressions.index_by(&:context_module_id)
-        modules.detect do |m|
-          prog = progressions_by_mod_id[m.id]
-          prog.nil? || prog.completed? == false
-        end
-      end
-    else
-      @_current_module ||= modules.detect { |m| m.evaluate_for(user).completed? == false }
-    end
+    @_current_module ||= if read_only
+                           begin
+                             progressions_by_mod_id = module_progressions.index_by(&:context_module_id)
+                             modules.detect do |m|
+                               prog = progressions_by_mod_id[m.id]
+                               prog.nil? || prog.completed? == false
+                             end
+                           end
+                         else
+                           modules.detect { |m| m.evaluate_for(user).completed? == false }
+                         end
   end
 
   def module_progressions
@@ -70,7 +70,7 @@ class CourseProgress
     if read_only
       @current_positions ||= begin
         prog = module_progressions.detect { |p| p.context_module_id == current_module.id }
-        prog && prog.current_position
+        prog&.current_position
       end
     else
       @current_position ||= current_module.evaluate_for(user).current_position
@@ -123,7 +123,7 @@ class CourseProgress
   end
 
   def in_progress?
-    current_module && current_module.require_sequential_progress
+    current_module&.require_sequential_progress
   end
 
   def completed?
@@ -134,7 +134,7 @@ class CourseProgress
     return unless module_progressions
 
     if module_progressions.is_a? Array
-      module_progressions.map(&:completed_at).compact.max
+      module_progressions.filter_map(&:completed_at).max
     else
       module_progressions.maximum(:completed_at)
     end
@@ -146,7 +146,7 @@ class CourseProgress
     most_recent_module_completed_at&.utc&.iso8601
   end
 
-  def to_json
+  def to_json(*)
     if course.module_based? && course.user_is_student?(user, include_all: true)
       {
         requirement_count: requirement_count,
@@ -177,9 +177,7 @@ class CourseProgress
 
   def module_requirements_completed(progression)
     @_module_requirements_completed ||= {}
-    @_module_requirements_completed[progression.id] ||= begin
-      progression.requirements_met.select { |req| module_requirements(progression.context_module).include?(req) }.uniq
-    end
+    @_module_requirements_completed[progression.id] ||= progression.requirements_met.select { |req| module_requirements(progression.context_module).include?(req) }.uniq
   end
 
   def module_reqs_to_complete_count(mod)

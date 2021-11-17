@@ -41,7 +41,7 @@ describe 'Canvadoc' do
     # whee different UI for plugins
     if element_exists?('#accounts_select')
       f("#accounts_select option:nth-child(2)").click
-      if !f(".save_button").enabled?
+      unless f(".save_button").enabled?
         f(".copy_settings_button").click
       end
       if f("#plugin_setting_disabled")[:checked]
@@ -52,7 +52,7 @@ describe 'Canvadoc' do
   end
 
   context 'as an admin' do
-    before :each do
+    before do
       stub_rcs_config
       site_admin_logged_in
       allow_any_instance_of(Canvadocs::API).to receive(:upload).and_return "id" => 1234

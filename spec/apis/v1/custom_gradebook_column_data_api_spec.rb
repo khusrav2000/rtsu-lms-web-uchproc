@@ -26,10 +26,10 @@ describe CustomGradebookColumnDataApiController, type: :request do
 
   before :once do
     course_with_teacher active_all: true
-    s1, s2 = 2.times.map { |i|
+    s1, s2 = Array.new(2) do |i|
       @course.course_sections.create! name: "section #{i}"
-    }
-    @student1, @student2 = 2.times.map { user_factory(active_all: true) }
+    end
+    @student1, @student2 = Array.new(2) { user_factory(active_all: true) }
     s1.enroll_user @student1, 'StudentEnrollment', 'active'
     s2.enroll_user @student2, 'StudentEnrollment', 'active'
 
@@ -106,9 +106,9 @@ describe CustomGradebookColumnDataApiController, type: :request do
                       course_id: @course.to_param, id: @col.to_param, action: "index",
                       controller: "custom_gradebook_column_data_api", format: "json"
       expect(response).to be_successful
-      expect(json).to match_array @col.custom_gradebook_column_data.map { |d|
+      expect(json).to match_array(@col.custom_gradebook_column_data.map do |d|
         custom_gradebook_column_datum_json(d, @user, session)
-      }
+      end)
     end
 
     it 'can paginate' do

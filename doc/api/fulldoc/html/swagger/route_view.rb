@@ -24,6 +24,7 @@ class RouteView < HashView
   attr_reader :raw_route, :method_view
 
   def initialize(raw_route, method_view)
+    super()
     @raw_route = raw_route
     @method_view = method_view
   end
@@ -45,11 +46,11 @@ class RouteView < HashView
   end
 
   def remove_parentheticals(str)
-    str.gsub(/\([^\)]+\)/, '')
+    str.gsub(/\([^)]+\)/, '')
   end
 
   def path_variables
-    api_path.scan(%r{:(\w+)}).map { |v| v.first }
+    api_path.scan(%r{:(\w+)}).map(&:first)
   end
 
   def swagger_path
@@ -69,7 +70,7 @@ class RouteView < HashView
   end
 
   def query_arg_names
-    query_args.map { |arg| arg.name }
+    query_args.map(&:name)
   end
 
   def path_args
@@ -83,7 +84,7 @@ class RouteView < HashView
   end
 
   def parameters
-    arguments.map { |arg| arg.to_swagger }
+    arguments.map(&:to_swagger)
   end
 
   def response_fields

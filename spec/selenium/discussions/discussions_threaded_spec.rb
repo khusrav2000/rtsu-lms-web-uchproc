@@ -31,7 +31,7 @@ describe "threaded discussions" do
     @student = student_in_course(course: @course, name: 'student', active_all: true).user
   end
 
-  before(:each) do
+  before do
     user_session(@teacher)
     stub_rcs_config
   end
@@ -227,7 +227,7 @@ describe "threaded discussions" do
     end
 
     context "student tray" do
-      before(:each) do
+      before do
         @account = Account.default
       end
 
@@ -293,7 +293,7 @@ describe "threaded discussions" do
     end
 
     context 'concluded student' do
-      before :each do
+      before do
         student_enrollment = course_with_student(
           :course => @course,
           :user => @student,
@@ -308,12 +308,10 @@ describe "threaded discussions" do
         get "/courses/#{@course.id}/discussion_topics/#{@topic.id}"
       end
 
-      it "does not allow editing for a concluded student", skip: 'VICE-1986' do
-        # TODO: complete test once concluded students can no longer edit
-      end
-
-      it "does not allow deleting for a concluded student", skip: 'VICE-1986' do
-        # TODO: complete test once concluded students can no longer delete
+      it "does not allow editing or deleting for a concluded student" do
+        f("button[data-testid='thread-actions-menu']").click
+        expect(f('body')).not_to contain_jqcss("li:contains('Edit')")
+        expect(f('body')).not_to contain_jqcss("li:contains('Delete')")
       end
     end
 

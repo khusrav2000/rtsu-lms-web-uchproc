@@ -550,7 +550,7 @@ describe "Accounts API", type: :request do
         }
       end
 
-      before(:each) do
+      before do
         user_session(@user)
       end
 
@@ -573,7 +573,7 @@ describe "Accounts API", type: :request do
       end
 
       context 'microsoft_group_enrollments_syncing flag disabled' do
-        before(:each) { account.root_account.disable_feature!(:microsoft_group_enrollments_syncing) }
+        before { account.root_account.disable_feature!(:microsoft_group_enrollments_syncing) }
 
         it_behaves_like 'an invalid request'
 
@@ -585,7 +585,7 @@ describe "Accounts API", type: :request do
       end
 
       context 'microsoft_group_enrollments_syncing flag enabled' do
-        before(:each) { account.root_account.enable_feature!(:microsoft_group_enrollments_syncing) }
+        before { account.root_account.enable_feature!(:microsoft_group_enrollments_syncing) }
 
         context 'no Microsoft Teams settings provided' do
           let(:tenant_name) { nil }
@@ -691,7 +691,7 @@ describe "Accounts API", type: :request do
         end
 
         context 'account already has settings' do
-          before(:each) do
+          before do
             account.settings = {
               microsoft_sync_enabled: true,
               microsoft_sync_tenant: 'canvastest2.onmicrosoft.com',
@@ -717,7 +717,7 @@ describe "Accounts API", type: :request do
             it_behaves_like 'a valid request'
 
             context 'account has already has a suffix set' do
-              before(:each) do
+              before do
                 account.settings[:microsoft_sync_login_attribute_suffix] = "@example.com"
                 account.save!
               end
@@ -964,7 +964,7 @@ describe "Accounts API", type: :request do
                         { :controller => 'accounts', :action => 'courses_api',
                           :account_id => @a1.to_param, :format => 'json' })
 
-        [@c1, @c2].each { |c| c.reload }
+        [@c1, @c2].each(&:reload)
         expect(json.first['id']).to eq @c1.id
         expect(json.first['name']).to eq 'c1'
         expect(json.first['account_id']).to eq @c1.account_id
@@ -998,7 +998,7 @@ describe "Accounts API", type: :request do
       json = api_call(:get, "/api/v1/accounts/#{@a1.id}/courses?include[]=storage_quota_used_mb&include[]=account_name",
                       { :controller => 'accounts', :action => 'courses_api', :account_id => @a1.to_param,
                         :format => 'json', :include => ['storage_quota_used_mb', 'account_name'] }, {})
-      expect(json[0].has_key?("storage_quota_used_mb")).to be_truthy
+      expect(json[0]).to have_key("storage_quota_used_mb")
       expect(json[0]).to have_key("account_name")
     end
 
@@ -1054,7 +1054,7 @@ describe "Accounts API", type: :request do
       c1_hash = json.detect { |h| h['id'] == @c1.id }
       expect(c1_hash['teachers']).to be_present
       c2_hash = json.detect { |h| h['id'] == @c2.id }
-      expect(c2_hash.has_key?('teachers')).to eq false
+      expect(c2_hash).not_to have_key('teachers')
       expect(c2_hash['teacher_count']).to eq 2
     end
 
@@ -1427,7 +1427,6 @@ describe "Accounts API", type: :request do
         @t1 = @teacher
         course_with_teacher(:account => @a1, :user => @t1, :course_name => 'c1b')
         course_with_teacher(:account => @a1, :course_name => 'c2')
-        @teacher
         course_with_teacher(:account => @a1, :course_name => 'c3')
         @t3 = @teacher
         @user = @me
@@ -1444,7 +1443,7 @@ describe "Accounts API", type: :request do
       it "filters courses by teacher enrollments" do
         json = api_call(:get, "/api/v1/accounts/#{@a1.id}/courses?by_teachers[]=sis_user_id:a_sis_id&by_teachers[]=#{@t3.id}",
                         { :controller => 'accounts', :action => 'courses_api', :account_id => @a1.to_param,
-                          :format => 'json', :by_teachers => ['sis_user_id:a_sis_id', "#{@t3.id}"] },
+                          :format => 'json', :by_teachers => ['sis_user_id:a_sis_id', @t3.id.to_s] },
                         {}, {}, { :domain_root_account => @a1 })
         expect(json.collect { |row| row['name'] }).to eql ['c1a', 'c1b', 'c3']
       end
@@ -1502,7 +1501,7 @@ describe "Accounts API", type: :request do
       it "works with a numeric ID" do
         json = api_call(:get, "/api/v1/accounts/#{@a1.id}/courses?by_subaccounts[]=#{@sub2.id}",
                         { :controller => 'accounts', :action => 'courses_api', :account_id => @a1.to_param,
-                          :format => 'json', :by_subaccounts => ["#{@sub2.id}"] },
+                          :format => 'json', :by_subaccounts => [@sub2.id.to_s] },
                         {}, {}, { :domain_root_account => @a1 })
         expect(json.collect { |row| row['name'] }).to eql ['in sub2']
       end
@@ -1665,28 +1664,20 @@ describe "Accounts API", type: :request do
   end
 
   context "account api extension" do
-    module MockPlugin
-      def self.extend_account_json(hash, *)
-        hash[:extra_thing] = "something"
-      end
-    end
-
-    module BadMockPlugin
-      def self.not_the_right_method
+    let(:mock_plugin) do
+      Module.new do
+        def self.extend_account_json(hash, *)
+          hash[:extra_thing] = "something"
+        end
       end
     end
 
     include Api::V1::Account
 
     it "allows a plugin to extend the account_json method" do
-      expect(Api::V1::Account.register_extension(BadMockPlugin)).to be_falsey
-      expect(Api::V1::Account.register_extension(MockPlugin)).to be_truthy
+      allow(Api::V1::Account).to receive(:extensions).and_return([mock_plugin])
 
-      begin
-        expect(account_json(@a1, @me, @session, [])[:extra_thing]).to eq "something"
-      ensure
-        Api::V1::Account.deregister_extension(MockPlugin)
-      end
+      expect(account_json(@a1, @me, @session, [])[:extra_thing]).to eq "something"
     end
   end
 end

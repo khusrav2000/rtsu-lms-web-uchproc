@@ -62,7 +62,7 @@ module ApplicationHelper
   def context_prefix(code)
     return '/{{ context_type_pluralized }}/{{ context_id }}' unless code
 
-    split = code.split(/_/)
+    split = code.split("_")
     id = split.pop
     type = split.join('_')
     "/#{type.pluralize}/#{id}"
@@ -76,11 +76,9 @@ module ApplicationHelper
       Rails
       .cache
       .fetch(['short_name_lookup', code].cache_key) do
-        begin
-          Context.find_by_asset_string(code).short_name
-        rescue StandardError
-          ''
-        end
+        Context.find_by_asset_string(code).short_name
+      rescue StandardError
+        ''
       end
   end
 
@@ -310,7 +308,7 @@ module ApplicationHelper
   def css_variant(opts = {})
     variant = use_responsive_layout? ? 'responsive_layout' : 'new_styles'
     use_high_contrast =
-      (@current_user && @current_user.prefers_high_contrast?) || opts[:force_high_contrast]
+      @current_user&.prefers_high_contrast? || opts[:force_high_contrast]
     variant + (use_high_contrast ? '_high_contrast' : '_normal_contrast') +
       (I18n.rtl? ? '_rtl' : '')
   end
@@ -429,7 +427,7 @@ module ApplicationHelper
 
   def embedded_chat_url
     chat_tool = active_external_tool_by_id('chat')
-    return unless chat_tool && chat_tool.url && chat_tool.custom_fields['mini_view_url']
+    return unless chat_tool&.url && chat_tool.custom_fields['mini_view_url']
 
     uri = URI.parse(chat_tool.url)
     uri.path = chat_tool.custom_fields['mini_view_url']
@@ -438,7 +436,7 @@ module ApplicationHelper
 
   def embedded_chat_enabled
     chat_tool = active_external_tool_by_id('chat')
-    chat_tool && chat_tool.url && chat_tool.custom_fields['mini_view_url'] &&
+    chat_tool&.url && chat_tool.custom_fields['mini_view_url'] &&
       Canvas::Plugin.value_to_boolean(chat_tool.custom_fields['embedded_chat_enabled'])
   end
 
@@ -642,7 +640,7 @@ module ApplicationHelper
   end
 
   def inline_media_comment_link(comment = nil)
-    if comment && comment.media_comment_id
+    if comment&.media_comment_id
       raw "<a href=\"#\" class=\"instructure_inline_media_comment no-underline\" #{dataify(comment, :media_comment_id, :media_comment_type)} >&nbsp;</a>"
     end
   end
@@ -686,8 +684,8 @@ module ApplicationHelper
     opts[:indent_width] ||= 3
     opts[:depth] ||= 0
     opts[:options_so_far] ||= []
-    if opts.has_key?(:all_folders)
-      opts[:sub_folders] = opts.delete(:all_folders).to_a.group_by { |f| f.parent_folder_id }
+    if opts.key?(:all_folders)
+      opts[:sub_folders] = opts.delete(:all_folders).to_a.group_by(&:parent_folder_id)
     end
 
     folders.each do |folder|
@@ -732,12 +730,9 @@ module ApplicationHelper
 
   # return enough group data for the planner to display items associated with groups
   def map_groups_for_planner(groups)
-    mapped =
-      groups.map do |g|
-        { id: g.id, assetString: g.asset_string, name: g.name, url: "/groups/#{g.id}" }
-      end
-
-    mapped
+    groups.map do |g|
+      { id: g.id, assetString: g.asset_string, name: g.name, url: "/groups/#{g.id}" }
+    end
   end
 
   def show_feedback_link?
@@ -837,7 +832,7 @@ module ApplicationHelper
     # for finding which values to show in the theme editor
     return @brand_account if opts[:ignore_parents]
 
-    if !@brand_account
+    unless @brand_account
       if @current_user.present?
         # If we're not viewing a `context` with an account, like if we're on the dashboard or my
         # user profile, show the branding for the lowest account where all my enrollments are. eg:
@@ -960,13 +955,14 @@ module ApplicationHelper
   # date format to screenreader users across the app
   # when telling them how to fill in a datetime field
   def accessible_date_format(format = 'datetime')
-    if !ACCEPTABLE_FORMAT_TYPES.include?(format)
+    unless ACCEPTABLE_FORMAT_TYPES.include?(format)
       raise ArgumentError, "format must be one of #{ACCEPTABLE_FORMAT_TYPES.join(',')}"
     end
 
-    if format == 'date'
+    case format
+    when 'date'
       I18n.t('#helpers.accessible_date_only_format', 'YYYY-MM-DD')
-    elsif format == 'time'
+    when 'time'
       I18n.t('#helpers.accessible_time_only_format', 'hh:mm')
     else
       I18n.t('#helpers.accessible_date_format', 'YYYY-MM-DD hh:mm')
@@ -987,12 +983,12 @@ module ApplicationHelper
   # cache key, so that we don't make an overly-long cache key.
   # if you can avoid loading the list at all, that's even better, of course.
   def collection_cache_key(collection)
-    keys = collection.map { |element| element.cache_key }
+    keys = collection.map(&:cache_key)
     Digest::MD5.hexdigest(keys.join('/'))
   end
 
   def add_uri_scheme_name(uri)
-    noSchemeName = !uri.match(%r{^(.+):\/\/(.+)})
+    noSchemeName = !uri.match(%r{^(.+)://(.+)})
     uri = 'http://' + uri if noSchemeName
     uri
   end
@@ -1066,7 +1062,8 @@ module ApplicationHelper
         @csp_context_is_submission = false
         attachment = @attachment || @context
         if attachment.is_a?(Attachment)
-          if attachment.context_type == 'User'
+          case attachment.context_type
+          when 'User'
             # search for an attachment association
             aas =
               attachment
@@ -1083,10 +1080,10 @@ module ApplicationHelper
               @csp_context_is_submission = true
               courses.first
             end
-          elsif attachment.context_type == 'Submission'
+          when 'Submission'
             @csp_context_is_submission = true
             attachment.submission.assignment.course
-          elsif attachment.context_type == 'Course'
+          when 'Course'
             attachment.course
           else
             brand_config_account
@@ -1113,12 +1110,10 @@ module ApplicationHelper
 
   def csp_report_uri
     @csp_report_uri ||=
-      begin
-        if (host = csp_context.root_account.csp_logging_config['host'])
-          "; report-uri #{host}report/#{csp_context.root_account.global_id}"
-        else
-          ''
-        end
+      if (host = csp_context.root_account.csp_logging_config['host'])
+        "; report-uri #{host}report/#{csp_context.root_account.global_id}"
+      else
+        ''
       end
   end
 
@@ -1168,9 +1163,9 @@ module ApplicationHelper
         include_tools: false
       )
     if include_files_domain_in_csp
-      frame_domains = %w['self'] + frame_domains
-      object_domains = %w['self'] + script_domains
-      script_domains = %w['self' 'unsafe-eval' 'unsafe-inline'] + script_domains
+      frame_domains = ["'self'"] + frame_domains
+      object_domains = ["'self'"] + script_domains
+      script_domains = ["'self'", "'unsafe-eval'", "'unsafe-inline'"] + script_domains
     end
     "frame-src #{frame_domains.join(' ')}; script-src #{script_domains.join(' ')}; object-src #{object_domains.join(' ')}; "
   end
@@ -1187,7 +1182,7 @@ module ApplicationHelper
 
   # Determine if url is the current state for the groups sub-nav switcher
   def group_homepage_pathfinder(group)
-    request.fullpath =~ %r{groups\/#{group.id}}
+    request.fullpath =~ %r{groups/#{group.id}}
   end
 
   def link_to_parent_signup(auth_type)
@@ -1218,7 +1213,8 @@ module ApplicationHelper
   end
 
   def planner_enabled?
-    !!(@current_user&.has_student_enrollment?) || (Account.site_admin.feature_enabled?(:k5_parent_support) && @current_user&.roles(@domain_root_account)&.include?('observer'))
+    !!@current_user&.has_student_enrollment? ||
+      (Account.site_admin.feature_enabled?(:k5_parent_support) && @current_user&.roles(@domain_root_account)&.include?('observer') && k5_user?)
   end
 
   def will_paginate(collection, options = {})

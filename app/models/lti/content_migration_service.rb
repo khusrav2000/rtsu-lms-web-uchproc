@@ -19,7 +19,7 @@
 
 module Lti
   module ContentMigrationService
-    KEY_REGEX = /\Alti_(?<id>\d+)\z/
+    KEY_REGEX = /\Alti_(?<id>\d+)\z/.freeze
 
     def self.enabled?
       Setting.get('enable_lti_content_migration', 'false') == 'true'
@@ -37,13 +37,11 @@ module Lti
       exports = {}
 
       configured_tools.each do |tool|
-        begin
-          migrator = Lti::ContentMigrationService::Exporter.new(course, tool, options)
-          migrator.start!
-          exports["lti_#{tool.id}"] = migrator if migrator.successfully_started?
-        rescue => e
-          Canvas::Errors.capture_exception(:external_content_migration, e)
-        end
+        migrator = Lti::ContentMigrationService::Exporter.new(course, tool, options)
+        migrator.start!
+        exports["lti_#{tool.id}"] = migrator if migrator.successfully_started?
+      rescue => e
+        Canvas::Errors.capture_exception(:external_content_migration, e)
       end
 
       exports

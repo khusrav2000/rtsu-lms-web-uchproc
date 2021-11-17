@@ -78,7 +78,7 @@ describe Quizzes::QuizRegrader::Answer do
       sent_params, sent_answer_data = args
       if question.question_data[:question_type] == 'multiple_answers_question'
         answer.each do |k, v|
-          next unless /answer/ =~ k
+          next unless k.to_s.include?('answer')
 
           key = "question_#{question.id}_#{k}"
           expect(sent_answer_data[key]).to eq v
@@ -200,7 +200,7 @@ describe Quizzes::QuizRegrader::Answer do
       end
 
       it 'works with multiple_answer_questions' do
-        question.question_data.merge!(:question_type => 'multiple_answers_question')
+        question.question_data[:question_type] = 'multiple_answers_question'
         answer.merge!(:answer_1 => "0", :answer_2 => "1")
         mark_original_answer_as!(:correct)
         score_question_as!(:correct)

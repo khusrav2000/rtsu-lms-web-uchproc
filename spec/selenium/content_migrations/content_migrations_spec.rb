@@ -36,7 +36,7 @@ def select_migration_file(opts = {})
 
   new_filename, fullpath, _data = get_file(filename, opts[:data])
   f('#migrationFileUpload').send_keys(fullpath)
-  return new_filename
+  new_filename
 end
 
 def fill_migration_form(opts = {})
@@ -135,7 +135,7 @@ describe "content migrations", :non_parallel do
   end
 
   context "canvas cartridge importing" do
-    before :each do
+    before do
       course_with_teacher_logged_in
       @type = 'canvas_cartridge_importer'
       @filename = 'cc_outcomes.imscc'
@@ -162,7 +162,7 @@ describe "content migrations", :non_parallel do
   end
 
   context "common cartridge importing" do
-    before :each do
+    before do
       course_with_teacher_logged_in
       @type = 'common_cartridge_importer'
       @filename = 'cc_full_test.zip'
@@ -301,7 +301,7 @@ describe "content migrations", :non_parallel do
       @type = "course_copy_importer"
     end
 
-    before :each do
+    before do
       course_with_teacher_logged_in(:active_all => true)
       @copy_from.enroll_teacher(@user).accept
     end
@@ -683,7 +683,7 @@ describe "content migrations", :non_parallel do
       visit_page
       migration_type_options = ff('#chooseMigrationConverter option')
       migration_type_values = migration_type_options.map { |op| op['value'] }
-      migration_type_texts = migration_type_options.map { |op| op.text }
+      migration_type_texts = migration_type_options.map(&:text)
       expect(migration_type_values).to include(import_tool.asset_string)
       expect(migration_type_texts).to include(import_tool.name)
       expect(migration_type_values).not_to include(other_tool.asset_string)

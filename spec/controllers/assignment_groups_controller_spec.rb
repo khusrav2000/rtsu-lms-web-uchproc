@@ -290,7 +290,7 @@ describe AssignmentGroupsController do
 
         it 'does not check visibilities on individual assignemnts' do
           # ensures that check is not an N+1 from the gradebook
-          expect_any_instance_of(Assignment).to receive(:students_with_visibility).never
+          expect_any_instance_of(Assignment).not_to receive(:students_with_visibility)
           get 'index', params: { :course_id => @course.id, :include => ['assignments', 'assignment_visibility'] }, :format => :json
           expect(response).to be_successful
         end
@@ -473,7 +473,7 @@ describe AssignmentGroupsController do
 
     it 'reorders assignment groups' do
       user_session(@teacher)
-      groups = 3.times.map { course_group }
+      groups = Array.new(3) { course_group }
       expect(groups.map(&:position)).to eq [1, 2, 3]
       g1, g2, _ = groups
       post 'reorder', params: { :course_id => @course.id, :order => "#{g2.id},#{g1.id}" }

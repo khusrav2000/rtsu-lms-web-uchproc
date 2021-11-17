@@ -246,9 +246,9 @@ module Types
     #
     # alternatively, figure out what kind of permissions a person needs to view
     # another user's groups?
-    field :groups, [GroupType], <<~DESC, null: true
+    field :groups, [GroupType], <<~MD, null: true
       **NOTE**: this only returns groups for the currently logged-in user.
-    DESC
+    MD
     def groups
       if object == current_user
         # FIXME: this only returns groups on the current shard.  it should
@@ -297,10 +297,19 @@ module Types
       end
     end
 
+    field :submission_comments_connection, Types::SubmissionCommentType.connection_type, null: true
+    def submission_comments_connection
+      return unless object == current_user
+
+      load_association(:all_courses).then do |courses|
+        Submission.where('submission_comments_count > 0').where(course: courses).flat_map { |submission| submission.visible_submission_comments_for(current_user) }
+      end
+    end
+
     field :comment_bank_items_connection, Types::CommentBankItemType.connection_type, null: true do
-      argument :query, String, <<~DOC, required: false
+      argument :query, String, <<~MD, required: false
         Only include comments that match the query string.
-      DOC
+      MD
       argument :limit, Integer, required: false
     end
     def comment_bank_items_connection(query: nil, limit: nil)

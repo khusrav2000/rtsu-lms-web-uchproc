@@ -42,10 +42,10 @@ class Quizzes::QuizExtension
     extensions = []
     quizzes.each do |quiz|
       sub_manager = Quizzes::SubmissionManager.new(quiz)
-      ext_params.map do |ext_params|
-        student    = students.find(ext_params[:user_id])
+      ext_params.map do |params|
+        student    = students.find(params[:user_id])
         submission = sub_manager.find_or_create_submission(student, nil, 'settings_only')
-        extension  = self.new(submission, ext_params)
+        extension  = self.new(submission, params)
         yield extension if block_given? # use yielded block to check permissions
         extensions << extension
       end
@@ -67,7 +67,7 @@ class Quizzes::QuizExtension
     end
 
     # false is a valid value, so explicitly check nil
-    if !ext_params[:manually_unlocked].nil?
+    unless ext_params[:manually_unlocked].nil?
       unlocked = [1, "1", true, "true"].include?(ext_params[:manually_unlocked])
       quiz_submission.manually_unlocked = unlocked
     end

@@ -149,7 +149,7 @@ describe AssignmentOverridesController, type: :request do
     end
 
     describe 'as an account admin not enrolled in the class' do
-      before :each do
+      before do
         account_admin_user(:account => Account.site_admin, :active_all => true)
       end
 
@@ -781,7 +781,7 @@ describe AssignmentOverridesController, type: :request do
         expect(new_prog).to be_completed # since they can't see the assignment yet
 
         other_prog = mod.evaluate_for(@other_student)
-        expect_any_instantiation_of(other_prog).to receive(:evaluate!).never
+        expect_any_instantiation_of(other_prog).not_to receive(:evaluate!)
 
         api_update_override(@course, @assignment, @override, :assignment_override => { :student_ids => [@new_student.id] })
 
@@ -1112,12 +1112,12 @@ describe AssignmentOverridesController, type: :request do
   context 'batch operations' do
     before :once do
       course_with_teacher(:active_all => true)
-      @a, @b = 2.times.map { assignment_model(:course => @course) }
-      @a1, @a2 = 2.times.map do
+      @a, @b = Array.new(2) { assignment_model(:course => @course) }
+      @a1, @a2 = Array.new(2) do
         student_in_course
         create_adhoc_override_for_assignment(@a, @student)
       end
-      @b1, @b2, @b3 = 3.times.map do
+      @b1, @b2, @b3 = Array.new(3) do
         create_section_override_for_assignment(@b, course_section: @course.course_sections.create!)
       end
       @user = @teacher

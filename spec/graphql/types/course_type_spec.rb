@@ -21,8 +21,12 @@
 require_relative "../graphql_spec_helper"
 
 describe Types::CourseType do
-  let_once(:course) { course_with_student(active_all: true); @course }
+  let_once(:course) {
+    course_with_student(active_all: true)
+    @course
+  }
   let(:course_type) { GraphQLTypeTester.new(course, current_user: @student) }
+
   let_once(:other_section) { course.course_sections.create! name: "other section" }
   let_once(:other_teacher) {
     course.enroll_teacher(user_factory, section: other_section, limit_privileges_to_course_section: true).user
@@ -55,7 +59,10 @@ describe Types::CourseType do
   end
 
   context "sis fields" do
-    let_once(:sis_course) { course.update!(sis_course_id: "SIScourseID"); course }
+    let_once(:sis_course) {
+      course.update!(sis_course_id: "SIScourseID")
+      course
+    }
 
     let(:admin) { account_admin_user_with_role_changes(role_changes: { read_sis: false }) }
 
@@ -106,7 +113,7 @@ describe Types::CourseType do
                                              start_date: 2.days.ago,
                                              end_date: 2.days.from_now
         @term1_assignment1 = course.assignments.create! name: "asdf",
-                                                        due_at: (1.5).weeks.ago
+                                                        due_at: 1.5.weeks.ago
         @term2_assignment1 = course.assignments.create! name: ";lkj",
                                                         due_at: Date.today
       end
@@ -151,11 +158,11 @@ describe Types::CourseType do
           course_type.resolve(<<~GQL, current_user: @student)
             assignmentsConnection(filter: {gradingPeriodId: null}) { edges { node { _id } } }
           GQL
-        ).to eq [
+        ).to eq([
           other_ag_assignment,
           @term2_assignment1,
           @term1_assignment1,
-        ].map { |a| a.id.to_s }
+        ].map { |a| a.id.to_s })
       end
     end
   end
@@ -343,12 +350,8 @@ describe Types::CourseType do
     before(:once) do
       @student1 = @student
       @student2 = student_in_course(active_all: true).user
-      @inactive_user = student_in_course.tap { |enrollment|
-        enrollment.invite
-      }.user
-      @concluded_user = student_in_course.tap { |enrollment|
-        enrollment.complete
-      }.user
+      @inactive_user = student_in_course.tap(&:invite).user
+      @concluded_user = student_in_course.tap(&:complete).user
     end
 
     describe "usersConnection" do
@@ -417,6 +420,39 @@ describe Types::CourseType do
           @teacher.enrollments.first.id.to_s,
           other_teacher.enrollments.first.id.to_s,
         ]
+      end
+
+      describe "filtering" do
+        it "returns only enrollments of the specified types if included" do
+          ta_enrollment = course.enroll_ta(User.create!, enrollment_state: :active)
+
+          expect(
+            course_type.resolve(
+              "enrollmentsConnection(filter: {types: [TeacherEnrollment, TaEnrollment]}) { nodes { _id } }",
+              current_user: @teacher
+            )
+          ).to match_array([
+                             @teacher.enrollments.first.id.to_s,
+                             other_teacher.enrollments.first.id.to_s,
+                             ta_enrollment.id.to_s
+                           ])
+        end
+
+        it "returns only enrollments with the specified associated_user_ids if included" do
+          observer = User.create!
+          observer_enrollment = observer_in_course(course: @course, user: observer)
+          observer_enrollment.update!(associated_user: @student1)
+
+          other_observer_enrollment = observer_in_course(course: @course, user: observer)
+          other_observer_enrollment.update!(associated_user: @student2)
+
+          expect(
+            course_type.resolve(
+              "enrollmentsConnection(filter: {associatedUserIds: [#{@student1.id}]}) { nodes { _id } }",
+              current_user: @teacher
+            )
+          ).to eq [observer_enrollment.id.to_s]
+        end
       end
     end
   end

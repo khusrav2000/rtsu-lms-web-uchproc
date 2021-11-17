@@ -43,7 +43,7 @@ describe "SpeedGrader" do
   end
 
   context "with an anonymous assignment" do
-    before(:each) do
+    before do
       # an anonymous assignment
       @assignment = @course.assignments.create!(
         name: 'anonymous assignment',
@@ -95,7 +95,7 @@ describe "SpeedGrader" do
   end
 
   context 'with a moderated assignment' do
-    before(:each) do
+    before do
       @moderated_assignment = @course.assignments.create!(
         title: 'Moderated Assignment1',
         grader_count: 2,
@@ -175,7 +175,7 @@ describe "SpeedGrader" do
       selections = @moderated_assignment.moderated_grading_selections
 
       expect(pg.score).to eq 12
-      expect(selections.exists?(selected_provisional_grade_id: pg.id)).to be true
+      expect(selections.where(selected_provisional_grade_id: pg.id).exists?).to be true
     end
   end
 

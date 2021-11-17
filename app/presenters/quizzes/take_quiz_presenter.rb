@@ -115,7 +115,7 @@ class Quizzes::TakeQuizPresenter
   end
 
   def question_answered?(question)
-    answers.has_key?(question[:id])
+    answers.key?(question[:id])
   end
 
   def question_index(question)
@@ -195,7 +195,7 @@ class Quizzes::TakeQuizPresenter
   end
 
   def form_action_params(session, user)
-    url_params = { :user_id => user && user.id }
+    url_params = { :user_id => user&.id }
     if session['lockdown_browser_popup']
       url_params.merge!(Canvas::LockdownBrowser.plugin.base.quiz_exit_params)
     end
@@ -215,26 +215,26 @@ class Quizzes::TakeQuizPresenter
   # is meaningless; if the key exists, then the question is answered.
   def resolve_answers(dataset = submission_data)
     # get all the question status-entries and group them by the question id
-    _answers = dataset.keys.group_by do |k|
+    answers = dataset.keys.group_by do |k|
       k =~ /question_(\d+)/ ? $1.to_i : :irrelevant
     end
 
     # remove any non-question keys we've collected
-    _answers.delete(:irrelevant)
+    answers.delete(:irrelevant)
 
     # discard "marked" or "read" entries
-    _answers.each_pair do |_, status_entries|
+    answers.each_pair do |_, status_entries|
       status_entries.reject! { |status| status =~ /_(marked|read)$/ }
     end
 
-    _answers.reject! do |_, status_entries|
+    answers.reject! do |_, status_entries|
       # an answer must not be falsy/empty
       status_entries.any? { |status| !dataset[status].present? } ||
         # all zeroes for an answer is a no-answer
         status_entries.all? { |status| dataset[status] == '0' }
     end
 
-    _answers
+    answers
   end
 
   def determine_current_questions

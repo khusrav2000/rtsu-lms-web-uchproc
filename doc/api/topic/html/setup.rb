@@ -36,9 +36,9 @@ def method_details_list
 end
 
 def topic_doc
-  @docstring = options[:controllers].map { |c| c.docstring }.join("\n\n")
+  @docstring = options[:controllers].map(&:docstring).join("\n\n")
   @object = @object.dup
-  def @object.source_type; nil; end
+  def @object.source_type; end # rubocop:disable Lint/NestedMethodDefinition rubocop bug?
   @json_objects = options[:json_objects][@resource] || []
   erb(:topic_doc)
 end

@@ -65,12 +65,10 @@ module Canvas::Migration::ExternalContent
           sleep(retry_delay) if retry_count > 0
 
           pending_keys.each do |service_key|
-            begin
-              pending_keys.delete(service_key) if yield(service_key)
-            rescue => e
-              pending_keys.delete(service_key) # don't retry if failed
-              Canvas::Errors.capture_exception(:external_content_migration, e)
-            end
+            pending_keys.delete(service_key) if yield(service_key)
+          rescue => e
+            pending_keys.delete(service_key) # don't retry if failed
+            Canvas::Errors.capture_exception(:external_content_migration, e)
           end
           retry_count += 1
         end
@@ -137,7 +135,7 @@ module Canvas::Migration::ExternalContent
       end
 
       private def import_service_for(key)
-        if Lti::ContentMigrationService::KEY_REGEX =~ key
+        if Lti::ContentMigrationService::KEY_REGEX.match?(key)
           Lti::ContentMigrationService.importer_for(key)
         else
           self.registered_services[key]

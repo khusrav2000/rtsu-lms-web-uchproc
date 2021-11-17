@@ -514,9 +514,9 @@ describe ExternalToolsController, type: :request do
     expect(json.length).to eq 3
     links = response.headers['Link'].split(",")
     expect(links.all? { |l| l =~ /api\/v1\/groups\/#{group.id}\/external_tools/ }).to be_truthy
-    expect(links.find { |l| l.match(/rel="next"/) }).to match(/page=2/)
-    expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-    expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+    expect(links.find { |l| l.include?('rel="next"') }).to match(/page=2/)
+    expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+    expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
 
     # get the last page
     json = api_call(:get, "/api/v1/groups/#{group.id}/external_tools",
@@ -526,9 +526,9 @@ describe ExternalToolsController, type: :request do
     expect(json.length).to eq 1
     links = response.headers['Link'].split(",")
     expect(links.all? { |l| l =~ /api\/v1\/groups\/#{group.id}\/external_tools/ }).to be_truthy
-    expect(links.find { |l| l.match(/rel="prev"/) }).to match(/page=2/)
-    expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-    expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+    expect(links.find { |l| l.include?('rel="prev"') }).to match(/page=2/)
+    expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+    expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
   end
 
   def index_call(context, type = "course")
@@ -647,9 +647,9 @@ describe ExternalToolsController, type: :request do
     expect(json.length).to eq 3
     links = response.headers['Link'].split(",")
     expect(links.all? { |l| l =~ /api\/v1\/#{type}s\/#{context.id}\/external_tools/ }).to be_truthy
-    expect(links.find { |l| l.match(/rel="next"/) }).to match(/page=2/)
-    expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-    expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+    expect(links.find { |l| l.include?('rel="next"') }).to match(/page=2/)
+    expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+    expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
 
     # get the last page
     json = api_call(:get, "/api/v1/#{type}s/#{context.id}/external_tools.json?page=3&per_page=3",
@@ -657,9 +657,9 @@ describe ExternalToolsController, type: :request do
     expect(json.length).to eq 1
     links = response.headers['Link'].split(",")
     expect(links.all? { |l| l =~ /api\/v1\/#{type}s\/#{context.id}\/external_tools/ }).to be_truthy
-    expect(links.find { |l| l.match(/rel="prev"/) }).to match(/page=2/)
-    expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-    expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+    expect(links.find { |l| l.include?('rel="prev"') }).to match(/page=2/)
+    expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+    expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
   end
 
   def tool_with_everything(context, opts = {})
@@ -691,6 +691,7 @@ describe ExternalToolsController, type: :request do
     et.file_index_menu = { :url => "http://www.example.com/ims/lti/resource", :text => "file index menu", display_type: 'full_width', visibility: 'admins' }
     et.module_menu = { :url => "http://www.example.com/ims/lti/resource", :text => "module menu", display_type: 'full_width', visibility: 'admins' }
     et.module_index_menu = { :url => "http://www.example.com/ims/lti/resource", :text => "modules index menu", display_type: 'full_width', visibility: 'admins' }
+    et.module_index_menu_modal = { url: "http://www.example.com/ims/lti/resource", text: "modules index menu (modal)", display_type: 'full_width', visibility: 'admins' }
     et.module_group_menu = { :url => "http://www.example.com/ims/lti/resource", :text => "modules group menu", display_type: 'full_width', visibility: 'admins' }
     et.quiz_menu = { :url => "http://www.example.com/ims/lti/resource", :text => "quiz menu", display_type: 'full_width', visibility: 'admins' }
     et.quiz_index_menu = { :url => "http://www.example.com/ims/lti/resource", :text => "quiz index menu", display_type: 'full_width', visibility: 'admins' }
@@ -1022,6 +1023,16 @@ describe ExternalToolsController, type: :request do
         "selection_height" => 400,
         "selection_width" => 800,
       },
+      "module_index_menu_modal" => {
+        "enabled" => true,
+        "text" => "modules index menu (modal)",
+        "label" => "modules index menu (modal)",
+        "url" => "http://www.example.com/ims/lti/resource",
+        "visibility" => 'admins',
+        "display_type" => 'full_width',
+        "selection_height" => 400,
+        "selection_width" => 800,
+      },
       "link_selection" => nil,
       "assignment_selection" => nil,
       "post_grades" => nil,
@@ -1038,20 +1049,18 @@ describe ExternalToolsController, type: :request do
       #     "label"=>"conference selection",
       #     "selection_height"=>400,
       #     "selection_width"=>800},
-      "course_assignments_menu" => begin
-        if et && et.course_assignments_menu
-          {
-            "enabled" => true,
-            "text" => "course assignments menu",
-            "url" => "http://www.example.com/ims/lti/resource",
-            "label" => "course assignments menu",
-            "selection_width" => 800,
-            "selection_height" => 400
-          }
-        end
-      end,
+      "course_assignments_menu" => if et&.course_assignments_menu
+                                     {
+                                       "enabled" => true,
+                                       "text" => "course assignments menu",
+                                       "url" => "http://www.example.com/ims/lti/resource",
+                                       "label" => "course assignments menu",
+                                       "selection_width" => 800,
+                                       "selection_height" => 400
+                                     }
+                                   end
     }
-    example["is_rce_favorite"] = et.is_rce_favorite if et && et.can_be_rce_favorite?
+    example["is_rce_favorite"] = et.is_rce_favorite if et&.can_be_rce_favorite?
     example
   end
 end

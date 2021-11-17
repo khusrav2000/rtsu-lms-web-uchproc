@@ -44,7 +44,7 @@ describe "assignments" do
       @course.require_assignment_group
     end
 
-    before :each do
+    before do
       create_session(@pseudonym)
     end
 
@@ -558,12 +558,12 @@ describe "assignments" do
       drag_with_js("#assignment_#{as[0].id}", 0, 50)
       wait_for_ajaximations
 
-      as.each { |a| a.reload }
+      as.each(&:reload)
       expect(as.collect(&:position)).to eq [2, 1, 3, 4]
     end
 
     context "with Responsive fix" do
-      before :each do
+      before do
         Account.default.enable_feature!('responsive_misc')
       end
 
@@ -582,7 +582,7 @@ describe "assignments" do
         drag_with_js("#assignment_#{as[0].id} .draggable-handle", 0, 50)
         wait_for_ajaximations
 
-        as.each { |a| a.reload }
+        as.each(&:reload)
         expect(as.collect(&:position)).to eq [2, 1, 3, 4]
       end
     end

@@ -58,7 +58,7 @@ describe ConversationMessage do
       user_factory
       @conversation = @teacher.initiate_conversation([@user])
       message = add_message
-      expect(message.author_short_name_with_shared_contexts(@user)).to eq "#{message.author.short_name}"
+      expect(message.author_short_name_with_shared_contexts(@user)).to eq message.author.short_name
     end
 
     it "creates appropriate notifications on new message", priority: "1", test_id: 186561 do
@@ -100,7 +100,7 @@ describe ConversationMessage do
       message_user_ids = message.messages_sent["Conversation Message"].map(&:user_id)
       expect(message_user_ids).not_to include(@teacher.id)
       expect(message_user_ids).to include(@students.first.id)
-      @students[1..-1].each do |student|
+      @students[1..].each do |student|
         expect(message_user_ids).not_to include(student.id)
       end
     end
@@ -189,7 +189,7 @@ describe ConversationMessage do
       @submission = @assignment.submit_homework(@user, :body => 'some message')
       @submission.add_comment(:author => @user, :comment => "hello")
 
-      expect(StreamItem.all.select { |i| i.asset_string =~ /conversation_/ }).to be_empty
+      expect(StreamItem.all.select { |i| i.asset_string.include?('conversation_') }).to be_empty
     end
 
     it "does not create additional stream_items for additional messages in the same conversation" do
@@ -315,7 +315,7 @@ describe ConversationMessage do
     end
 
     it "replies only to the message author on conversations2 conversations" do
-      users = 3.times.map { course_with_student(course: @course).user }
+      users = Array.new(3) { course_with_student(course: @course).user }
       conversation = Conversation.initiate(users, false, :context_type => 'Course', :context_id => @course.id)
       conversation.add_message(users[0], "initial message", :root_account_id => Account.default.id)
       cm2 = conversation.add_message(users[1], "subsequent message", :root_account_id => Account.default.id)
@@ -328,7 +328,7 @@ describe ConversationMessage do
                              :text => "body"
                            })
       expect(cm3.conversation_message_participants.size).to eq 2
-      expect(cm3.conversation_message_participants.map { |x| x.user_id }.sort).to eq [users[1].id, users[2].id].sort
+      expect(cm3.conversation_message_participants.map(&:user_id).sort).to eq [users[1].id, users[2].id].sort
     end
 
     it "marks conversations as read for the replying author" do

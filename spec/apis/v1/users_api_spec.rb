@@ -26,9 +26,13 @@ class TestUserApi
   include Api::V1::User
   attr_accessor :services_enabled, :context, :current_user, :params, :request
 
-  def service_enabled?(service); @services_enabled.include? service; end
+  def service_enabled?(service)
+    @services_enabled.include? service
+  end
 
-  def avatar_image_url(*args); "avatar_image_url(#{args.first})"; end
+  def avatar_image_url(*args)
+    "avatar_image_url(#{args.first})"
+  end
 
   def course_student_grades_url(_course_id, _user_id)
     ""
@@ -56,7 +60,7 @@ describe Api::V1::User do
     user_with_pseudonym(:user => @user)
   end
 
-  before :each do
+  before do
     @test_api = TestUserApi.new
     @test_api.services_enabled = []
     @test_api.request.protocol = 'http'
@@ -76,10 +80,10 @@ describe Api::V1::User do
     it 'supports optionally providing the avatar if avatars are enabled' do
       @student.account.set_service_availability(:avatars, false)
       @student.account.save!
-      expect(@test_api.user_json(@student, @admin, {}, ['avatar_url'], @course).has_key?("avatar_url")).to be_falsey
+      expect(@test_api.user_json(@student, @admin, {}, ['avatar_url'], @course)).not_to have_key("avatar_url")
       @student.account.set_service_availability(:avatars, true)
       @student.account.save!
-      expect(@test_api.user_json(@student, @admin, {}, [], @course).has_key?("avatar_url")).to be_falsey
+      expect(@test_api.user_json(@student, @admin, {}, [], @course)).not_to have_key("avatar_url")
       expect(@test_api.user_json(@student, @admin, {}, ['avatar_url'], @course)["avatar_url"]).to match("h:/images/messages/avatar-50.png")
     end
 
@@ -95,7 +99,7 @@ describe Api::V1::User do
     it 'supports optionally including group_ids' do
       @group = @course.groups.create!(:name => "My Group")
       @group.add_user(@student, 'accepted', true)
-      expect(@test_api.user_json(@student, @admin, {}, [], @course).has_key?("group_ids")).to be_falsey
+      expect(@test_api.user_json(@student, @admin, {}, [], @course)).not_to have_key("group_ids")
       expect(@test_api.user_json(@student, @admin, {}, ['group_ids'], @course)["group_ids"]).to eq([@group.id])
     end
 
@@ -210,7 +214,7 @@ describe Api::V1::User do
       @user = User.create!(:name => 'User')
       @account2 = Account.create!
       @user.pseudonyms.create!(:unique_id => 'abc', :account => Account.default)
-      p = @user.pseudonyms.create!(:unique_id => 'xyz', :account => Account.default) { |p| p.sis_user_id = 'xyz' }
+      p = @user.pseudonyms.create!(unique_id: "xyz", account: Account.default, sis_user_id: "xyz")
       sis_batch = p.account.sis_batches.create
       SisBatch.where(id: sis_batch).update_all(workflow_state: 'imported')
       Pseudonym.where(id: p.id).update_all(sis_batch_id: sis_batch.id)
@@ -231,7 +235,7 @@ describe Api::V1::User do
       @user = User.create!(:name => 'User')
       @account2 = Account.create!
       @user.pseudonyms.destroy_all
-      p = @user.pseudonyms.create!(:unique_id => 'abc', :account => @account2) { |p| p.sis_user_id = 'a' }
+      p = @user.pseudonyms.create!(unique_id: "abc", account: @account2, sis_user_id: "a")
       allow(p).to receive(:works_for_account?).with(Account.default, true).and_return(true)
       allow_any_instantiation_of(Account.default).to receive(:trust_exists?).and_return(true)
       allow_any_instantiation_of(Account.default).to receive(:trusted_account_ids).and_return([@account2.id])
@@ -311,7 +315,7 @@ describe Api::V1::User do
         @student2 = course_with_student(:course => @course).user
       end
 
-      before :each do
+      before do
         @course.update!(grading_standard_enabled: true)
       end
 
@@ -404,7 +408,7 @@ describe Api::V1::User do
     let(:enrollment_json) { @test_api.enrollment_json(student_enrollment, subject, nil) }
     let(:grades) { enrollment_json.fetch("grades") }
 
-    before(:each) do
+    before do
       course.enable_feature!(:final_grades_override)
       course.update!(allow_final_grade_override: true, grading_standard_enabled: true)
       @course_score = student_enrollment.scores.create!(course_score: true, current_score: 63, final_score: 73, override_score: 99)
@@ -453,7 +457,7 @@ describe Api::V1::User do
         end
 
         context "when no grade override exists" do
-          before(:each) do
+          before do
             @course_score.update!(override_score: nil)
           end
 
@@ -476,7 +480,7 @@ describe Api::V1::User do
       end
 
       context "when Final Grade Override is not allowed" do
-        before(:each) do
+        before do
           course.update!(allow_final_grade_override: false)
         end
 
@@ -498,7 +502,7 @@ describe Api::V1::User do
       end
 
       context "when Final Grade Override is disabled" do
-        before(:each) do
+        before do
           course.disable_feature!(:final_grades_override)
         end
 
@@ -555,7 +559,7 @@ describe Api::V1::User do
         end
 
         context "when no grade override exists" do
-          before(:each) do
+          before do
             @course_score.update!(override_score: nil)
           end
 
@@ -586,7 +590,7 @@ describe Api::V1::User do
       end
 
       context "when Final Grade Override is not allowed" do
-        before(:each) do
+        before do
           course.update!(allow_final_grade_override: false)
         end
 
@@ -616,7 +620,7 @@ describe Api::V1::User do
       end
 
       context "when Final Grade Override is disabled" do
-        before(:each) do
+        before do
           course.disable_feature!(:final_grades_override)
         end
 
@@ -771,6 +775,7 @@ describe "Users API", type: :request do
       student_in_course(:course => @course, :user => user_with_pseudonym(:name => 'Student', :username => 'pvuser2@example.com', :active_user => true))
       @user = @admin
     end
+
     include_examples "cassandra page views"
     include_examples "page view api"
   end
@@ -797,7 +802,7 @@ describe "Users API", type: :request do
   end
 
   describe "api_show" do
-    before :each do
+    before do
       @other_user = User.create!(:name => "user name")
       email = "email@somewhere.org"
       @other_user.pseudonyms.create!(:unique_id => email, :account => Account.default) { |p| p.sis_user_id = email }
@@ -1569,7 +1574,7 @@ describe "Users API", type: :request do
     end
 
     context "as an anonymous user" do
-      before :each do
+      before do
         user_factory(active_all: true)
         @user = nil
       end
@@ -1812,7 +1817,10 @@ describe "Users API", type: :request do
       end
 
       it "is able to update a user's profile" do
-        Account.default.tap { |a| a.settings[:enable_profiles] = true; a.save! }
+        Account.default.tap { |a|
+          a.settings[:enable_profiles] = true
+          a.save!
+        }
         new_title = "Burninator"
         new_bio = "burninating the countryside"
         json = api_call(:put, @path, @path_options, {
@@ -1832,7 +1840,10 @@ describe "Users API", type: :request do
       end
 
       it "is able to update a user's profile with email" do
-        Account.default.tap { |a| a.settings[:enable_profiles] = true; a.save! }
+        Account.default.tap { |a|
+          a.settings[:enable_profiles] = true
+          a.save!
+        }
         new_title = "Burninator"
         new_bio = "burninating the countryside"
         email = 'dudd@example.com'
@@ -2018,7 +2029,8 @@ describe "Users API", type: :request do
 
     context "an admin user" do
       it "is able to view other users' settings" do
-        @student.preferences[:collapse_global_nav] = true; @student.save!
+        @student.preferences[:collapse_global_nav] = true
+        @student.save!
         json = api_call(:get, path, path_options)
         expect(json['manual_mark_as_read']).to eq false
         expect(json['collapse_global_nav']).to eq true
@@ -2211,7 +2223,7 @@ describe "Users API", type: :request do
   end
 
   context "user files" do
-    before :each do
+    before do
       @context = @user
     end
 
@@ -2318,14 +2330,14 @@ describe "Users API", type: :request do
   end
 
   describe 'Custom Colors' do
-    before :each do
+    before do
       @a = Account.default
       @u = user_factory(active_all: true)
       @a.account_users.create!(user: @u)
     end
 
     describe 'GET custom colors' do
-      before :each do
+      before do
         @user.set_preference(:custom_colors, {
                                "user_#{@user.id}" => "efefef",
                                "course_3" => "ababab"
@@ -2488,14 +2500,14 @@ describe "Users API", type: :request do
   end
 
   describe "dashboard positions" do
-    before :each do
+    before do
       @a = Account.default
       @u = user_factory(active_all: true)
       @a.account_users.create!(user: @u)
     end
 
     describe "GET dashboard positions" do
-      before :each do
+      before do
         @user.set_preference(:dashboard_positions, {
                                "course_1" => 3,
                                "course_2" => 1,
@@ -2820,7 +2832,7 @@ describe "Users API", type: :request do
         @params = { controller: "users", action: "missing_submissions", user_id: @observer.id, format: "json" }
       end
 
-      before :each do
+      before do
         user_session(@observer)
       end
 
@@ -2905,14 +2917,14 @@ describe "Users API", type: :request do
       expect(json['props_token']).to be_present
       expect(json['expires_at']).to be_present
 
-      public_key = OpenSSL::PKey::EC.new(<<~PUBLIC)
+      public_key = OpenSSL::PKey::EC.new(<<~PEM)
         -----BEGIN PUBLIC KEY-----
         MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAl7Lj7fG0+JySG4NPsBqUyYBhazI0
         fbIPPioXwGOEaDzRUDoBs7S3ppDwt3aMotMCRJT0dBVj7ZRTIm0KpJcfy5gAsHh9
         qmWGlRyEJlGTMvXD6DkJAFfZcQqc66tmY1vEREbaDGOjGWeWegmkHjJoj+ZyJkE1
         tSz8dIduYbgQ9SrJRsE=
         -----END PUBLIC KEY-----
-      PUBLIC
+      PEM
       body = Canvas::Security.decode_jwt(json['auth_token'], [public_key])
       expect(body[:iss]).to eq "IOS_key"
     end

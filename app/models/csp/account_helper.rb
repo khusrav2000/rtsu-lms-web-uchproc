@@ -128,7 +128,7 @@ module Csp::AccountHelper
     domains.uniq.sort
   end
 
-  ACCOUNT_TOOL_CACHE_KEY_PREFIX = "account_tool_domains".freeze
+  ACCOUNT_TOOL_CACHE_KEY_PREFIX = "account_tool_domains"
   def cached_tool_domains
     @cached_tool_domains ||= Rails.cache.fetch([ACCOUNT_TOOL_CACHE_KEY_PREFIX, self.global_id].cache_key) do
       get_account_tool_domains
@@ -163,7 +163,7 @@ module Csp::AccountHelper
     if config['attachment_specific_file_domain'] == 'true'
       separator = config['attachment_specific_file_domain_separator'] || '.'
       files_host = if separator != '.'
-                     "*.#{files_host[files_host.index('.') + 1..-1]}"
+                     "*.#{files_host[files_host.index('.') + 1..]}"
                    else
                      "*.#{files_host}"
                    end

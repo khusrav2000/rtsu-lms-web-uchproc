@@ -108,7 +108,7 @@ describe Quizzes::QuizGroup do
 
   describe ".update_all_positions!" do
     def group_positions(quiz)
-      quiz.quiz_groups.sort_by { |g| g.position }.map { |g| g.id }
+      quiz.quiz_groups.sort_by(&:position).map(&:id)
     end
 
     before :once do
@@ -137,7 +137,7 @@ describe Quizzes::QuizGroup do
   end
 
   context 'root_account_id' do
-    before(:each) { quiz_with_graded_submission([]) }
+    before { quiz_with_graded_submission([]) }
 
     it "uses root_account value from account" do
       course_factory

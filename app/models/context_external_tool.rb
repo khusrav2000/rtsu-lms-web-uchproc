@@ -34,16 +34,16 @@ class ContextExternalTool < ActiveRecord::Base
   restrict_columns :content, [:name, :description]
   restrict_columns :settings, [:consumer_key, :shared_secret, :url, :domain, :settings]
 
-  validates_presence_of :context_id, :context_type, :workflow_state
-  validates_presence_of :name, :consumer_key, :shared_secret
-  validates_length_of :name, :maximum => maximum_string_length
-  validates_presence_of :config_url, :if => lambda { |t| t.config_type == "by_url" }
-  validates_presence_of :config_xml, :if => lambda { |t| t.config_type == "by_xml" }
-  validates_length_of :domain, :maximum => 253, :allow_blank => true
+  validates :context_id, :context_type, :workflow_state, presence: true
+  validates :name, :consumer_key, :shared_secret, presence: true
+  validates :name, length: { :maximum => maximum_string_length }
+  validates :config_url, presence: { :if => lambda { |t| t.config_type == "by_url" } }
+  validates :config_xml, presence: { :if => lambda { |t| t.config_type == "by_xml" } }
+  validates :domain, length: { :maximum => 253, :allow_blank => true }
   validate :url_or_domain_is_set
   validate :validate_urls
   serialize :settings
-  attr_accessor :config_type, :config_url, :config_xml
+  attr_reader :config_type, :config_url, :config_xml
 
   before_save :infer_defaults, :validate_vendor_help_link
   after_save :touch_context, :check_global_navigation_cache, :clear_tool_domain_cache
@@ -57,11 +57,11 @@ class ContextExternalTool < ActiveRecord::Base
     :editor_button => [:use_tray].freeze
   }.freeze
 
-  DISABLED_STATE = 'disabled'.freeze
-  QUIZ_LTI = 'Quizzes 2'.freeze
-  ANALYTICS_2 = 'fd75124a-140e-470f-944c-114d2d93bb40'.freeze
+  DISABLED_STATE = 'disabled'
+  QUIZ_LTI = 'Quizzes 2'
+  ANALYTICS_2 = 'fd75124a-140e-470f-944c-114d2d93bb40'
   TOOL_FEATURE_MAPPING = { ANALYTICS_2 => :analytics_2 }.freeze
-  PREFERRED_LTI_VERSION = '1_3'.freeze
+  PREFERRED_LTI_VERSION = '1_3'
 
   workflow do
     state :anonymous
@@ -77,8 +77,137 @@ class ContextExternalTool < ActiveRecord::Base
     can :read and can :update and can :delete and can :update_manually
   end
 
+  class << self
+    # because global navigation tool visibility can depend on a user having particular permissions now
+    # this needs to expand from being a simple "admins/members" check to something more full-fledged
+    # this will return a hash with the original visibility setting alone with a computed list of
+    # all other permissions (as needed) granted by the current context so all users with the same
+    # set of computed permissions will share the same global nav cache
+    def global_navigation_granted_permissions(root_account:, user:, context:, session: nil)
+      return { :original_visibility => 'members' } unless user
+
+      permissions_hash = {}
+      # still use the original visibility setting
+      permissions_hash[:original_visibility] = Rails.cache.fetch_with_batched_keys(
+        ['external_tools/global_navigation/visibility', root_account.asset_string].cache_key,
+        batch_object: user, batched_keys: [:enrollments, :account_users]
+      ) do
+        # let them see admin level tools if there are any courses they can manage
+        if root_account.grants_right?(user, :manage_content) ||
+           GuardRail.activate(:secondary) { Course.manageable_by_user(user.id, false).not_deleted.where(:root_account_id => root_account).exists? }
+          'admins'
+        else
+          'members'
+        end
+      end
+      required_permissions = global_navigation_permissions_to_check(root_account)
+      required_permissions.each do |permission|
+        # run permission checks against the context if any of the tools are configured to require them
+        permissions_hash[permission] = context.grants_right?(user, session, permission)
+      end
+      permissions_hash
+    end
+
+    def filtered_global_navigation_tools(root_account, granted_permissions)
+      tools = all_global_navigation_tools(root_account)
+
+      if granted_permissions[:original_visibility] != 'admins'
+        # reject the admin only tools
+        tools.reject! { |tool| tool.global_navigation[:visibility] == 'admins' }
+      end
+      # check against permissions if needed
+      tools.select! do |tool|
+        required_permissions_str = tool.extension_setting(:global_navigation, 'required_permissions')
+        if required_permissions_str
+          required_permissions_str.split(",").map(&:to_sym).all? { |p| granted_permissions[p] }
+        else
+          true
+        end
+      end
+      tools
+    end
+
+    # returns a key composed of the updated_at times for all the tools visible to someone with the granted_permissions
+    # i.e. if it hasn't changed since the last time we rendered the erb template for the menu then we can re-use the same html
+    def global_navigation_menu_render_cache_key(root_account, granted_permissions)
+      # only re-render the menu if one of the global nav tools has changed
+      perm_key = key_for_granted_permissions(granted_permissions)
+      compiled_key = ['external_tools/global_navigation/compiled_tools_updated_at', root_account.global_asset_string, perm_key].cache_key
+
+      # shameless plug for the cache register system:
+      # batching with the :global_navigation key means that we can easily mark every one of these for recalculation
+      # in the :check_global_navigation_cache callback instead of having to explicitly delete multiple keys
+      # (which was fine when we only had two visibility settings but not when an infinite combination of permissions is in play)
+      Rails.cache.fetch_with_batched_keys(compiled_key, batch_object: root_account, batched_keys: :global_navigation) do
+        tools = filtered_global_navigation_tools(root_account, granted_permissions)
+        Digest::MD5.hexdigest(tools.sort.map(&:cache_key).join('/'))
+      end
+    end
+
+    def visible?(visibility, user, context, session = nil)
+      visibility = visibility.to_s
+      return true unless %w(public members admins).include?(visibility)
+      return true if visibility == 'public'
+      return true if visibility == 'members' &&
+                     context.grants_any_right?(user, session, :participate_as_student, :read_as_admin)
+      return true if visibility == 'admins' && context.grants_right?(user, session, :read_as_admin)
+
+      false
+    end
+
+    def editor_button_json(tools, context, user, session = nil)
+      tools.select! { |tool| visible?(tool.editor_button['visibility'], user, context, session) }
+      markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML.new({ link_attributes: { target: '_blank' } }))
+      tools.map do |tool|
+        {
+          :name => tool.label_for(:editor_button, I18n.locale),
+          :id => tool.id,
+          :favorite => tool.is_rce_favorite_in_context?(context),
+          :url => tool.editor_button(:url),
+          :icon_url => tool.editor_button(:icon_url),
+          :canvas_icon_class => tool.editor_button(:canvas_icon_class),
+          :width => tool.editor_button(:selection_width),
+          :height => tool.editor_button(:selection_height),
+          :use_tray => tool.editor_button(:use_tray) == "true",
+          :description => if tool.description
+                            Sanitize.clean(markdown.render(tool.description), CanvasSanitize::SANITIZE)
+                          else
+                            ""
+                          end
+        }
+      end
+    end
+
+    private
+
+    def context_id_for(asset, shard)
+      str = asset.asset_string.to_s
+      raise "Empty value" if str.blank?
+
+      Canvas::Security.hmac_sha1(str, shard.settings[:encryption_key])
+    end
+
+    def global_navigation_permissions_to_check(root_account)
+      # look at the list of tools that are configured for the account and see if any are asking for permissions checks
+      Rails.cache.fetch_with_batched_keys("external_tools/global_navigation/permissions_to_check", batch_object: root_account, batched_keys: :global_navigation) do
+        tools = all_global_navigation_tools(root_account)
+        tools.filter_map { |tool| tool.extension_setting(:global_navigation, 'required_permissions')&.split(",")&.map(&:to_sym) }.flatten.uniq
+      end
+    end
+
+    def all_global_navigation_tools(root_account)
+      RequestCache.cache('global_navigation_tools', root_account) do # prevent re-querying
+        root_account.context_external_tools.active.having_setting(:global_navigation).to_a
+      end
+    end
+
+    def key_for_granted_permissions(granted_permissions)
+      Digest::MD5.hexdigest(granted_permissions.sort.flatten.join(",")) # for consistency's sake
+    end
+  end
+
   Lti::ResourcePlacement::PLACEMENTS.each do |type|
-    class_eval <<-RUBY, __FILE__, __LINE__ + 1
+    class_eval <<~RUBY, __FILE__, __LINE__ + 1
       def #{type}(setting=nil)
         # expose inactive placements to API
         extension_setting(:#{type}, setting) || extension_setting(:inactive_placements, :#{type})
@@ -136,13 +265,12 @@ class ContextExternalTool < ActiveRecord::Base
   def set_extension_setting(type, hash)
     if !hash || !hash.is_a?(Hash)
       settings.delete type
+      remove_from_inactive_placements(type)
       return
     end
 
     hash = hash.with_indifferent_access
     hash[:enabled] = Canvas::Plugin.value_to_boolean(hash[:enabled]) if hash[:enabled]
-    # merge with existing settings so that no caller can complain
-    settings[type] = (settings[type] || {}).with_indifferent_access
 
     extension_keys = [
       :canvas_icon_class,
@@ -170,14 +298,21 @@ class ContextExternalTool < ActiveRecord::Base
       :visibility => lambda { |v| %w{members admins public}.include?(v) || v.nil? }
     }.to_a
 
+    # merge with existing settings so that no caller can complain
+    settings[type] = (settings[type] || {}).with_indifferent_access unless placement_inactive?(type)
+
     extension_keys.each do |key, validator|
-      if hash.has_key?(key) && (!validator || validator.call(hash[key]))
-        settings[type][key] = hash[key]
+      if hash.key?(key) && (!validator || validator.call(hash[key]))
+        if placement_inactive?(type)
+          settings[:inactive_placements][type][key] = hash[key]
+        else
+          settings[type][key] = hash[key]
+        end
       end
     end
 
     # on deactivation, make sure placement data is kept
-    if settings[type].key?(:enabled) && !settings[type][:enabled]
+    if settings[type]&.key?(:enabled) && !settings[type][:enabled]
       # resource_selection is a default placement, which can only be overridden
       # by not_selectable, see scope :placements on line 826
       self.not_selectable = true if type == :resource_selection
@@ -190,17 +325,26 @@ class ContextExternalTool < ActiveRecord::Base
     end
 
     # on reactivation, use the old placement data
-    if settings[type][:enabled] && settings.dig(:inactive_placements, type)
+    old_placement_data = settings.dig(:inactive_placements, type)
+    if old_placement_data&.include?(:enabled) && old_placement_data[:enabled]
       # resource_selection is a default placement, which can only be overridden
       # by not_selectable, see scope :placements on line 826
       self.not_selectable = false if type == :resource_selection
 
-      settings[type] = settings.dig(:inactive_placements, type).merge(settings[type])
-      settings[:inactive_placements].delete(type)
-      settings.delete(:inactive_placements) if settings[:inactive_placements].empty?
+      settings[type] = old_placement_data
+      remove_from_inactive_placements(type)
     end
 
-    settings[type].compact!
+    settings[type]&.compact!
+  end
+
+  def remove_from_inactive_placements(type)
+    settings[:inactive_placements]&.delete(type)
+    settings.delete(:inactive_placements) if settings[:inactive_placements] && settings[:inactive_placements].empty?
+  end
+
+  def placement_inactive?(type)
+    settings.dig(:inactive_placements, type).present?
   end
 
   def has_placement?(type)
@@ -362,11 +506,11 @@ class ContextExternalTool < ActiveRecord::Base
     @config_errors = []
     begin
       converter = CC::Importer::BLTIConverter.new
-      if config_type == 'by_url'
-        tool_hash = converter.retrieve_and_convert_blti_url(config_url)
-      else
-        tool_hash = converter.convert_blti_xml(config_xml)
-      end
+      tool_hash = if config_type == 'by_url'
+                    converter.retrieve_and_convert_blti_url(config_url)
+                  else
+                    converter.convert_blti_xml(config_xml)
+                  end
     rescue CC::Importer::BLTIConverter::CCImportError => e
       tool_hash = { :error => e.message }
     end
@@ -417,7 +561,7 @@ class ContextExternalTool < ActiveRecord::Base
     return {} if str.nil?
 
     str.split(/[\r\n]+/).each_with_object({}) do |line, hash|
-      key, val = line.split(/=/)
+      key, val = line.split("=")
       hash[key] = val if key.present? && val.present?
     end
   end
@@ -498,9 +642,7 @@ class ContextExternalTool < ActiveRecord::Base
     case property
     when :enabled
       true
-    when :url
-      url
-    when :target_link_uri
+    when :url, :target_link_uri
       url
     when :selection_width
       800
@@ -564,13 +706,14 @@ class ContextExternalTool < ActiveRecord::Base
     settings.keys.each do |setting|
       next if [:custom_fields, :environments].include? setting.to_sym
 
-      if settings[setting].is_a?(Hash)
+      case settings[setting]
+      when Hash
         settings[setting].keys.each do |property|
-          if settings[setting][property] =~ URI::regexp
+          if settings[setting][property].match?(URI::DEFAULT_PARSER.make_regexp)
             settings[setting][property] = replace_host.call(settings[setting][property], new_domain)
           end
         end
-      elsif settings[setting] =~ URI::regexp
+      when URI::DEFAULT_PARSER.make_regexp
         settings[setting] = replace_host.call(settings[setting], new_domain)
       end
     end
@@ -580,9 +723,9 @@ class ContextExternalTool < ActiveRecord::Base
     return "" if url.blank?
 
     url = url.gsub(/[[:space:]]/, '')
-    url = "http://" + url unless url.match(/:\/\//)
+    url = "http://" + url unless url.include?('://')
     res = Addressable::URI.parse(url).normalize
-    res.query = res.query.split(/&/).sort.join('&') if !res.query.blank?
+    res.query = res.query.split("&").sort.join('&') unless res.query.blank?
     res.to_s
   end
 
@@ -604,7 +747,7 @@ class ContextExternalTool < ActiveRecord::Base
     if domain
       # Somebody tell me if we should be expecting more than
       # 25 dots in a url host...
-      25 - domain.split(/\./).length
+      25 - domain.split(".").length
     elsif url
       25
     else
@@ -613,7 +756,7 @@ class ContextExternalTool < ActiveRecord::Base
   end
 
   def standard_url
-    if !defined?(@standard_url)
+    unless defined?(@standard_url)
       @standard_url = !self.url.blank? && ContextExternalTool.standardize_url(self.url)
     end
     @standard_url
@@ -642,12 +785,12 @@ class ContextExternalTool < ActiveRecord::Base
       url = ContextExternalTool.standardize_url(url)
       return true if url == standard_url
     elsif standard_url.present?
-      if !defined?(@url_params)
+      unless defined?(@url_params)
         res = Addressable::URI.parse(standard_url)
-        @url_params = res.query.present? ? res.query.split(/&/) : []
+        @url_params = res.query.present? ? res.query.split("&") : []
       end
       res = Addressable::URI.parse(url).normalize
-      res.query = res.query.split(/&/).select { |p| @url_params.include?(p) }.sort.join('&') if res.query.present?
+      res.query = res.query.split("&").select { |p| @url_params.include?(p) }.sort.join('&') if res.query.present?
       res.query = nil if res.query.blank?
       res.normalize!
       return true if res.to_s == standard_url
@@ -660,7 +803,7 @@ class ContextExternalTool < ActiveRecord::Base
     url = ContextExternalTool.standardize_url(url)
     host = Addressable::URI.parse(url).normalize.host rescue nil
     port = Addressable::URI.parse(url).normalize.port rescue nil
-    d = domain.downcase.gsub(/http[s]?\:\/\//, '')
+    d = domain.downcase.gsub(/http[s]?:\/\//, '')
     !!(host && ('.' + host + (port ? ":#{port}" : '')).match(/\.#{d}\z/))
   end
 
@@ -668,7 +811,7 @@ class ContextExternalTool < ActiveRecord::Base
     url = ContextExternalTool.standardize_url(url)
     host = Addressable::URI.parse(url).host
     if domain
-      domain.downcase == host.downcase
+      domain.casecmp?(host)
     elsif standard_url
       Addressable::URI.parse(standard_url).host == host
     else
@@ -862,12 +1005,12 @@ class ContextExternalTool < ActiveRecord::Base
   # Given a collection of tools, finds the first with the given LTI version
   # If no matches were detected, returns nil
   def self.find_exact_version_match(sorted_tool_collection)
-    sorted_tool_collection.find { |t| t.uses_preferred_lti_version? }
+    sorted_tool_collection.find(&:uses_preferred_lti_version?)
   end
 
   scope :having_setting, lambda { |setting|
                            setting ? joins(:context_external_tool_placements)
-                             .where("context_external_tool_placements.placement_type = ?", setting) : all
+                             .where(context_external_tool_placements: { placement_type: setting }) : all
                          }
 
   scope :placements, lambda { |*placements|
@@ -950,7 +1093,9 @@ class ContextExternalTool < ActiveRecord::Base
     tools + ContextExternalTool.having_setting(type.to_s).where(context_type: 'Account', context_id: context.account_chain_ids)
   end
 
-  def self.serialization_excludes; [:shared_secret, :settings]; end
+  def self.serialization_excludes
+    [:shared_secret, :settings]
+  end
 
   # sets the custom fields from the main tool settings, and any on individual resource type settings
   def set_custom_fields(resource_type)
@@ -960,7 +1105,7 @@ class ContextExternalTool < ActiveRecord::Base
     fields.each do |field_set|
       field_set.each do |key, val|
         key = key.to_s.gsub(/[^\w]/, '_').downcase
-        if key.match(/^custom_/)
+        if key.match?(/^custom_/)
           hash[key] = val
         else
           hash["custom_#{key}"] = val
@@ -1066,9 +1211,10 @@ class ContextExternalTool < ActiveRecord::Base
     scope = Assignment.active.joins(:external_tool_tag)
 
     # limit to assignments in the tool's context
-    if context.is_a? Course
+    case context
+    when Course
       scope = scope.where(context_id: context.id)
-    elsif context.is_a? Account
+    when Account
       scope = scope.where(root_account_id: root_account_id, content_tags: { root_account_id: root_account_id })
     end
 
@@ -1091,13 +1237,6 @@ class ContextExternalTool < ActiveRecord::Base
 
   private
 
-  def self.context_id_for(asset, shard)
-    str = asset.asset_string.to_s
-    raise "Empty value" if str.blank?
-
-    Canvas::Security.hmac_sha1(str, shard.settings[:encryption_key])
-  end
-
   def check_global_navigation_cache
     if self.context.is_a?(Account) && self.context.root_account?
       self.context.clear_cache_key(:global_navigation) # it's hard to know exactly _what_ changed so clear all initial global nav caches at once
@@ -1107,124 +1246,6 @@ class ContextExternalTool < ActiveRecord::Base
   def clear_tool_domain_cache
     if self.saved_change_to_domain? || self.saved_change_to_url? || self.saved_change_to_workflow_state?
       self.context.clear_tool_domain_cache
-    end
-  end
-
-  # because global navigation tool visibility can depend on a user having particular permissions now
-  # this needs to expand from being a simple "admins/members" check to something more full-fledged
-  # this will return a hash with the original visibility setting alone with a computed list of
-  # all other permissions (as needed) granted by the current context so all users with the same
-  # set of computed permissions will share the same global nav cache
-  def self.global_navigation_granted_permissions(root_account:, user:, context:, session: nil)
-    return { :original_visibility => 'members' } unless user
-
-    permissions_hash = {}
-    # still use the original visibility setting
-    permissions_hash[:original_visibility] = Rails.cache.fetch_with_batched_keys(
-      ['external_tools/global_navigation/visibility', root_account.asset_string].cache_key,
-      batch_object: user, batched_keys: [:enrollments, :account_users]
-    ) do
-      # let them see admin level tools if there are any courses they can manage
-      if root_account.grants_right?(user, :manage_content) ||
-         GuardRail.activate(:secondary) { Course.manageable_by_user(user.id, false).not_deleted.where(:root_account_id => root_account).exists? }
-        'admins'
-      else
-        'members'
-      end
-    end
-    required_permissions = self.global_navigation_permissions_to_check(root_account)
-    required_permissions.each do |permission|
-      # run permission checks against the context if any of the tools are configured to require them
-      permissions_hash[permission] = context.grants_right?(user, session, permission)
-    end
-    permissions_hash
-  end
-
-  def self.global_navigation_permissions_to_check(root_account)
-    # look at the list of tools that are configured for the account and see if any are asking for permissions checks
-    Rails.cache.fetch_with_batched_keys("external_tools/global_navigation/permissions_to_check", batch_object: root_account, batched_keys: :global_navigation) do
-      tools = self.all_global_navigation_tools(root_account)
-      tools.map { |tool| tool.extension_setting(:global_navigation, 'required_permissions')&.split(",")&.map(&:to_sym) }.compact.flatten.uniq
-    end
-  end
-
-  def self.all_global_navigation_tools(root_account)
-    RequestCache.cache('global_navigation_tools', root_account) do # prevent re-querying
-      root_account.context_external_tools.active.having_setting(:global_navigation).to_a
-    end
-  end
-
-  def self.filtered_global_navigation_tools(root_account, granted_permissions)
-    tools = self.all_global_navigation_tools(root_account)
-
-    if granted_permissions[:original_visibility] != 'admins'
-      # reject the admin only tools
-      tools.reject! { |tool| tool.global_navigation[:visibility] == 'admins' }
-    end
-    # check against permissions if needed
-    tools.select! do |tool|
-      required_permissions_str = tool.extension_setting(:global_navigation, 'required_permissions')
-      if required_permissions_str
-        required_permissions_str.split(",").map(&:to_sym).all? { |p| granted_permissions[p] }
-      else
-        true
-      end
-    end
-    tools
-  end
-
-  def self.key_for_granted_permissions(granted_permissions)
-    Digest::MD5.hexdigest(granted_permissions.sort.flatten.join(",")) # for consistency's sake
-  end
-
-  # returns a key composed of the updated_at times for all the tools visible to someone with the granted_permissions
-  # i.e. if it hasn't changed since the last time we rendered the erb template for the menu then we can re-use the same html
-  def self.global_navigation_menu_render_cache_key(root_account, granted_permissions)
-    # only re-render the menu if one of the global nav tools has changed
-    perm_key = key_for_granted_permissions(granted_permissions)
-    compiled_key = ['external_tools/global_navigation/compiled_tools_updated_at', root_account.global_asset_string, perm_key].cache_key
-
-    # shameless plug for the cache register system:
-    # batching with the :global_navigation key means that we can easily mark every one of these for recalculation
-    # in the :check_global_navigation_cache callback instead of having to explicitly delete multiple keys
-    # (which was fine when we only had two visibility settings but not when an infinite combination of permissions is in play)
-    Rails.cache.fetch_with_batched_keys(compiled_key, batch_object: root_account, batched_keys: :global_navigation) do
-      tools = self.filtered_global_navigation_tools(root_account, granted_permissions)
-      Digest::MD5.hexdigest(tools.sort.map(&:cache_key).join('/'))
-    end
-  end
-
-  def self.visible?(visibility, user, context, session = nil)
-    visibility = visibility.to_s
-    return true unless %w(public members admins).include?(visibility)
-    return true if visibility == 'public'
-    return true if visibility == 'members' &&
-                   context.grants_any_right?(user, session, :participate_as_student, :read_as_admin)
-    return true if visibility == 'admins' && context.grants_right?(user, session, :read_as_admin)
-
-    false
-  end
-
-  def self.editor_button_json(tools, context, user, session = nil)
-    tools.select! { |tool| visible?(tool.editor_button['visibility'], user, context, session) }
-    markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML.new({ link_attributes: { target: '_blank' } }))
-    tools.map do |tool|
-      {
-        :name => tool.label_for(:editor_button, I18n.locale),
-        :id => tool.id,
-        :favorite => tool.is_rce_favorite_in_context?(context),
-        :url => tool.editor_button(:url),
-        :icon_url => tool.editor_button(:icon_url),
-        :canvas_icon_class => tool.editor_button(:canvas_icon_class),
-        :width => tool.editor_button(:selection_width),
-        :height => tool.editor_button(:selection_height),
-        :use_tray => tool.editor_button(:use_tray) == "true",
-        :description => if tool.description
-                          Sanitize.clean(markdown.render(tool.description), CanvasSanitize::SANITIZE)
-                        else
-                          ""
-                        end
-      }
     end
   end
 end

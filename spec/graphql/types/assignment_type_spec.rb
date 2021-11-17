@@ -69,7 +69,10 @@ describe Types::AssignmentType do
   end
 
   context "sis field" do
-    let_once(:sis_assignment) { assignment.update!(sis_source_id: "sisAssignment"); assignment }
+    let_once(:sis_assignment) {
+      assignment.update!(sis_source_id: "sisAssignment")
+      assignment
+    }
 
     let(:admin) { account_admin_user_with_role_changes(role_changes: { read_sis: false }) }
 
@@ -105,7 +108,7 @@ describe Types::AssignmentType do
   end
 
   describe "rubric association" do
-    before(:each) do
+    before do
       rubric_for_course
       rubric_association_model(context: course, rubric: @rubric, association_object: assignment, purpose: 'grading')
     end
@@ -333,7 +336,7 @@ describe Types::AssignmentType do
       let(:section2) { course.course_sections.create! }
       let(:teacher) { course.enroll_user(User.create!, "TeacherEnrollment", enrollment_state: "active").user }
 
-      before(:each) do
+      before do
         section1_student = section1.enroll_user(User.create!, "StudentEnrollment", "active").user
         section2_student = section2.enroll_user(User.create!, "StudentEnrollment", "active").user
         @section1_student_submission = assignment.submit_homework(section1_student, body: "hello world")

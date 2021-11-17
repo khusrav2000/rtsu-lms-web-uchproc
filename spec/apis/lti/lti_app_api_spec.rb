@@ -28,6 +28,7 @@ module Lti
     include LtiSpecHelper
 
     let(:account) { Account.create }
+
     describe '#launch_definitions' do
       before do
         tp = create_tool_proxy
@@ -284,6 +285,7 @@ module Lti
           account_id: account.id
         }
       end
+
       subject { api_call(:get, "/api/v1/accounts/#{account.id}/lti_apps", params) }
 
       it "includes is_rce_favorite when applicable" do
@@ -297,7 +299,7 @@ module Lti
       it "does not include is_rce_favorite when not applicable" do
         account_admin_user(account: account)
         tool
-        expect(subject[0].has_key?("is_rce_favorite")).to be false
+        expect(subject[0]).not_to have_key("is_rce_favorite")
       end
     end
   end

@@ -57,11 +57,11 @@ module CustomSeleniumRSpecMatchers
     end
 
     failure_message do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect} text to be absent but was instead present.
 
         Actual text was: "#{element.text}".
-      FAILURE_MESSAGE
+      TEXT
     end
   end
 
@@ -73,11 +73,11 @@ module CustomSeleniumRSpecMatchers
     end
 
     failure_message do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect} text to be present but was instead blank.
 
         Actual text was: "#{element.text}".
-      FAILURE_MESSAGE
+      TEXT
     end
   end
 
@@ -95,19 +95,19 @@ module CustomSeleniumRSpecMatchers
     end
 
     failure_message do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect} text to include "#{text}".
 
         Actual text was: "#{element.text}".
-      FAILURE_MESSAGE
+      TEXT
     end
 
     failure_message_when_negated do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect} text not to include "#{text}".
 
         Actual text was: "#{element.text}".
-      FAILURE_MESSAGE
+      TEXT
     end
   end
 
@@ -131,19 +131,19 @@ module CustomSeleniumRSpecMatchers
     end
 
     failure_message do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect} to have value "#{value_attribute}".
 
         Actual value was: "#{element.attribute('value')}".
-      FAILURE_MESSAGE
+      TEXT
     end
 
     failure_message_when_negated do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect} not to have value "#{value_attribute}".
 
         Actual value was: "#{element.attribute('value')}".
-      FAILURE_MESSAGE
+      TEXT
     end
   end
 
@@ -251,19 +251,19 @@ module CustomSeleniumRSpecMatchers
     end
 
     failure_message do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect}'s aria-disabled attribute to be true.
 
         Actual aria-disabled attribute value: "#{element.attribute('aria-disabled')}".
-      FAILURE_MESSAGE
+      TEXT
     end
 
     failure_message_when_negated do |element|
-      <<~FAILURE_MESSAGE
+      <<~TEXT
         Expected #{element.inspect}'s aria-disabled attribute to be false.
 
         Actual aria-disabled attribute value: "#{element.attribute('aria-disabled')}"
-      FAILURE_MESSAGE
+      TEXT
     end
   end
 
@@ -276,13 +276,11 @@ module CustomSeleniumRSpecMatchers
   #
   matcher :contain_css do |selector|
     match do |element|
-      begin
-        # rely on implicit_wait
-        f(selector, element)
-        true
-      rescue Selenium::WebDriver::Error::NoSuchElementError
-        false
-      end
+      # rely on implicit_wait
+      f(selector, element)
+      true
+    rescue Selenium::WebDriver::Error::NoSuchElementError
+      false
     end
 
     match_when_negated do |element|
@@ -317,13 +315,11 @@ module CustomSeleniumRSpecMatchers
   #
   matcher :contain_link do |text|
     match do |element|
-      begin
-        # rely on implicit_wait
-        fln(text, element)
-        true
-      rescue Selenium::WebDriver::Error::NoSuchElementError
-        false
-      end
+      # rely on implicit_wait
+      fln(text, element)
+      true
+    rescue Selenium::WebDriver::Error::NoSuchElementError
+      false
     end
 
     match_when_negated do |element|
@@ -341,13 +337,11 @@ module CustomSeleniumRSpecMatchers
   #
   matcher :contain_link_partial_text do |text|
     match do |element|
-      begin
-        # rely on implicit_wait
-        flnpt(text, element)
-        true
-      rescue Selenium::WebDriver::Error::NoSuchElementError
-        false
-      end
+      # rely on implicit_wait
+      flnpt(text, element)
+      true
+    rescue Selenium::WebDriver::Error::NoSuchElementError
+      false
     end
 
     match_when_negated do |element|
@@ -460,7 +454,10 @@ module CustomSeleniumRSpecMatchers
       raise "The `become` matcher expects a block, e.g. `expect { actual }.to become(value)`, NOT `expect(actual).to become(value)`" unless actual.is_a? Proc
 
       wait_for(method: :become) do
-        disable_implicit_wait { a = actual.call; min < a && a < max }
+        disable_implicit_wait {
+          a = actual.call
+          min < a && a < max
+        }
       end
     end
   end

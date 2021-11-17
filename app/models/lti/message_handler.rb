@@ -20,8 +20,8 @@
 
 module Lti
   class MessageHandler < ActiveRecord::Base
-    BASIC_LTI_LAUNCH_REQUEST = 'basic-lti-launch-request'.freeze
-    TOOL_PROXY_REREGISTRATION_REQUEST = 'ToolProxyRegistrationRequest'.freeze
+    BASIC_LTI_LAUNCH_REQUEST = 'basic-lti-launch-request'
+    TOOL_PROXY_REREGISTRATION_REQUEST = 'ToolProxyRegistrationRequest'
 
     attr_readonly :created_at
 
@@ -34,7 +34,7 @@ module Lti
     serialize :capabilities
     serialize :parameters
 
-    validates_presence_of :message_type, :resource_handler, :launch_path
+    validates :message_type, :resource_handler, :launch_path, presence: true
 
     scope :by_message_types, lambda { |*message_types| where(message_type: message_types) }
 

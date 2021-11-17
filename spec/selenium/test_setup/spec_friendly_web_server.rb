@@ -37,12 +37,10 @@ class SpecFriendlyWebServer
       @server = Puma::Server.new(app, Puma::Events.stdio)
       @server.add_tcp_listener(bind_address, port)
       Thread.new do
-        begin
-          @server.run
-        rescue
-          $stderr.puts "Unexpected server error: #{$ERROR_INFO.message}"
-          exit! 1
-        end
+        @server.run
+      rescue
+        $stderr.puts "Unexpected server error: #{$ERROR_INFO.message}"
+        exit! 1
       end
     rescue Errno::EADDRINUSE, Errno::EACCES
       raise SeleniumDriverSetup::ServerStartupError, $ERROR_INFO.message
@@ -53,7 +51,7 @@ class SpecFriendlyWebServer
       max_time = Time.zone.now + timeout
       while Time.zone.now < max_time
         response = HTTParty.get("http://#{bind_address}:#{port}/health_check") rescue nil
-        if response && response.success?
+        if response&.success?
           SeleniumDriverSetup.disallow_requests!
           puts " Done!"
           return
@@ -67,7 +65,7 @@ class SpecFriendlyWebServer
     end
 
     def shutdown
-      @server.stop if @server
+      @server&.stop
       @server = nil
     end
   end

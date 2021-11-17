@@ -30,7 +30,7 @@ class CourseLinkValidator
   # creates a new validation job
   def self.queue_course(course)
     progress = current_progress(course)
-    return progress if progress && progress.pending?
+    return progress if progress&.pending?
 
     progress ||= Progress.new(:tag => TAG, :context => course)
     progress.reset!
@@ -53,7 +53,7 @@ class CourseLinkValidator
   def initialize(course)
     self.course = course
     domain = course.root_account.domain
-    self.domain_regex = %r{\w+:?\/\/#{domain}\/} if domain
+    self.domain_regex = %r{\w+:?//#{domain}/} if domain
     self.issues = []
     self.visited_urls = {}
   end
@@ -122,9 +122,9 @@ class CourseLinkValidator
         (invalid_module_links[ct.context_module] ||= []) << invalid_link.merge(:link_text => ct.title)
       end
     end
-    invalid_module_links.each do |mod, invalid_module_links|
+    invalid_module_links.each do |mod, links|
       self.issues << { :name => mod.name, :type => :module,
-                       :content_url => "/courses/#{self.course.id}/modules#module_#{mod.id}" }.merge(:invalid_links => invalid_module_links)
+                       :content_url => "/courses/#{self.course.id}/modules#module_#{mod.id}" }.merge(:invalid_links => links)
     end
 
     progress.update_completion! 65
@@ -217,15 +217,15 @@ class CourseLinkValidator
     unless (result = self.visited_urls[url])
       begin
         if ImportedHtmlConverter.relative_url?(url) || (self.domain_regex && url.match(self.domain_regex))
-          if valid_route?(url)
-            if url.match(/\/courses\/(\d+)/) && self.course.id.to_s != $1
-              result = :course_mismatch
-            else
-              result = check_object_status(url)
-            end
-          else
-            result = :unreachable
-          end
+          result = if valid_route?(url)
+                     if url.match(/\/courses\/(\d+)/) && self.course.id.to_s != $1
+                       :course_mismatch
+                     else
+                       check_object_status(url)
+                     end
+                   else
+                     :unreachable
+                   end
         else
           unless reachable_url?(url)
             result = :unreachable
@@ -256,12 +256,12 @@ class CourseLinkValidator
   # makes sure that links to course objects exist and are in a visible state
   def check_object_status(url, object: nil)
     return :missing_item unless valid_route?(url)
-    return :missing_item if url =~ /\/test_error/
+    return :missing_item if url.include?('/test_error')
 
     object ||= Context.find_asset_by_url(url)
     unless object
       return :missing_item unless [nil, 'syllabus'].include?(url.match(/\/courses\/\d+\/\w+\/(.+)/)&.[](1))
-      return :missing_item if url =~ /\/media_objects_iframe\//
+      return :missing_item if url.include?('/media_objects_iframe/')
 
       return nil
     end
@@ -302,7 +302,7 @@ class CourseLinkValidator
       # flickr does a redirect to this file when a photo is deleted/not found;
       # treat this as a broken image instead of following the redirect
       url = response['Location']
-      raise RuntimeError("photo unavailable") if url =~ @unavailable_photo_redirect_pattern
+      raise RuntimeError("photo unavailable") if url&.match?(@unavailable_photo_redirect_pattern)
     end
 
     begin
@@ -314,9 +314,7 @@ class CourseLinkValidator
       end
 
       case response.code
-      when /^2/ # 2xx code
-        true
-      when "401", "403", "429", "503"
+      when /^2/, "401", "403", "429", "503"
         # we accept unauthorized and forbidden codes here because sometimes servers refuse to serve our requests
         # and someone can link to a site that requires authentication anyway - doesn't necessarily make it invalid
         true

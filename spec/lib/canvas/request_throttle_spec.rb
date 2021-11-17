@@ -33,7 +33,9 @@ describe 'RequestThrottle' do
   let(:rate_limit_exceeded) { throttler.rate_limit_exceeded }
 
   # not a let so that actual and expected aren't the same object that get modified together
-  def response; [200, { 'Content-Type' => 'text/plain' }, ['Hello']]; end
+  def response
+    [200, { 'Content-Type' => 'text/plain' }, ['Hello']]
+  end
 
   after { RequestThrottle.reload! }
 
@@ -45,7 +47,7 @@ describe 'RequestThrottle' do
 
   describe "#client_identifier" do
     def req(hash)
-      ActionDispatch::Request.new(hash).tap { |req| req.fullpath }
+      ActionDispatch::Request.new(hash).tap(&:fullpath)
     end
 
     it "uses access token" do
@@ -72,7 +74,7 @@ describe 'RequestThrottle' do
 
     it "ignores non-ID tools" do
       request_grade_passback = base_req.merge('REQUEST_METHOD' => 'POST', 'PATH_INFO' => "/api/lti/v1/tools/garbage/grade_passback")
-      expect(ContextExternalTool).to receive(:find_by).never
+      expect(ContextExternalTool).not_to receive(:find_by)
       expect(throttler.client_identifier(req(request_grade_passback))).to eq nil
     end
 
@@ -85,13 +87,13 @@ describe 'RequestThrottle' do
     it "ignores non-POST to tools" do
       tool = ContextExternalTool.create!(domain: 'domain', context: Account.default, consumer_key: 'key', shared_secret: 'secret', name: 'tool')
       request_grade_passback = base_req.merge('REQUEST_METHOD' => 'GET', 'PATH_INFO' => "/api/lti/v1/tools/#{tool.id}/grade_passback")
-      expect(ContextExternalTool).to receive(:find_by).never
+      expect(ContextExternalTool).not_to receive(:find_by)
       expect(throttler.client_identifier(req(request_grade_passback))).to eq nil
     end
   end
 
   describe "#call" do
-    after(:each) do
+    after do
       Setting.remove("request_throttle.enabled")
     end
 
@@ -215,7 +217,7 @@ describe 'RequestThrottle' do
     it "skips without redis enabled" do
       if Canvas.redis_enabled?
         allow(Canvas).to receive(:redis_enabled?).and_return(false)
-        expect_any_instance_of(Redis::Scripting::Module).to receive(:run).never
+        expect_any_instance_of(Redis::Scripting::Module).not_to receive(:run)
       end
       expect(strip_variable_headers(throttler.call(request_user_1))).to eq response
     end
@@ -444,7 +446,7 @@ describe 'RequestThrottle' do
         it "still tracks cost when disabled (for debugging)" do
           allow(RequestThrottle).to receive(:enabled?).and_return(false)
           expect(@bucket).to receive(:increment).twice
-          @bucket.reserve_capacity {}
+          @bucket.reserve_capacity { 0 }
         end
 
         it "will always be allowed when disabled, even with full bucket" do

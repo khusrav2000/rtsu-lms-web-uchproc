@@ -46,20 +46,18 @@ module Api::V1::Conferences
 
   def ui_conferences_json(conferences, context, user, session)
     cs = conferences.map do |c|
-      begin
-        c.as_json(
-          permissions: {
-            user: user,
-            session: session,
-          },
-          url: named_context_url(context, :context_conference_url, c)
-        )
-      rescue => e
-        Canvas::Errors.capture_exception(:web_conferences, e)
-        @errors ||= []
-        @errors << e
-        nil
-      end
+      c.as_json(
+        permissions: {
+          user: user,
+          session: session,
+        },
+        url: named_context_url(context, :context_conference_url, c)
+      )
+    rescue => e
+      Canvas::Errors.capture_exception(:web_conferences, e)
+      @errors ||= []
+      @errors << e
+      nil
     end
     cs.compact
   end
@@ -106,11 +104,11 @@ module Api::V1::Conferences
 
   def translate_strings(object)
     object.each_with_object({}) do |(k, v), h|
-      if v.is_a? Array
-        h[k] = v.map { |a| translate_strings(a) }
-      else
-        h[k] = v.respond_to?(:call) ? v.call() : v
-      end
+      h[k] = if v.is_a? Array
+               v.map { |a| translate_strings(a) }
+             else
+               v.respond_to?(:call) ? v.call() : v
+             end
     end
   end
 

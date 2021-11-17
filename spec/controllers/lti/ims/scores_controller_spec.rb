@@ -123,7 +123,7 @@ module Lti::IMS
           end
 
           context do
-            let(:params_overrides) { super().merge(timestamp: 1.day.from_now) }
+            let(:params_overrides) { super().merge(timestamp: 1.day.from_now.iso8601(3)) }
 
             it 'does not update the created_at timestamp' do
               result
@@ -470,7 +470,7 @@ module Lti::IMS
             end
 
             context 'in local storage mode' do
-              before :each do
+              before do
                 local_storage!
               end
 
@@ -479,7 +479,7 @@ module Lti::IMS
             end
 
             context 'in s3 storage mode' do
-              before :each do
+              before do
                 s3_storage!
               end
 
@@ -488,7 +488,7 @@ module Lti::IMS
             end
 
             context 'with InstFS enabled' do
-              before :each do
+              before do
                 allow(InstFS).to receive(:enabled?).and_return(true)
                 allow(InstFS).to receive(:jwt_secrets).and_return(['jwt signing key'])
                 @token = Canvas::Security.create_jwt({}, nil, InstFS.jwt_secret)
@@ -524,7 +524,7 @@ module Lti::IMS
               end
 
               context 'when InstFS is unreachable' do
-                before :each do
+                before do
                   allow(CanvasHttp).to receive(:post).and_raise(Net::ReadTimeout)
                 end
 
@@ -532,7 +532,7 @@ module Lti::IMS
               end
 
               context 'when InstFS responds with a 500' do
-                before :each do
+                before do
                   allow(CanvasHttp).to receive(:post).and_return(
                     double(class: Net::HTTPServerError, code: 500, body: {})
                   )
@@ -542,7 +542,7 @@ module Lti::IMS
               end
 
               context 'when InstFS responds with a 400' do
-                before :each do
+                before do
                   allow(CanvasHttp).to receive(:post).and_return(
                     double(class: Net::HTTPBadRequest, code: 400, body: {})
                   )
@@ -828,6 +828,7 @@ module Lti::IMS
 
         context 'when timestamp is before updated_at' do
           let(:params_overrides) { super().merge(timestamp: 1.day.ago.iso8601(3)) }
+
           it_behaves_like 'a bad request'
         end
 
@@ -837,6 +838,7 @@ module Lti::IMS
               :scoreMaximum
             )
           end
+
           it_behaves_like 'an unprocessable entity'
         end
 
@@ -871,23 +873,35 @@ module Lti::IMS
 
         context 'when user_id not found in course' do
           let(:user) { student_in_course(course: course_model, active_all: true).user }
+
           it_behaves_like 'an unprocessable entity'
         end
 
         context 'when user_id is not a student in course' do
           let(:user) { ta_in_course(course: course, active_all: true).user }
+
           it_behaves_like 'an unprocessable entity'
         end
 
-        context 'when timestamp is not a string' do
-          let(:params_overrides) { super().merge(timestamp: Time.zone.now.to_i) }
+        context 'when timestamp is a timestamp, but not an iso8601 timestamp' do
+          # this is an epoch timestamp that correctly parses using Time.zone.parse
+          # into 10 Oct 3022, which is not desired behavior. it's also further in
+          # the future than the current time, which returns a different exception
+          # and obscures this behavior
+          let(:timestamp) { 3022101316 }
+          let(:params_overrides) { super().merge(timestamp: timestamp) }
+
           it_behaves_like 'a bad request'
         end
 
-        context 'when submitted_at extension is not a string' do
+        context 'when submitted_at extension is a timestamp, but not an is08601 timestamp' do
+          # this is an epoch timestamp that correctly parses using Time.zone.parse
+          # into 10 Oct 1637, which is not desired behavior
+          let(:timestamp) { 1637101316 }
           let(:params_overrides) do
-            super().merge(Lti::Result::AGS_EXT_SUBMISSION => { submitted_at: Time.zone.now.to_i })
+            super().merge(Lti::Result::AGS_EXT_SUBMISSION => { submitted_at: timestamp })
           end
+
           it_behaves_like 'a bad request'
         end
 
@@ -895,6 +909,7 @@ module Lti::IMS
           let(:params_overrides) do
             super().merge(Lti::Result::AGS_EXT_SUBMISSION => { submitted_at: 'asdf' })
           end
+
           it_behaves_like 'a bad request'
         end
 
@@ -904,6 +919,7 @@ module Lti::IMS
               Lti::Result::AGS_EXT_SUBMISSION => { submitted_at: Time.zone.now + 5.minutes }
             )
           end
+
           it_behaves_like 'a bad request'
         end
 
@@ -913,6 +929,7 @@ module Lti::IMS
               Lti::Result::AGS_EXT_SUBMISSION => { submission_type: 'online_upload' }
             )
           end
+
           it_behaves_like 'an unprocessable entity'
         end
       end

@@ -157,7 +157,7 @@ describe OverrideListPresenter do
     end
 
     context "for ADHOC overrides" do
-      before :each do
+      before do
         override = assignment.assignment_overrides.create!(due_at: 1.week.from_now)
         override.assignment_override_students.create!(user: user, assignment: assignment)
         override.assignment_override_students.create!(user: second_user, assignment: assignment)
@@ -194,7 +194,9 @@ describe OverrideListPresenter do
   end
 
   describe "#visible_due_dates" do
-    def visible_due_dates; @visible_due_dates; end
+    def visible_due_dates
+      @visible_due_dates
+    end
     let(:sections) do
       # the count is the important part, the actual course sections are
       # not used
@@ -249,7 +251,7 @@ describe OverrideListPresenter do
     end
 
     context "only some sections have overrides" do
-      let(:dates_visible) { dates_visible_to_user[1..-1] }
+      let(:dates_visible) { dates_visible_to_user[1..] }
 
       before do
         allow(assignment.context).to receive(:active_section_count)

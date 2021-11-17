@@ -70,7 +70,7 @@ module CustomValidators
     if message
       keep_trying_until(5) do
         disable_implicit_wait do
-          expect(ff("#flash_message_holder .ic-flash-#{type}")).to be_any { |el| el.text.include?("#{message}") }
+          expect(ff("#flash_message_holder .ic-flash-#{type}").any? { |el| el.text.include?(message.to_s) }).to be true
         end
       end
     else
@@ -106,7 +106,7 @@ module CustomValidators
   end
 
   def assert_error_box(selector)
-    box = driver.execute_script <<-JS, selector
+    box = driver.execute_script <<~JS, selector
       var $result = $(arguments[0]).data('associated_error_box');
       return $result ? $result.toArray() : []
     JS

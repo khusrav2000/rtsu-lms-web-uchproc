@@ -25,7 +25,7 @@ describe 'quizzes question banks' do
   include QuizzesCommon
 
   context 'as a teacher' do
-    before(:each) do
+    before do
       course_with_teacher_logged_in
     end
 
@@ -258,7 +258,7 @@ describe 'quizzes question banks' do
 
       @bank.reload
       wait_for_ajaximations
-      expect(@bank.assessment_questions.select { |aq| !aq.deleted? }.length).to eq 59
+      expect(@bank.assessment_questions.count { |aq| !aq.deleted? }).to eq 59
     end
 
     it 'allows editing quiz questions that belong to a quiz bank', priority: "1", test_id: 217531 do
@@ -267,7 +267,7 @@ describe 'quizzes question banks' do
       @course.save
 
       # create quiz that pulls from question bank
-      quiz_with_new_questions true
+      quiz_with_new_questions
 
       # create question group, fill with existing question bank questions
       create_question_group

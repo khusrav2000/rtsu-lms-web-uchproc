@@ -254,17 +254,18 @@ class UsersController < ApplicationController
   end
 
   def oauth
-    if !feature_and_service_enabled?(params[:service])
+    unless feature_and_service_enabled?(params[:service])
       flash[:error] = t('service_not_enabled', "That service has not been enabled")
       return redirect_to(user_profile_url(@current_user))
     end
     return_to_url = params[:return_to] || user_profile_url(@current_user)
-    if params[:service] == "google_drive"
+    case params[:service]
+    when "google_drive"
       redirect_uri = oauth_success_url(:service => 'google_drive')
       session[:oauth_gdrive_nonce] = SecureRandom.hex
       state = Canvas::Security.create_jwt(redirect_uri: redirect_uri, return_to_url: return_to_url, nonce: session[:oauth_gdrive_nonce])
       redirect_to GoogleDrive::Client.auth_uri(google_drive_client, state)
-    elsif params[:service] == "twitter"
+    when "twitter"
       success_url = oauth_success_url(:service => 'twitter')
       request_token = Twitter::Connection.request_token(success_url)
       OAuthRequest.create(
@@ -445,10 +446,10 @@ class UsersController < ApplicationController
       return_url = session[:masquerade_return_to]
       session.delete(:masquerade_return_to)
       @current_user.associate_with_shard(@user.shard, :shadow) if PageView.db?
-      if request.referer =~ /.*\/users\/#{@user.id}\/masquerade/
-        return return_to(return_url, dashboard_url)
+      if /.*\/users\/#{@user.id}\/masquerade/.match?(request.referer)
+        return_to(return_url, dashboard_url)
       else
-        return return_to(return_url, request.referer || dashboard_url)
+        return_to(return_url, request.referer || dashboard_url)
       end
     else
       js_bundle :act_as_modal
@@ -491,7 +492,7 @@ class UsersController < ApplicationController
 
     @show_footer = true
 
-    if request.path =~ %r{\A/dashboard\z}
+    if %r{\A/dashboard\z}.match?(request.path)
       return redirect_to(dashboard_url, :status => :moved_permanently)
     end
 
@@ -504,6 +505,8 @@ class UsersController < ApplicationController
     js_env({ K5_USER: k5_user && !k5_disabled }, true)
 
     # things needed on both k5 and classic dashboards
+    create_permission_root_account = @current_user.create_courses_right(@domain_root_account)
+    create_permission_mcc_account = @current_user.create_courses_right(@domain_root_account.manually_created_courses_account)
     js_env({
              PREFERENCES: {
                dashboard_view: @current_user.dashboard_view(@domain_root_account),
@@ -514,7 +517,10 @@ class UsersController < ApplicationController
              STUDENT_PLANNER_COURSES: planner_enabled? && map_courses_for_menu(@current_user.courses_with_primary_enrollment),
              STUDENT_PLANNER_GROUPS: planner_enabled? && map_groups_for_planner(@current_user.current_groups),
              CAN_ENABLE_K5_DASHBOARD: k5_disabled && k5_user,
-             CREATE_COURSES_PERMISSION: @current_user.create_courses_right(@domain_root_account)
+             CREATE_COURSES_PERMISSIONS: {
+               PERMISSION: create_permission_root_account || create_permission_mcc_account,
+               RESTRICT_TO_MCC_ACCOUNT: !!(!create_permission_root_account && create_permission_mcc_account)
+             }
            })
 
     if k5_user?
@@ -582,7 +588,7 @@ class UsersController < ApplicationController
     published, unpublished = dashboard_courses.partition { |course| course[:published] }
     Rails.cache.write(['last_known_dashboard_cards_published_count', @current_user.global_id].cache_key, published.count)
     Rails.cache.write(['last_known_dashboard_cards_unpublished_count', @current_user.global_id].cache_key, unpublished.count)
-    Rails.cache.write(['last_known_k5_cards_count', @current_user.global_id].cache_key, dashboard_courses.reject { |c| c[:isHomeroom] }.count)
+    Rails.cache.write(['last_known_k5_cards_count', @current_user.global_id].cache_key, dashboard_courses.count { |c| !c[:isHomeroom] })
     render json: dashboard_courses
   end
 
@@ -624,7 +630,7 @@ class UsersController < ApplicationController
       end
 
       if (@show_recent_feedback = @current_user.student_enrollments.active.exists?)
-        @recent_feedback = (@current_user && @current_user.recent_feedback) || []
+        @recent_feedback = @current_user&.recent_feedback || []
       end
     end
 
@@ -767,10 +773,10 @@ class UsersController < ApplicationController
       # support submission comments in the conversations inbox.
       # please replace this with a more reasonable solution at your earliest convenience
       opts = { paginate_url: :api_v1_user_activity_stream_url }
-      opts[:asset_type] = params[:asset_type] if params.has_key?(:asset_type)
+      opts[:asset_type] = params[:asset_type] if params.key?(:asset_type)
       opts[:context] = Context.find_by_asset_string(params[:context_code]) if params[:context_code]
-      opts[:submission_user_id] = params[:submission_user_id] if params.has_key?(:submission_user_id)
-      opts[:only_active_courses] = value_to_boolean(params[:only_active_courses]) if params.has_key?(:only_active_courses)
+      opts[:submission_user_id] = params[:submission_user_id] if params.key?(:submission_user_id)
+      opts[:only_active_courses] = value_to_boolean(params[:only_active_courses]) if params.key?(:only_active_courses)
       api_render_stream(opts)
     else
       render_unauthorized_action
@@ -1219,26 +1225,24 @@ class UsersController < ApplicationController
   ServiceCredentials = Struct.new(:service_user_name, :decrypted_password)
 
   def create_user_service
-    begin
-      user_name = params[:user_service][:user_name]
-      password = params[:user_service][:password]
-      service = ServiceCredentials.new(user_name, password)
-      case params[:user_service][:service]
-      when 'delicious'
-        delicious_get_last_posted(service)
-      when 'diigo'
-        Diigo::Connection.diigo_get_bookmarks(service)
-      when 'skype'
-        true
-      else
-        raise "Unknown Service"
-      end
-      @service = UserService.register_from_params(@current_user, params[:user_service])
-      render :json => @service
-    rescue => e
-      Canvas::Errors.capture_exception(:user_service, e)
-      render :json => { :errors => true }, :status => :bad_request
+    user_name = params[:user_service][:user_name]
+    password = params[:user_service][:password]
+    service = ServiceCredentials.new(user_name, password)
+    case params[:user_service][:service]
+    when 'delicious'
+      delicious_get_last_posted(service)
+    when 'diigo'
+      Diigo::Connection.diigo_get_bookmarks(service)
+    when 'skype'
+      true
+    else
+      raise "Unknown Service"
     end
+    @service = UserService.register_from_params(@current_user, params[:user_service])
+    render :json => @service
+  rescue => e
+    Canvas::Errors.capture_exception(:user_service, e)
+    render :json => { :errors => true }, :status => :bad_request
   end
 
   def services
@@ -2202,7 +2206,7 @@ class UsersController < ApplicationController
         render :json => @user
       end
     else
-      if !session["reported_#{@user.id}".to_sym]
+      unless session["reported_#{@user.id}".to_sym]
         @user.report_avatar_image!
       end
       session["reports_#{@user.id}".to_sym] = true
@@ -2213,7 +2217,7 @@ class UsersController < ApplicationController
   def report_avatar_image
     @user = User.find(params[:user_id])
     key = "reported_#{@user.id}"
-    if !session[key]
+    unless session[key]
       session[key] = true
       @user.report_avatar_image!
     end
@@ -2243,9 +2247,9 @@ class UsersController < ApplicationController
     @context.courses.each do |context|
       @entries.concat Assignments::ScopedToUser.new(context, @current_user, context.assignments.published.where("assignments.updated_at>?", cutoff)).scope
       @entries.concat context.calendar_events.active.where("updated_at>?", cutoff)
-      @entries.concat DiscussionTopic::ScopedToUser.new(context, @current_user, context.discussion_topics.published.where("discussion_topics.updated_at>?", cutoff)).scope.select { |dt|
-        !dt.locked_for?(@current_user, :check_policies => true)
-      }
+      @entries.concat(DiscussionTopic::ScopedToUser.new(context, @current_user, context.discussion_topics.published.where("discussion_topics.updated_at>?", cutoff)).scope.reject do |dt|
+        dt.locked_for?(@current_user, :check_policies => true)
+      end)
       @entries.concat WikiPages::ScopedToUser.new(context, @current_user, context.wiki_pages.published.where("wiki_pages.updated_at>?", cutoff)).scope
     end
     @entries.each do |entry|
@@ -2759,8 +2763,6 @@ class UsersController < ApplicationController
     Canvas::ICU.collate_by(data.values) { |e| e[:enrollment].user.sortable_name }
   end
 
-  protected
-
   def require_self_registration
     get_context
     @context = @domain_root_account || Account.default unless @context.is_a?(Account)
@@ -2772,7 +2774,7 @@ class UsersController < ApplicationController
         format.html { redirect_to root_url }
         format.json { render :json => {}, :status => 403 }
       end
-      return false
+      false
     end
   end
 
@@ -3138,7 +3140,7 @@ class UsersController < ApplicationController
       return { errors: parsed['error-codes'] } unless parsed['success']
       return { errors: ['invalid-hostname'] } unless parsed['hostname'] == request.host
 
-      return nil
+      nil
     else
       raise "Error connecting to recaptcha #{response}"
     end

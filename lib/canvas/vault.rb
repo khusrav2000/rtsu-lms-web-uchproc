@@ -20,7 +20,7 @@
 require 'vault'
 
 module Canvas::Vault
-  CACHE_KEY_PREFIX = 'vault/'.freeze
+  CACHE_KEY_PREFIX = 'vault/'
   class MissingVaultSecret < StandardError; end
 
   class << self
@@ -53,7 +53,7 @@ module Canvas::Vault
         cache_ttl = fetched_lease_value / 2
         LocalCache.write(cache_key, cached_data, expires_in: cache_ttl)
       end
-      return cached_data
+      cached_data
     rescue => exception
       Canvas::Errors.capture_exception(:vault, exception)
       stale_value = LocalCache.fetch_without_expiration(CACHE_KEY_PREFIX + path)

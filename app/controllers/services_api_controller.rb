@@ -73,14 +73,14 @@ class ServicesApiController < ApplicationController
   #     }
   def start_kaltura_session
     @user = @current_user
-    if !@current_user
+    unless @current_user
       payload = { errors: { base: t('must_be_logged_in', "You must be logged in to use Kaltura") }, logged_in: false }
       return render json: payload, status: :unauthorized
     end
     client = CanvasKaltura::ClientV3.new
     uid = "#{@user.id}_#{@domain_root_account.id}"
     res = client.startSession(CanvasKaltura::SessionType::USER, uid)
-    raise "Kaltura session failed to generate" if res =~ /START_SESSION_ERROR/
+    raise "Kaltura session failed to generate" if res.include?('START_SESSION_ERROR')
 
     hash = {
       :ks => res,

@@ -69,7 +69,8 @@ class Submission < ActiveRecord::Base
                 :skip_grade_calc,
                 :grade_posting_in_progress,
                 :score_unchanged
-  attr_writer :versioned_originality_reports
+  attr_writer :versioned_originality_reports,
+              :text_entry_originality_reports
   # This can be set to true to force late policy behaviour that would
   # be skipped otherwise. See #late_policy_relevant_changes? and
   # #score_late_or_none. It is reset to false in an after save so late
@@ -128,9 +129,9 @@ class Submission < ActiveRecord::Base
 
   serialize :turnitin_data, Hash
 
-  validates_presence_of :assignment_id, :user_id
-  validates_length_of :body, :maximum => maximum_long_text_length, :allow_nil => true, :allow_blank => true
-  validates_length_of :published_grade, :maximum => maximum_string_length, :allow_nil => true, :allow_blank => true
+  validates :assignment_id, :user_id, presence: true
+  validates :body, length: { :maximum => maximum_long_text_length, :allow_nil => true, :allow_blank => true }
+  validates :published_grade, length: { :maximum => maximum_string_length, :allow_nil => true, :allow_blank => true }
   validates_as_url :url
   validates :points_deducted, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :seconds_late_override, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
@@ -182,28 +183,28 @@ class Submission < ActiveRecord::Base
 
   scope :missing, -> do
     joins(:assignment)
-      .where("
-      -- excused submissions cannot be missing
-      excused IS NOT TRUE AND NOT (
-        -- teacher said it's missing, 'nuff said.
-        -- we're doing a double 'NOT' here to avoid 'ORs' that could slow down the query
-        late_policy_status IS DISTINCT FROM 'missing' AND NOT
-        (
-          cached_due_date IS NOT NULL
-          -- submission is past due and
-          AND CURRENT_TIMESTAMP >= cached_due_date +
-            CASE assignments.submission_types WHEN 'online_quiz' THEN interval '1 minute' ELSE interval '0 minutes' END
-          -- submission is not submitted and
-          AND submission_type IS NULL
-          -- we expect a digital submission
-          AND NOT (
-            cached_quiz_lti IS NOT TRUE AND
-            assignments.submission_types IN ('', 'none', 'not_graded', 'on_paper', 'wiki_page', 'external_tool')
+      .where(<<~SQL.squish)
+        /* excused submissions cannot be missing */
+        excused IS NOT TRUE AND NOT (
+          /* teacher said it's missing, 'nuff said. */
+          /* we're doing a double 'NOT' here to avoid 'ORs' that could slow down the query */
+          late_policy_status IS DISTINCT FROM 'missing' AND NOT
+          (
+            cached_due_date IS NOT NULL
+            /* submission is past due and */
+            AND CURRENT_TIMESTAMP >= cached_due_date +
+              CASE assignments.submission_types WHEN 'online_quiz' THEN interval '1 minute' ELSE interval '0 minutes' END
+            /* submission is not submitted and */
+            AND submission_type IS NULL
+            /* we expect a digital submission */
+            AND NOT (
+              cached_quiz_lti IS NOT TRUE AND
+              assignments.submission_types IN ('', 'none', 'not_graded', 'on_paper', 'wiki_page', 'external_tool')
+            )
+            AND assignments.submission_types IS NOT NULL
           )
-          AND assignments.submission_types IS NOT NULL
         )
-      )
-    ")
+      SQL
   end
 
   scope :late, -> do
@@ -262,7 +263,7 @@ class Submission < ActiveRecord::Base
   # When changing these conditions, update index_submissions_needs_grading to
   # maintain performance.
   def self.needs_grading_conditions
-    conditions = +<<~SQL
+    <<~SQL.squish
       submissions.submission_type IS NOT NULL
       AND (submissions.excused=false OR submissions.excused IS NULL)
       AND (submissions.workflow_state = 'pending_review'
@@ -271,8 +272,6 @@ class Submission < ActiveRecord::Base
         )
       )
     SQL
-    conditions.gsub!(/\s+/, ' ')
-    conditions.freeze
   end
 
   # see .needs_grading_conditions
@@ -471,8 +470,7 @@ class Submission < ActiveRecord::Base
     can :read and can :read_grade
 
     given do |user|
-      self.assignment &&
-        self.assignment.context &&
+      self.assignment&.context &&
         user &&
         self.user &&
         self.assignment.context.observer_enrollments.where(
@@ -541,17 +539,17 @@ class Submission < ActiveRecord::Base
       settings = assignment.turnitin_settings
       type_can_peer_review = false
     end
-    return plagData &&
-           (user_can_read_grade?(user, session, for_plagiarism: true) || (type_can_peer_review && user_can_peer_review_plagiarism?(user))) &&
-           (assignment.context.grants_right?(user, session, :manage_grades) ||
-             case settings[:originality_report_visibility]
-             when 'immediate' then true
-             when 'after_grading' then current_submission_graded?
-             when 'after_due_date'
-                then assignment.due_at && assignment.due_at < Time.now.utc
-             when 'never' then false
-             end
-           )
+    plagData &&
+      (user_can_read_grade?(user, session, for_plagiarism: true) || (type_can_peer_review && user_can_peer_review_plagiarism?(user))) &&
+      (assignment.context.grants_right?(user, session, :manage_grades) ||
+        case settings[:originality_report_visibility]
+        when 'immediate' then true
+        when 'after_grading' then current_submission_graded?
+        when 'after_due_date'
+           then assignment.due_at && assignment.due_at < Time.now.utc
+        when 'never' then false
+        end
+      )
   end
 
   def user_can_peer_review_plagiarism?(user)
@@ -663,17 +661,17 @@ class Submission < ActiveRecord::Base
   end
 
   def url
-    read_body = read_attribute(:body) && CGI::unescapeHTML(read_attribute(:body))
-    if read_body && read_attribute(:url) && read_body[0..250] == read_attribute(:url)[0..250]
-      @full_url = read_attribute(:body)
-    else
-      @full_url = read_attribute(:url)
-    end
+    read_body = read_attribute(:body) && CGI.unescapeHTML(read_attribute(:body))
+    @full_url = if read_body && read_attribute(:url) && read_body[0..250] == read_attribute(:url)[0..250]
+                  read_attribute(:body)
+                else
+                  read_attribute(:url)
+                end
   end
 
   def plaintext_body
     self.extend HtmlTextHelper
-    strip_tags((self.body || "").gsub(/\<\s*br\s*\/\>/, "\n<br/>").gsub(/\<\/p\>/, "</p>\n"))
+    strip_tags((self.body || "").gsub(/<\s*br\s*\/>/, "\n<br/>").gsub(/<\/p>/, "</p>\n"))
   end
 
   TURNITIN_STATUS_RETRY = 11
@@ -687,7 +685,7 @@ class Submission < ActiveRecord::Base
     # of the submission as well
     self.turnitin_data.keys.each do |asset_string|
       data = self.turnitin_data[asset_string]
-      next unless data && data.is_a?(Hash) && data[:object_id]
+      next unless data.is_a?(Hash) && data[:object_id]
 
       if data[:similarity_score].blank?
         if attempt < TURNITIN_STATUS_RETRY
@@ -732,7 +730,7 @@ class Submission < ActiveRecord::Base
     end
   end
 
-  TURNITIN_JOB_OPTS = { n_strand: 'turnitin', priority: Delayed::LOW_PRIORITY, max_attempts: 2 }
+  TURNITIN_JOB_OPTS = { n_strand: 'turnitin', priority: Delayed::LOW_PRIORITY, max_attempts: 2 }.freeze
 
   TURNITIN_RETRY = 5
   def submit_to_turnitin(attempt = 0)
@@ -801,21 +799,31 @@ class Submission < ActiveRecord::Base
     turnitin_data.except(:webhook_info, :provider, :last_processed_attempt).merge(data)
   end
 
-  # Returns an array of the versioned originality reports in a sorted order. The ordering goes
-  # from least preferred report to most preferred reports, assuming there are reports that share
-  # the same submission and attachment combination. Otherwise, the ordering can be safely ignored.
+  def text_entry_originality_reports
+    @text_entry_originality_reports ||= if self.association(:originality_reports).loaded?
+                                          originality_reports.select { |o| o.attachment_id.blank? }
+                                        else
+                                          originality_reports.where(attachment_id: nil)
+                                        end
+  end
+
+  # Returns an array of both the versioned originality reports (those with attachments) and
+  # text_entry_originality_reports in a sorted order. The ordering goes from least preferred
+  # report to most preferred reports, assuming there are reports that share the same submission and
+  # attachment combination. Otherwise, the ordering can be safely ignored.
   #
   # @return [Array<OriginalityReport>]
   def originality_reports_for_display
-    versioned_originality_reports.uniq.sort_by do |report|
+    (versioned_originality_reports + text_entry_originality_reports).uniq.sort_by do |report|
       [OriginalityReport::ORDERED_VALID_WORKFLOW_STATES.index(report.workflow_state) || -1, report.updated_at]
     end
   end
 
   def turnitin_assets
-    if self.submission_type == 'online_upload'
-      self.attachments.select { |a| a.turnitinable? }
-    elsif self.submission_type == 'online_text_entry'
+    case self.submission_type
+    when 'online_upload'
+      self.attachments.select(&:turnitinable?)
+    when 'online_text_entry'
       [self]
     else
       []
@@ -844,7 +852,8 @@ class Submission < ActiveRecord::Base
   end
 
   def has_originality_report?
-    versioned_originality_reports.present?
+    versioned_originality_reports.present? ||
+      text_entry_originality_reports.present?
   end
 
   def all_versioned_attachments
@@ -915,7 +924,7 @@ class Submission < ActiveRecord::Base
     update_scores = false
     if Canvas::Plugin.find(:vericite).try(:enabled?) && !self.readonly? && lookup_data
       self.vericite_data_hash.each_value do |data|
-        next unless data && data.is_a?(Hash) && data[:object_id]
+        next unless data.is_a?(Hash) && data[:object_id]
 
         update_scores = update_scores || vericite_recheck_score(data)
       end
@@ -924,7 +933,7 @@ class Submission < ActiveRecord::Base
         check_vericite_status(0)
       end
     end
-    if !self.vericite_data_hash.empty?
+    unless self.vericite_data_hash.empty?
       # only set vericite provider flag if the hash isn't empty
       self.vericite_data_hash[:provider] = :vericite
     end
@@ -940,7 +949,7 @@ class Submission < ActiveRecord::Base
   def vericite_recheck_score(data)
     update_scores = false
     # only recheck scores if an old score exists
-    if !data[:similarity_score_time].blank?
+    unless data[:similarity_score_time].blank?
       now = Time.now.to_i
       score_age = Time.now.to_i - data[:similarity_score_time]
       score_cache_time = 1200 # by default cache scores for 20 mins
@@ -953,7 +962,7 @@ class Submission < ActiveRecord::Base
       if score_age > score_cache_time
         # check if we just recently requested this score
         last_checked = 1000 # default to a high number so that if it is not set, it won't effect the outcome
-        if !data[:similarity_score_check_time].blank?
+        unless data[:similarity_score_check_time].blank?
           last_checked = now - data[:similarity_score_check_time]
         end
         # only update if we didn't just ask VeriCite for the scores 20 seconds again (this is in the case of an error, we don't want to keep asking immediately)
@@ -981,7 +990,7 @@ class Submission < ActiveRecord::Base
     self.vericite_data_hash.each do |asset_string, data|
       # keep track whether the score state changed
       data_orig = data.dup
-      next unless data && data.is_a?(Hash) && data[:object_id]
+      next unless data.is_a?(Hash) && data[:object_id]
 
       # check to see if the score is stale, if so, delete it and fetch again
       recheck_score = vericite_recheck_score(data)
@@ -1027,7 +1036,7 @@ class Submission < ActiveRecord::Base
     retry_mins = 2**attempt
     if retry_mins > 240
       # cap the retry max wait to 4 hours
-      retry_mins = 240;
+      retry_mins = 240
     end
     # if attempt <= 0, then that means no retries should be attempted
     delay(run_at: retry_mins.minutes.from_now).check_vericite_status(attempt + 1) if attempt > 0 && needs_retry
@@ -1035,9 +1044,7 @@ class Submission < ActiveRecord::Base
     if data_changed
       self.vericite_data_changed!
       if recheck_score_all
-        self.with_versioning(false) do |t|
-          t.save!
-        end
+        self.with_versioning(false, &:save!)
       else
         self.save
       end
@@ -1057,7 +1064,7 @@ class Submission < ActiveRecord::Base
     end
   end
 
-  VERICITE_JOB_OPTS = { n_strand: 'vericite', priority: Delayed::LOW_PRIORITY, max_attempts: 2 }
+  VERICITE_JOB_OPTS = { n_strand: 'vericite', priority: Delayed::LOW_PRIORITY, max_attempts: 2 }.freeze
 
   VERICITE_RETRY = 5
   def submit_to_vericite(attempt = 0)
@@ -1080,7 +1087,7 @@ class Submission < ActiveRecord::Base
       self.vericite_data_hash[:assignment_error] = assignment_error if assignment_error.present?
       # self.vericite_data_hash[:student_error] = vericite_enrollment.error_hash if vericite_enrollment.error?
       self.vericite_data_changed!
-      if !self.vericite_data_hash.empty?
+      unless self.vericite_data_hash.empty?
         # only set vericite provider flag if the hash isn't empty
         self.vericite_data_hash[:provider] = :vericite
       end
@@ -1107,7 +1114,7 @@ class Submission < ActiveRecord::Base
     # only save if there were newly submitted attachments
     if update
       delay(run_at: 5.minutes.from_now, **VERICITE_JOB_OPTS).check_vericite_status
-      if !self.vericite_data_hash.empty?
+      unless self.vericite_data_hash.empty?
         # only set vericite provider flag if the hash isn't empty
         self.vericite_data_hash[:provider] = :vericite
       end
@@ -1125,9 +1132,10 @@ class Submission < ActiveRecord::Base
   end
 
   def vericite_assets
-    if self.submission_type == 'online_upload'
-      self.attachments.select { |a| a.vericiteable? }
-    elsif self.submission_type == 'online_text_entry'
+    case self.submission_type
+    when 'online_upload'
+      self.attachments.select(&:vericiteable?)
+    when 'online_text_entry'
       [self]
     else
       []
@@ -1175,7 +1183,7 @@ class Submission < ActiveRecord::Base
 
   def resubmit_to_vericite
     reset_vericite_assets
-    if !self.vericite_data_hash.empty?
+    unless self.vericite_data_hash.empty?
       # only set vericite provider flag if the hash isn't empty
       self.vericite_data_hash[:provider] = :vericite
     end
@@ -1306,7 +1314,7 @@ class Submission < ActiveRecord::Base
   # submitted_at is needed by the SpeedGrader, so it is set to the updated_at value
   def submitted_at
     if submission_type
-      if not read_attribute(:submitted_at)
+      unless read_attribute(:submitted_at)
         write_attribute(:submitted_at, read_attribute(:updated_at))
       end
       read_attribute(:submitted_at).in_time_zone rescue nil
@@ -1447,11 +1455,12 @@ class Submission < ActiveRecord::Base
         score.to_s
     end
 
-    self.grade = nil if !self.score
+    self.grade = nil unless self.score
     # I think the idea of having unpublished scores is unnecessarily confusing.
     # It may be that we want to have that functionality later on, but for now
     # I say it's just confusing.
-    if true # self.assignment && self.assignment.published?
+    # if self.assignment && self.assignment.published?
+    begin
       self.published_score = self.score
       self.published_grade = self.grade
     end
@@ -1706,13 +1715,16 @@ class Submission < ActiveRecord::Base
   end
 
   def versioned_originality_reports
-    @versioned_originality_reports ||=
-      # turns out the database stores timestamps with 9 decimal places, but Ruby/Rails only serves
-      # up 6.  however, submission versions (when deserialized into a Submission model) like to
-      # show 9. and apparently to_f rounds, but iso8601 doesn't
-      # it would be better if we saved the attempt number on the originality report and matched
-      # them up that way
-      originality_reports.select { |o| o.submission_time&.iso8601(6) == submitted_at&.iso8601(6) }
+    @versioned_originality_reports ||= begin
+      attachment_ids = attachment_ids_for_version
+      if attachment_ids.empty?
+        []
+      elsif self.association(:originality_reports).loaded?
+        originality_reports.select { |o| attachment_ids.include?(o.attachment_id) }
+      else
+        originality_reports.where(attachment_id: attachment_ids)
+      end
+    end
   end
 
   def versioned_attachments
@@ -1771,19 +1783,32 @@ class Submission < ActiveRecord::Base
   # submissions (avoids having O(N) originality report queries)
   # NOTE: all submissions must belong to the same shard
   def self.bulk_load_versioned_originality_reports(submissions)
-    reports = originality_reports_by_submission_id_submission_time(submissions)
-    submissions.each do |s|
-      s.versioned_originality_reports = reports.dig(s.id, s.submitted_at&.iso8601(6))
+    attachment_ids_by_submission_and_index = group_attachment_ids_by_submission_and_index(submissions)
+    bulk_attachment_ids = attachment_ids_by_submission_and_index.values.flatten
+
+    reports_by_attachment_id = if bulk_attachment_ids.empty?
+                                 {}
+                               else
+                                 OriginalityReport.where(
+                                   submission_id: submissions.map(&:id), attachment_id: bulk_attachment_ids
+                                 ).group_by(&:attachment_id)
+                               end
+
+    submissions.each_with_index do |s, index|
+      s.versioned_originality_reports =
+        reports_by_attachment_id.values_at(*attachment_ids_by_submission_and_index[[s, index]]).flatten.compact
     end
   end
 
-  def self.originality_reports_by_submission_id_submission_time(submissions)
-    reports = OriginalityReport.where(submission_id: submissions)
-    reports.each_with_object({}) do |report, hash|
-      report_submission_time = report.submission_time.iso8601(6)
-      hash[report.submission_id] ||= {}
-      hash[report.submission_id][report_submission_time] ||= []
-      hash[report.submission_id][report_submission_time] << report
+  def self.bulk_load_text_entry_originality_reports(submissions)
+    submissions = Array(submissions)
+    submission_ids = submissions.map(&:id)
+
+    reports_by_submission =
+      OriginalityReport.where(submission_id: submission_ids, attachment_id: nil).group_by(&:submission_id)
+
+    submissions.each do |s|
+      s.text_entry_originality_reports = reports_by_submission[s.id] || []
     end
   end
 
@@ -1908,8 +1933,8 @@ class Submission < ActiveRecord::Base
     # one student from sneakily getting access to files in another user's comments,
     # since they're all being held on the assignment for now.
     attachments ||= []
-    old_ids = (Array(self.attachment_ids || "").join(",")).split(",").map { |id| id.to_i }
-    write_attribute(:attachment_ids, attachments.select { |a| (a && a.id && old_ids.include?(a.id)) || (a.recently_created? && a.context == self.assignment) || a.context != self.assignment }.map { |a| a.id }.join(","))
+    old_ids = (Array(self.attachment_ids || "").join(",")).split(",").map(&:to_i)
+    write_attribute(:attachment_ids, attachments.select { |a| (a && a.id && old_ids.include?(a.id)) || (a.recently_created? && a.context == self.assignment) || a.context != self.assignment }.map(&:id).join(","))
   end
 
   # someday code-archaeologists will wonder how this method came to be named
@@ -1968,7 +1993,7 @@ class Submission < ActiveRecord::Base
 
   scope :in_workflow_state, lambda { |provided_state| where(:workflow_state => provided_state) }
 
-  scope :having_submission, -> { where("submissions.submission_type IS NOT NULL") }
+  scope :having_submission, -> { where.not(submissions: { submission_type: nil }) }
   scope :without_submission, -> { where(submission_type: nil, workflow_state: "unsubmitted") }
   scope :not_placeholder, -> {
     active.where("submissions.submission_type IS NOT NULL or submissions.excused or submissions.score IS NOT NULL or submissions.workflow_state = 'graded'")
@@ -2044,7 +2069,7 @@ class Submission < ActiveRecord::Base
 
   def processed?
     if submission_type == "online_url"
-      return attachment && attachment.content_type.match(/image/)
+      return attachment&.content_type&.include?('image')
     end
 
     false
@@ -2056,7 +2081,7 @@ class Submission < ActiveRecord::Base
            if final
              pgs.detect(&:final)
            else
-             pgs.detect { |pg| !pg.final && pg.scorer_id == scorer.id }
+             pgs.detect { |pg2| !pg2.final && pg2.scorer_id == scorer.id }
            end
          else
            if final
@@ -2369,7 +2394,7 @@ class Submission < ActiveRecord::Base
   def to_atom(opts = {})
     author_name = self.assignment.present? && self.assignment.context.present? ? self.assignment.context.name : t('atom_no_author', "No Author")
     Atom::Entry.new do |entry|
-      entry.title     = "#{self&.user.name} -- #{self&.assignment.title}#{', ' + self.assignment.context.name if opts[:include_context]}"
+      entry.title     = "#{user.name} -- #{assignment.title}#{', ' + self.assignment.context.name if opts[:include_context]}"
       entry.updated   = self.updated_at
       entry.published = self.created_at
       entry.id        = "tag:#{HostUrl.default_host},#{self.created_at.strftime('%Y-%m-%d')}:/submissions/#{self.feed_code}_#{self.updated_at.strftime('%Y-%m-%d')}"
@@ -2405,11 +2430,9 @@ class Submission < ActiveRecord::Base
     excepts = additional_parameters.delete :except
 
     res = { :methods => methods, :include => includes }.merge(additional_parameters)
-    if excepts
-      excepts.each do |key|
-        res[:methods].delete key
-        res[:include].delete key
-      end
+    excepts&.each do |key|
+      res[:methods].delete key
+      res[:include].delete key
     end
     res
   end
@@ -2516,12 +2539,11 @@ class Submission < ActiveRecord::Base
     return "read" unless current_user # default for logged out user
 
     uid = current_user.is_a?(User) ? current_user.id : current_user
-    cp = if content_participations.loaded?
-           content_participations.detect { |cp| cp.user_id == uid }
-         else
-           content_participations.where(user_id: uid).first
-         end
-    state = cp.try(:workflow_state)
+    state = if content_participations.loaded?
+              content_participations.detect { |cp2| cp2.user_id == uid }&.workflow_state
+            else
+              content_participations.where(user_id: uid).pick(:workflow_state)
+            end
     return state if state.present?
     return "read" if assignment.deleted? || assignment.muted? || !self.user_id
     return "unread" if self.grade || self.score
@@ -2533,7 +2555,7 @@ class Submission < ActiveRecord::Base
                    end
     return "unread" if has_comments
 
-    return "read"
+    "read"
   end
 
   def read?(current_user)
@@ -2795,10 +2817,12 @@ class Submission < ActiveRecord::Base
   end
 
   def word_count
-    return nil unless body
-
-    tinymce_wordcount_count_regex = /[\w\u2019\x27\-\u00C0-\u1FFF]+/
-    @word_count ||= ActionController::Base.helpers.strip_tags(body).scan(tinymce_wordcount_count_regex).size
+    if body
+      tinymce_wordcount_count_regex = /[\w\u2019\x27\-\u00C0-\u1FFF]+/
+      ActionController::Base.helpers.strip_tags(body).scan(tinymce_wordcount_count_regex).size
+    elsif versioned_attachments.present?
+      versioned_attachments.filter_map(&:word_count).sum
+    end
   end
 
   private

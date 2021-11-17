@@ -21,9 +21,13 @@
 require 'hash_view'
 
 class ReturnViewNull < HashView
-  def array?; false; end
+  def array?
+    false
+  end
 
-  def type; nil; end
+  def type
+    nil
+  end
 
   def to_hash
     {
@@ -41,6 +45,7 @@ end
 
 class ReturnView < ReturnViewNull
   def initialize(line)
+    super()
     if line
       @line = line.gsub(/\s+/m, " ").strip
     else
@@ -53,7 +58,7 @@ class ReturnView < ReturnViewNull
   end
 
   def type
-    @line.gsub('[', '').gsub(']', '')
+    @line.delete('[').delete(']')
   end
 
   def to_swagger

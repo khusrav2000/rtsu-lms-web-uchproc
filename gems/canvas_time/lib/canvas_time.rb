@@ -25,7 +25,7 @@ module CanvasTime
       return super unless args.starts_with?("pre1900:")
 
       # 8 puts us after the colon in "pre1900:"
-      iso8601(args[8..-1])
+      iso8601(args[8..])
     end
   end
 
@@ -43,11 +43,9 @@ module CanvasTime
   end
 
   def self.try_parse(maybe_time, default = nil)
-    begin
-      Time.zone.parse(maybe_time) || default
-    rescue
-      default
-    end
+    Time.zone.parse(maybe_time) || default
+  rescue
+    default
   end
 
   def utc_datetime

@@ -82,7 +82,7 @@ class Quizzes::QuizQuestion::AnswerGroup
     end
 
     def any_value_of(keys, default = "")
-      key = keys.find { |key| @data.key?(key) }
+      key = keys.find { |k| @data.key?(k) }
       @data[key] || default
     end
 
@@ -92,7 +92,7 @@ class Quizzes::QuizQuestion::AnswerGroup
 
     def set_id(taken_ids, key = :id)
       @data[key] = @data[key.to_s] if @data[key.to_s]
-      @data[key] = nil if (@data[key] && @data[key].to_i.zero?) || taken_ids.include?(@data[key])
+      @data[key] = nil if @data[key]&.to_i&.zero? || taken_ids.include?(@data[key])
       @data[key] ||= unique_local_id(taken_ids)
       @data[key]
     end

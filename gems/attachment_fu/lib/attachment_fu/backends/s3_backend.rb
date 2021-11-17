@@ -167,13 +167,12 @@ module AttachmentFu # :nodoc:
 
       def sanitize_filename(filename)
         if self.respond_to?(:root_attachment) && self.root_attachment && self.root_attachment.filename
-          filename = self.root_attachment.filename
+          self.root_attachment.filename
         else
-          filename = Attachment.truncate_filename(filename, 255) do |component, len|
+          Attachment.truncate_filename(filename, 255) do |component, len|
             CanvasTextHelper.cgi_escape_truncate(component, len)
           end
         end
-        filename
       end
 
       # The attachment ID used in the full path of a file
@@ -202,7 +201,7 @@ module AttachmentFu # :nodoc:
       def full_filename(thumbnail = nil)
         # the old AWS::S3 gem would not encode +'s, causing S3 to interpret
         # them as spaces. Continue that behavior.
-        basename = thumbnail_name_for(thumbnail).gsub('+', ' ')
+        basename = thumbnail_name_for(thumbnail).tr('+', ' ')
         File.join(base_path, basename)
       end
 
@@ -287,23 +286,7 @@ module AttachmentFu # :nodoc:
         # and we don't want to get rid of the original...
         # TODO: we'll just have to figure out a different way to clean out
         # the cruft that happens because of this
-        return
-        return unless @old_filename && @old_filename != filename
-
-        old_full_filename = File.join(base_path, @old_filename)
-
-        # INSTRUCTURE: this dies when the file did not already exist,
-        # but we need it to not throw an angry exception in production.
-        # I've added some additional provisions in Attachment.rb, but
-        # it looks like they're not always working for some reason
-        begin
-          bucket.object(old_full_filename).move_to(full_filename, :acl => attachment_options[:s3_access])
-        rescue
-          nil
-        end
-
-        @old_filename = nil
-        true
+        false
       end
 
       def save_to_storage

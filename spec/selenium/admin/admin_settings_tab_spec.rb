@@ -25,7 +25,7 @@ describe "admin settings tab" do
     account_admin_user
   end
 
-  before :each do
+  before do
     user_session(@admin)
   end
 
@@ -118,7 +118,7 @@ describe "admin settings tab" do
   end
 
   context "account settings" do
-    before :each do
+    before do
       get "/accounts/#{Account.default.id}/settings"
     end
 
@@ -181,7 +181,7 @@ describe "admin settings tab" do
   end
 
   context "quiz ip address filter" do
-    before :each do
+    before do
       get "/accounts/#{Account.default.id}/settings"
     end
 
@@ -243,7 +243,7 @@ describe "admin settings tab" do
   end
 
   context "features" do
-    before :each do
+    before do
       get "/accounts/#{Account.default.id}/settings"
     end
 
@@ -268,7 +268,7 @@ describe "admin settings tab" do
         expect(f("#account_settings_equella_teaser")).to have_value "equella feature"
       end
 
-      before(:each) do
+      before do
         f("#enable_equella").click
       end
 
@@ -304,7 +304,7 @@ describe "admin settings tab" do
   end
 
   context "enabled web services" do
-    before :each do
+    before do
       get "/accounts/#{Account.default.id}/settings"
     end
 
@@ -357,7 +357,7 @@ describe "admin settings tab" do
   end
 
   context "who can create new courses" do
-    before :each do
+    before do
       Account.default.disable_feature!(:granular_permissions_manage_courses)
       get "/accounts/#{Account.default.id}/settings"
     end
@@ -530,6 +530,7 @@ describe "admin settings tab" do
 
   context "external integration keys" do
     let!(:key_value) { '42' }
+
     before(:once) do
       ExternalIntegrationKey.key_type :external_key0, label: 'External Key 0', rights: { read: proc { true }, write: true }
       ExternalIntegrationKey.key_type :external_key1, label: proc { 'External Key 1' }, rights: { read: true, write: false }
@@ -607,24 +608,6 @@ describe "admin settings tab" do
       else
         expect(features_text).to include(feature.display_name.call)
       end
-    end
-  end
-
-  context 'feature flag search and filters' do
-    before :each do
-      user = account_admin_user({ active_user: true }.merge(account: Account.site_admin))
-      course_with_admin_logged_in(account: Account.default, user: user)
-      Account.site_admin.enable_feature!(:feature_flag_filters)
-    end
-
-    it 'allows for searching and deleting a feature flag filter ' do
-      go_to_feature_options(Account.site_admin.id)
-      select_filter_option('Pending Enforcement')
-      pending_enforcement_filter_button_selector = "button[title='Remove Pending Enforcement']"
-
-      expect(f(pending_enforcement_filter_button_selector)).to be_displayed
-      f(pending_enforcement_filter_button_selector).click
-      expect(element_exists?(pending_enforcement_filter_button_selector)).to be_falsey
     end
   end
 

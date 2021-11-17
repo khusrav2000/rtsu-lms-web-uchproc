@@ -35,7 +35,7 @@ describe 'Web conferences' do
     end
   end
 
-  before(:each) do
+  before do
     user_session(@teacher)
     get conferences_index_page
     stub_request(:get, /wimba\.instructure\.com/)
@@ -70,6 +70,7 @@ describe 'Web conferences' do
 
   context 'when concluding a conference' do
     let(:conference_title) { 'Newer Conference' }
+
     before(:once) do
       conference = create_wimba_conference(conference_title)
       conference.add_attendee(@user)
@@ -90,7 +91,7 @@ describe 'Web conferences' do
     end
 
     context 'as a TA invited to the conference' do
-      before(:each) do
+      before do
         user_session(@ta)
         get conferences_index_page
       end
@@ -155,7 +156,7 @@ describe 'Web conferences' do
         cog_menu_item = f('.al-trigger')
         edit_conference(cog_menu_item: cog_menu_item, cancel: false)
 
-        duration_edit_field = f('#web_conference_duration');
+        duration_edit_field = f('#web_conference_duration')
 
         expect(duration_edit_field).to be_displayed # input field w/in editor
         # value is localized

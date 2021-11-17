@@ -24,7 +24,7 @@ describe "admin settings tab" do
   let(:account) { Account.default }
   let(:sub_account) { account.sub_accounts.create!(:name => 'sub-account') }
 
-  before :each do
+  before do
     user_logged_in(:user => site_admin_user(account: account))
   end
 
@@ -40,7 +40,7 @@ describe "admin settings tab" do
   def set_checkbox_via_label(id, checked)
     # Use this method for checkboxes that are hidden by their label (ic-Checkbox)
     checkbox = f(id)
-    label = f("label[for=\"#{id[1..-1]}\"]")
+    label = f("label[for=\"#{id[1..]}\"]")
     label.click if is_checked(checkbox) != checked
   end
 

@@ -51,7 +51,7 @@ describe CanvasKaltura::ClientV3 do
       .to_return(:body => "<result>#{ks}</result>")
   end
 
-  before(:each) do
+  before do
     CanvasKaltura.cache = double(read: nil)
     CanvasKaltura.logger = double.as_null_object
     CanvasKaltura.timeout_protector_proc = lambda { |_options, &block| block.call }
@@ -345,7 +345,7 @@ describe CanvasKaltura::ClientV3 do
 
       stub_request(:get, "https://www.instructuremedia.com/api_v3/")
         .with(:query => hash_including(:service => 'bulkUpload', :action => 'get'))
-        .to_return(:body => <<-XML)
+        .to_return(:body => <<~XML)
           <result>
             <logFileUrl>#{log_file_url}</logFileUrl>
             <id>#{bulk_upload_id}</id>
@@ -373,13 +373,13 @@ describe CanvasKaltura::ClientV3 do
       log_file_url = "https://www.instructuremedia.com/bulk_uploads/12345.log"
       bulk_upload_add_stub = stub_request(:post, "https://www.instructuremedia.com/api_v3/")
                              .with(:query => hash_including(:service => 'bulkUpload', :action => 'add'))
-                             .with { |request| request.headers['Content-Type'] =~ /\Amultipart\/form-data/ }
-                             .to_return(:body => <<-XML)
-          <result>
-            <id>batch_job_12345</id>
-            <status>ready</status>
-            <logFileUrl>#{log_file_url}</logFileUrl>
-          </result>
+                             .with { |request| request.headers['Content-Type'].start_with?('multipart/form-data') }
+                             .to_return(:body => <<~XML)
+                               <result>
+                                 <id>batch_job_12345</id>
+                                 <status>ready</status>
+                                 <logFileUrl>#{log_file_url}</logFileUrl>
+                               </result>
                              XML
 
       log_file_stub = stub_request(:get, log_file_url)
@@ -438,7 +438,7 @@ describe CanvasKaltura::ClientV3 do
       playlist_url = "https://www.instructuremedia.com/p/100/playManifest/entryId/#{entry_id}/flavorId/#{flavor_id}"
 
       stub_request(:get, playlist_url)
-        .to_return(:body => <<-XML)
+        .to_return(:body => <<~XML)
           <manifest>
             <media url="#{media_url}" />
             </media>

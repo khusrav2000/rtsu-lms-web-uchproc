@@ -19,7 +19,7 @@
 #
 
 describe BasicLTI::QuizzesNextVersionedSubmission do
-  before(:each) do
+  before do
     course_model(workflow_state: 'available')
     @root_account = @course.root_account
     @account = account_model(:root_account => @root_account, :parent_account => @root_account)
@@ -221,11 +221,11 @@ describe BasicLTI::QuizzesNextVersionedSubmission do
               [submission[:url], submission[:score], submission[:grade]]
             end
           ).to eq(
-            url_grades.map do |x|
+            url_grades.filter_map do |x|
               next if x[:url].blank?
 
               [x[:url], assignment.points_possible * x[:grade], (assignment.points_possible * x[:grade]).to_s]
-            end.compact
+            end
           )
         end
       end

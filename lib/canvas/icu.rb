@@ -70,7 +70,6 @@ module Canvas::ICU
           ICU::Lib.check_error do |error|
             ICU::Lib.ucol_setAttribute(@c, ATTRIBUTES[attribute], ATTRIBUTE_VALUES[value], error)
           end
-          value
         end
 
         ATTRIBUTES = {
@@ -85,7 +84,7 @@ module Canvas::ICU
         }.freeze
 
         ATTRIBUTES.each_key do |attribute|
-          class_eval <<-CODE
+          class_eval <<~RUBY, __FILE__, __LINE__ + 1
             def #{attribute}
               self[:#{attribute}]
             end
@@ -93,7 +92,7 @@ module Canvas::ICU
             def #{attribute}=(value)
               self[:#{attribute}] = value
             end
-          CODE
+          RUBY
         end
 
         ATTRIBUTE_VALUES = {
@@ -138,7 +137,7 @@ module Canvas::ICU
     # in test, this will reveal system configuration problems
     throw if Rails.env.test?
 
-    def self.collator
+    def self.collator # rubocop:disable Lint/DuplicateMethods
       NaiveCollator
     end
   end

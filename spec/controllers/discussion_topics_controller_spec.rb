@@ -921,7 +921,7 @@ describe DiscussionTopicsController do
     end
 
     context "in a homeroom course" do
-      before(:each) do
+      before do
         @course.account.enable_as_k5_account!
       end
 
@@ -1145,6 +1145,7 @@ describe DiscussionTopicsController do
 
     context 'usage rights - teacher' do
       before { user_session(@teacher) }
+
       before :once do
         attachment_model
         @topic_with_file = @course.discussion_topics.create!(title: "some topic", attachment: @attachment)
@@ -1153,14 +1154,14 @@ describe DiscussionTopicsController do
       shared_examples_for 'no usage rights returned' do
         it 'does not return usage rights on discussion topic attachment' do
           get :edit, params: { course_id: @course.id, id: @topic_with_file.id }
-          expect(assigns[:js_env][:DISCUSSION_TOPIC][:ATTRIBUTES]['attachments'][0].key?('usage_rights')).to be false
+          expect(assigns[:js_env][:DISCUSSION_TOPIC][:ATTRIBUTES]['attachments'][0]).not_to have_key('usage_rights')
         end
       end
 
       shared_examples_for 'usage rights returned' do
         it 'returns usage rights on discussion topic attachment' do
           get :edit, params: { course_id: @course.id, id: @topic_with_file.id }
-          expect(assigns[:js_env][:DISCUSSION_TOPIC][:ATTRIBUTES]['attachments'][0].key?('usage_rights')).to be true
+          expect(assigns[:js_env][:DISCUSSION_TOPIC][:ATTRIBUTES]['attachments'][0]).to have_key('usage_rights')
         end
       end
 
@@ -1199,7 +1200,7 @@ describe DiscussionTopicsController do
   end
 
   context 'student planner' do
-    before :each do
+    before do
       course_topic
     end
 
@@ -1306,7 +1307,8 @@ describe DiscussionTopicsController do
     before(:once) do
       Setting.set('enable_page_views', 'db')
     end
-    before(:each) do
+
+    before do
       allow(controller).to receive_messages(:form_authenticity_token => 'abc', :form_authenticity_param => 'abc')
     end
 
@@ -1347,7 +1349,7 @@ describe DiscussionTopicsController do
     end
 
     describe "create_announcements_unlocked preference" do
-      before(:each) do
+      before do
         @teacher.create_announcements_unlocked(false)
         user_session(@teacher)
       end
@@ -1369,7 +1371,8 @@ describe DiscussionTopicsController do
 
     describe 'the new topic' do
       let(:topic) { assigns[:topic] }
-      before(:each) do
+
+      before do
         user_session(@student)
         post 'create', params: topic_params(@course), :format => :json
       end
@@ -1389,7 +1392,7 @@ describe DiscussionTopicsController do
 
     # TODO: fix this terribleness
     describe 'section specific discussions' do
-      before(:each) do
+      before do
         user_session(@teacher)
         @section1 = @course.course_sections.create!(name: "Section 1")
         @section2 = @course.course_sections.create!(name: "Section 2")
@@ -1576,7 +1579,7 @@ describe DiscussionTopicsController do
       expect(topic).to be_published
       expect(topic.assignment).to be_published
       expect(@student.email_channel.messages).to be_empty
-      expect(@student.recent_stream_items.map { |item| item.data }).not_to include topic
+      expect(@student.recent_stream_items.map(&:data)).not_to include topic
     end
 
     it 'does dispatch new topic notification when not hidden' do
@@ -1686,12 +1689,13 @@ describe DiscussionTopicsController do
       @topic = DiscussionTopic.create!(context: @course, title: 'Test Topic',
                                        delayed_post_at: '2013-01-01T00:00:00UTC', lock_at: '2013-01-02T00:00:00UTC')
     end
-    before(:each) do
+
+    before do
       user_session(@teacher)
     end
 
     describe "create_announcements_unlocked preference" do
-      before(:each) do
+      before do
         @teacher.create_announcements_unlocked(false)
         user_session(@teacher)
       end
@@ -2007,7 +2011,7 @@ describe DiscussionTopicsController do
       @course.announcements.create!(message: 'asdf')
       course_topic
 
-      topics = 3.times.map { course_topic(pinned: true) }
+      topics = Array.new(3) { course_topic(pinned: true) }
       expect(topics.map(&:position)).to eq [1, 2, 3]
       t1, t2, _ = topics
       post 'reorder', params: { :course_id => @course.id, :order => "#{t2.id},#{t1.id}" }, :format => 'json'

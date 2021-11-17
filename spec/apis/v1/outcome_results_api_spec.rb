@@ -211,7 +211,7 @@ describe "Outcome Results API", type: :request do
       end
 
       it "requires user ids to be students in the context" do
-        raw_api_call(:get, outcome_rollups_url(@course, user_ids: "#{@teacher.id}"),
+        raw_api_call(:get, outcome_rollups_url(@course, user_ids: @teacher.id.to_s),
                      controller: 'outcome_results', action: 'rollups', format: 'json',
                      course_id: @course.id.to_s, user_ids: @teacher.id)
         assert_status(400)
@@ -263,10 +263,10 @@ describe "Outcome Results API", type: :request do
           user_session @user
           get "/courses/#{@course.id}/outcome_rollups.csv"
           expect(response).to be_successful
-          expect(response.body).to eq <<~END
+          expect(response.body).to eq <<~CSV
             Student name,Student ID,new outcome result,new outcome mastery points
             User,#{outcome_student.id},3.0,3.0
-          END
+          CSV
         end
 
         it "obeys csv i18n flags" do
@@ -277,10 +277,10 @@ describe "Outcome Results API", type: :request do
           user_session @user
           get "/courses/#{@course.id}/outcome_rollups.csv"
           expect(response).to be_successful
-          expect(response.body).to eq <<~END
+          expect(response.body).to eq <<~CSV
             \xEF\xBB\xBFStudent name;Student ID;new outcome result;new outcome mastery points
             User;#{outcome_student.id};3.0;3.0
-          END
+          CSV
         end
 
         context 'when Account-level Mastery Scales flag is on' do
@@ -295,10 +295,10 @@ describe "Outcome Results API", type: :request do
             get "/courses/#{@course.id}/outcome_rollups.csv"
             outcome_proficiency = OutcomeProficiency.find_or_create_default!(@course)
             expect(response).to be_successful
-            expect(response.body).to eq <<~END
+            expect(response.body).to eq <<~CSV
               Student name,Student ID,new outcome result,new outcome mastery points
               User,#{outcome_student.id},#{outcome_proficiency.points_possible},#{outcome_proficiency.mastery_points}
-            END
+            CSV
           end
 
           it 'uses resolved_outcome_proficiency for points scaling if one exists' do
@@ -308,14 +308,13 @@ describe "Outcome Results API", type: :request do
 
             get "/courses/#{@course.id}/outcome_rollups.csv"
             expect(response).to be_successful
-            expect(response.body).to eq <<~END
+            expect(response.body).to eq <<~CSV
               Student name,Student ID,new outcome result,new outcome mastery points
               User,#{outcome_student.id},10.0,10.0
-            END
+            CSV
           end
         end
 
-        # rubocop:disable RSpec/NestedGroups
         context 'Student filters in LMGB FF' do
           before do
             @concluded_student = User.create!(:name => 'Student - Concluded')
@@ -487,7 +486,6 @@ describe "Outcome Results API", type: :request do
             end
           end
         end
-        # rubocop:enable RSpec/NestedGroups
       end
 
       describe "user_ids parameter" do
@@ -712,7 +710,7 @@ describe "Outcome Results API", type: :request do
         expect(json['rollups'].size).to eq 1
         json['rollups'].each do |rollup|
           expect(rollup.keys.sort).to eq %w(links scores)
-          rollup['links']['course'] == @course.id.to_s
+          expect(rollup['links']['course']).to eq @course.id.to_s
           expect(rollup['scores'].size).to eq 1
           rollup['scores'].each do |score|
             expect(score.keys.sort).to eq %w(count hide_points links score submitted_at title)

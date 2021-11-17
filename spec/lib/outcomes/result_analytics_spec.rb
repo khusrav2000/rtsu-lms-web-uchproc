@@ -23,8 +23,6 @@ describe Outcomes::ResultAnalytics do
   let(:ra) { Outcomes::ResultAnalytics }
   let(:time) { Time.zone.now }
 
-  Rollup = Outcomes::ResultAnalytics::Rollup
-
   def outcome_from_score(score, args)
     title = args[:title] || "name, o1"
     outcome = args[:outcome] || create_outcome(args)
@@ -63,7 +61,7 @@ describe Outcomes::ResultAnalytics do
       course_with_student
 
       names = %w[Gamma Alpha Beta]
-      @students = create_users(3.times.map { |i| { name: "User #{i + 1}", sortable_name: "#{names[i]}, User" } }, return_type: :record)
+      @students = create_users(Array.new(3) { |i| { name: "User #{i + 1}", sortable_name: "#{names[i]}, User" } }, return_type: :record)
 
       course_with_user('StudentEnrollment', course: @course, user: @students[0])
       course_with_user('StudentEnrollment', course: @course, user: @students[1])
@@ -256,6 +254,7 @@ describe Outcomes::ResultAnalytics do
     before do
       allow_any_instance_of(ActiveRecord::Associations::Preloader).to receive(:preload)
     end
+
     it 'returns a rollup for each distinct user_id' do
       results = [
         outcome_from_score(4.0, {}),
@@ -266,7 +265,7 @@ describe Outcomes::ResultAnalytics do
       rollups = ra.outcome_results_rollups(results: results, users: users)
       rollup_scores = ra.rollup_user_results(results).map(&:outcome_results).flatten
       rollups.each.with_index do |rollup, _|
-        expect(rollup.scores.map(&:outcome_results).flatten).to eq rollup_scores.find_all { |score| score.user.id == rollup.context.id }
+        expect(rollup.scores.map(&:outcome_results).flatten).to eq(rollup_scores.find_all { |score| score.user.id == rollup.context.id })
       end
     end
 

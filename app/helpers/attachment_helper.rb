@@ -54,13 +54,16 @@ module AttachmentHelper
   end
 
   def media_preview_attributes(attachment, attrs = {})
-    attrs[:type] = attachment.content_type.match(/video/) ? 'video' : 'audio'
+    attrs[:type] = attachment.content_type&.include?('video') ? 'video' : 'audio'
     attrs[:download_url] = context_url(attachment.context, :context_file_download_url, attachment.id)
     attrs[:media_entry_id] = attachment.media_entry_id if attachment.media_entry_id
     attrs.inject(+"") { |s, (attr, val)| s << "data-#{attr}=#{val} " }
   end
 
-  def doc_preview_json(attachment)
+  def doc_preview_json(attachment, locked_for_user: false)
+    # Don't add canvadoc session URL if the file is locked to the user
+    return {} if locked_for_user
+
     {
       canvadoc_session_url: attachment.canvadoc_url(@current_user),
       crocodoc_session_url: attachment.crocodoc_url(@current_user),
@@ -94,7 +97,7 @@ module AttachmentHelper
       send_file_headers!(length: body.length, filename: attachment.filename, disposition: 'inline', type: attachment.content_type_with_encoding)
       render body: body
     elsif must_proxy
-      return render 400, text: t("It's not allowed to redirect to HTML files that can't be proxied while Content-Security-Policy is being enforced")
+      render 400, text: t("It's not allowed to redirect to HTML files that can't be proxied while Content-Security-Policy is being enforced")
     elsif inline
       redirect_to authenticated_inline_url(attachment)
     else
@@ -122,7 +125,7 @@ module AttachmentHelper
     # investigate opportunities to reuse JWTs when the same user requests the
     # same file within a reasonable window of time, so that the URL redirected
     # too can still take advantage of browser caching.
-    unless (attachment.instfs_hosted? && !direct) || attachment.content_type.match(/\Atext/) || attachment.extension == '.html' || attachment.extension == '.htm'
+    unless (attachment.instfs_hosted? && !direct) || attachment.content_type&.start_with?('text') || attachment.extension == '.html' || attachment.extension == '.htm'
       cancel_cache_buster
       # set cache to expire whenever the s3 url does (or one day if local or inline proxy), max-age take seconds, and Expires takes a date
       ttl = direct ? 1.day : attachment.url_ttl

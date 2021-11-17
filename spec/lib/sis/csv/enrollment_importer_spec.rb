@@ -36,7 +36,7 @@ describe SIS::CSV::EnrollmentImporter do
     )
     expect(Enrollment.count).to eq before_count
 
-    errors = importer.errors.map { |r| r.last }
+    errors = importer.errors.map(&:last)
     # since accounts can define course roles, the "cheater" row can't be
     # rejected immediately on parse like the others; that's why the warning
     # comes out of order with the source data
@@ -609,7 +609,7 @@ describe SIS::CSV::EnrollmentImporter do
     user1 = user_with_managed_pseudonym(account: @account, sis_user_id: 'U001')
     user2 = user_with_managed_pseudonym(account: @account, sis_user_id: 'U002')
     course1.enroll_user(user2)
-    expect(DueDateCacher).to receive(:recompute).never
+    expect(DueDateCacher).not_to receive(:recompute)
     # there are no assignments so this will just return, but we just want to see
     # that it gets called correctly and for the users that wre imported
     expect(DueDateCacher).to receive(:recompute_users_for_course).with([user1.id], course1.id, nil, update_grades: true)
@@ -849,7 +849,7 @@ describe SIS::CSV::EnrollmentImporter do
       account: account2
     )
     user = account2.pseudonyms.where(sis_user_id: 'user_1').first.user
-    expect(SisPseudonym).to receive(:for).with(user, @account, type: :implicit, require_sis: false).never
+    expect(SisPseudonym).not_to receive(:for).with(user, @account, type: :implicit, require_sis: false)
 
     warnings = []
     work = SIS::EnrollmentImporter::Work.new(@account.sis_batches.create!, @account, Rails.logger, warnings)
@@ -981,7 +981,7 @@ describe SIS::CSV::EnrollmentImporter do
       "course_id,user_id,role,section_id,status,associated_user_id",
       "test_1,student_user,student,,active,",
     )
-    errors = importer.errors.map { |r| r.last }
+    errors = importer.errors.map(&:last)
     expect(errors).to eq ["Attempted enrolling of deleted user student_user in course test_1"]
 
     student = Pseudonym.where(:sis_user_id => "student_user").first.user
@@ -1008,7 +1008,7 @@ describe SIS::CSV::EnrollmentImporter do
       "course_id,user_id,role,section_id,status,associated_user_id",
       "test_1,student_user,student,,active,",
     )
-    errors = importer.errors.map { |r| r.last }
+    errors = importer.errors.map(&:last)
     expect(errors).to eq ["Enrolled a user student_user in course test_1, but referenced a deleted sis login"]
 
     student = p.user
@@ -1033,7 +1033,7 @@ describe SIS::CSV::EnrollmentImporter do
       "course_id,user_id,role,section_id,status,associated_user_id,start_date,end_date",
       "test_1,user_1,teacher,S001,active,,,",
     )
-    errors = importer.errors.map { |r| r.last }
+    errors = importer.errors.map(&:last)
     expect(errors.first).to include("not a valid section")
   end
 
@@ -1143,7 +1143,7 @@ describe SIS::CSV::EnrollmentImporter do
       "c1,u0,student,s1,active",
       "c1,u1,student,s2,active",
     )
-    errors = importer.errors.map { |r| r.last }
+    errors = importer.errors.map(&:last)
     expect(errors.first).to include("non-existent section")
   end
 

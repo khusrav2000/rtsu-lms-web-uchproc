@@ -30,7 +30,7 @@ class SubmissionVersion < ActiveRecord::Base
   # specify the name, we might as well use the whole module/class name
   belongs_to :version, class_name: "SimplyVersioned::Version"
 
-  validates_presence_of :context_id, :version_id, :user_id, :assignment_id
+  validates :context_id, :version_id, :user_id, :assignment_id, presence: true
 
   class << self
     def index_version(version)
@@ -39,7 +39,7 @@ class SubmissionVersion < ActiveRecord::Base
     end
 
     def index_versions(versions, options = {})
-      records = versions.map { |version| extract_version_attributes(version, options) }.compact
+      records = versions.filter_map { |version| extract_version_attributes(version, options) }
       bulk_insert(records) if records.present?
     end
 
@@ -48,16 +48,14 @@ class SubmissionVersion < ActiveRecord::Base
     def extract_version_attributes(version, options = {})
       model = if options[:ignore_errors]
                 begin
-                  return nil unless Submission.active.where(id: version.versionable_id).exists?
-
-                  version.model
+                  Submission.active.where(id: version.versionable_id).exists? && version.model
                 rescue Psych::SyntaxError
-                  return nil
+                  nil
                 end
               else
                 version.model
               end
-      return nil unless model.assignment_id
+      return nil unless model.try(:assignment_id) # model _could_ be false here, so don't use &.
 
       {
         :context_id => model.course_id,

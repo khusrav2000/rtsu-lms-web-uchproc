@@ -150,6 +150,7 @@ module SpeedGrader
       ::Submission.bulk_load_versioned_attachments(submission_histories,
                                                    preloads: attachment_includes)
       ::Submission.bulk_load_versioned_originality_reports(submission_histories)
+      ::Submission.bulk_load_text_entry_originality_reports(submission_histories)
 
       preloaded_provisional_selections =
         grading_role == :moderator ? assignment.moderated_grading_selections.index_by(&:student_id) : {}
@@ -157,10 +158,13 @@ module SpeedGrader
       res[:too_many_quiz_submissions] = too_many = assignment.too_many_qs_versions?(submissions)
       qs_versions = assignment.quiz_submission_versions(submissions, too_many)
 
-      enrollment_types_by_id = enrollments.inject({}) { |h, e| h[e.user_id] ||= e.type; h }
+      enrollment_types_by_id = enrollments.inject({}) { |h, e|
+        h[e.user_id] ||= e.type
+        h
+      }
 
       if assignment.quiz
-        if assignment.quiz.assignment_overrides.to_a.select(&:active?).count == 0
+        if assignment.quiz.assignment_overrides.to_a.count(&:active?) == 0
           assignment.quiz.has_no_overrides = true
         else
           assignment.quiz.context.preload_user_roles!
@@ -247,13 +251,18 @@ module SpeedGrader
                     # we'll use to create custom crocodoc urls for each prov grade
                     sub_attachments << a
                   end
-                  a.as_json(only: attachment_json_fields).tap do |json|
-                    json[:attachment][:view_inline_ping_url] = assignment_file_inline_view_path(assignment.id, a.id)
-                    json[:attachment][:canvadoc_url] = a.canvadoc_url(current_user, url_opts)
-                    json[:attachment][:crocodoc_url] = a.crocodoc_url(current_user, url_opts)
-                    json[:attachment][:submitted_to_crocodoc] = a.crocodoc_document.present?
-                    json[:attachment][:hijack_crocodoc_session] = a.crocodoc_document.present? && migrate_to_canvadocs?
-                    json[:attachment][:upload_status] = AttachmentUploadStatus.upload_status(a)
+                  a.as_json(only: attachment_json_fields).tap do |attachment_json|
+                    attachment_json[:attachment].merge!(
+                      {
+                        view_inline_ping_url: assignment_file_inline_view_path(assignment.id, a.id),
+                        canvadoc_url: a.canvadoc_url(current_user, url_opts),
+                        crocodoc_url: a.crocodoc_url(current_user, url_opts),
+                        submitted_to_crocodoc: a.crocodoc_document.present?,
+                        hijack_crocodoc_session: a.crocodoc_document.present? && migrate_to_canvadocs?,
+                        upload_status: AttachmentUploadStatus.upload_status(a),
+                      }
+                    )
+                    attachment_json[:attachment][:word_count] = a.word_count if assignment.root_account.feature_enabled?(:word_count_in_speed_grader)
                   end
                 end
               end
@@ -326,14 +335,15 @@ module SpeedGrader
           provisional_grades = provisional_grades.preload(:scorer)
         end
 
-        if grading_role == :provisional_grader
+        case grading_role
+        when :provisional_grader
           provisional_grades = if grader_comments_hidden?(current_user: current_user, assignment: assignment)
                                  provisional_grades.not_final.where(scorer: current_user)
                                else
                                  select_fields = ModeratedGrading::GRADE_ATTRIBUTES_ONLY.dup.push(:id, :submission_id)
                                  provisional_grades.select(select_fields)
                                end
-        elsif grading_role == :grader
+        when :grader
           provisional_grades = ModeratedGrading::ProvisionalGrade.none
         end
         provisional_grades.order(:id).to_a.group_by(&:submission_id)
@@ -419,7 +429,7 @@ module SpeedGrader
       group_id = current_user.get_preference(:gradebook_settings, course.global_id)&.dig('filter_rows_by', 'student_group_id')
 
       # If we selected a group that is now deleted, don't use it
-      Group.active.exists?(id: group_id) ? group_id : nil
+      Group.active.where(id: group_id).exists? ? group_id : nil
     end
 
     def section_id_filter

@@ -61,7 +61,7 @@ describe AssignmentOverrideApplicator do
   end
 
   describe "assignment_overridden_for" do
-    before :each do
+    before do
       student_in_course
       @assignment = create_assignment(:course => @course)
     end
@@ -95,7 +95,7 @@ describe AssignmentOverrideApplicator do
     it "does not attempt to apply overrides if an overridden assignment is overridden for the same user" do
       @overridden_assignment = AssignmentOverrideApplicator.assignment_overridden_for(@assignment, @student)
       expect(@overridden_assignment.overridden_for_user.id).to eq @student.id
-      expect(AssignmentOverrideApplicator).to receive(:overrides_for_assignment_and_user).never
+      expect(AssignmentOverrideApplicator).not_to receive(:overrides_for_assignment_and_user)
       @reoverridden_assignment = AssignmentOverrideApplicator.assignment_overridden_for(@overridden_assignment, @student)
     end
 
@@ -171,7 +171,7 @@ describe AssignmentOverrideApplicator do
   end
 
   describe "overrides_for_assignment_and_user" do
-    before :each do
+    before do
       student_in_course
       @assignment = create_assignment(:course => @course, :due_at => 5.days.from_now)
     end
@@ -185,7 +185,7 @@ describe AssignmentOverrideApplicator do
       it "caches by assignment and user" do
         enable_cache do
           AssignmentOverrideApplicator.overrides_for_assignment_and_user(@assignment, @student)
-          expect(Rails.cache).to receive(:write_entry).never
+          expect(Rails.cache).not_to receive(:write_entry)
           AssignmentOverrideApplicator.overrides_for_assignment_and_user(@assignment, @student)
         end
       end
@@ -287,7 +287,7 @@ describe AssignmentOverrideApplicator do
     end
 
     context 'adhoc overrides' do
-      before :each do
+      before do
         @override = assignment_override_model(:assignment => @assignment)
         @override_student = @override.assignment_override_students.build
         @override_student.user = @student
@@ -307,12 +307,12 @@ describe AssignmentOverrideApplicator do
         end
 
         it "finds the overrides for the correct student" do
-          result = AssignmentOverrideApplicator::adhoc_override(@assignment, @student)
+          result = AssignmentOverrideApplicator.adhoc_override(@assignment, @student)
           expect(result.assignment_override_id).to eq @override.id
         end
 
         it "returns AssignmentOverrideStudent" do
-          result = AssignmentOverrideApplicator::adhoc_override(@assignment, @student)
+          result = AssignmentOverrideApplicator.adhoc_override(@assignment, @student)
           expect(result).to be_an_instance_of(AssignmentOverrideStudent)
         end
       end
@@ -352,7 +352,7 @@ describe AssignmentOverrideApplicator do
     end
 
     context 'group overrides' do
-      before :each do
+      before do
         create_group_override
       end
 
@@ -440,7 +440,7 @@ describe AssignmentOverrideApplicator do
     end
 
     context 'section overrides' do
-      before :each do
+      before do
         @override = assignment_override_model(:assignment => @assignment)
         @override.set = @course.default_section
         @override.save!
@@ -455,7 +455,7 @@ describe AssignmentOverrideApplicator do
 
       describe 'for students' do
         it "returns section overrides" do
-          result = AssignmentOverrideApplicator::section_overrides(@assignment, @student2)
+          result = AssignmentOverrideApplicator.section_overrides(@assignment, @student2)
           expect(result.length).to eq 1
         end
 
@@ -587,19 +587,19 @@ describe AssignmentOverrideApplicator do
         @override2_student.user = @student2
         @override2_student.save!
         @course.enroll_user(@observer, "ObserverEnrollment", { :allow_multiple_enrollments => true, :associated_user_id => @student2.id })
-        result = AssignmentOverrideApplicator::observer_overrides(@assignment, @observer)
+        result = AssignmentOverrideApplicator.observer_overrides(@assignment, @observer)
         expect(result.length).to eq 2
       end
     end
 
     context '#has_invalid_args?' do
       it "returns true with nil user" do
-        result = AssignmentOverrideApplicator::has_invalid_args?(@assignment, nil)
+        result = AssignmentOverrideApplicator.has_invalid_args?(@assignment, nil)
         expect(result).to be_truthy
       end
 
       it "returns true for assignments with no overrides" do
-        result = AssignmentOverrideApplicator::has_invalid_args?(@assignment, @student)
+        result = AssignmentOverrideApplicator.has_invalid_args?(@assignment, @student)
         expect(result).to be_truthy
       end
 
@@ -609,7 +609,7 @@ describe AssignmentOverrideApplicator do
         @override_student.user = @student
         @override_student.save!
 
-        result = AssignmentOverrideApplicator::has_invalid_args?(@assignment, @student)
+        result = AssignmentOverrideApplicator.has_invalid_args?(@assignment, @student)
         expect(result).to be_falsey
       end
     end
@@ -777,8 +777,11 @@ describe AssignmentOverrideApplicator do
   end
 
   describe "assignment_with_overrides" do
-    before :each do
-      Time.zone == 'Alaska'
+    around do |example|
+      Time.use_zone('Alaska', &example)
+    end
+
+    before do
       @assignment = create_assignment(
         :due_at => 5.days.from_now,
         :unlock_at => 4.days.from_now,
@@ -866,7 +869,7 @@ describe AssignmentOverrideApplicator do
       @override = assignment_override_model(:assignment => @assignment)
       enable_cache do
         AssignmentOverrideApplicator.collapsed_overrides(@assignment, [@override])
-        expect(Rails.cache).to receive(:write_entry).never
+        expect(Rails.cache).not_to receive(:write_entry)
         Timecop.freeze(5.seconds.from_now) do
           AssignmentOverrideApplicator.collapsed_overrides(@assignment, [@override])
         end
@@ -942,22 +945,22 @@ describe AssignmentOverrideApplicator do
 
   describe "overrides_hash" do
     it "is consistent for the same overrides" do
-      overrides = 5.times.map { assignment_override_model }
+      overrides = Array.new(5) { assignment_override_model }
       hash1 = AssignmentOverrideApplicator.overrides_hash(overrides)
       hash2 = AssignmentOverrideApplicator.overrides_hash(overrides)
       expect(hash1).to eq hash2
     end
 
     it "is unique for different overrides" do
-      overrides1 = 5.times.map { assignment_override_model }
-      overrides2 = 5.times.map { assignment_override_model }
+      overrides1 = Array.new(5) { assignment_override_model }
+      overrides2 = Array.new(5) { assignment_override_model }
       hash1 = AssignmentOverrideApplicator.overrides_hash(overrides1)
       hash2 = AssignmentOverrideApplicator.overrides_hash(overrides2)
       expect(hash1).not_to eq hash2
     end
 
     it "is unique for different versions of the same overrides" do
-      overrides = 5.times.map { assignment_override_model }
+      overrides = Array.new(5) { assignment_override_model }
       hash1 = AssignmentOverrideApplicator.overrides_hash(overrides)
       overrides.first.override_due_at(5.days.from_now)
       overrides.first.save!
@@ -966,7 +969,7 @@ describe AssignmentOverrideApplicator do
     end
 
     it "is unique for different orders of the same overrides" do
-      overrides = 5.times.map { assignment_override_model }
+      overrides = Array.new(5) { assignment_override_model }
       hash1 = AssignmentOverrideApplicator.overrides_hash(overrides)
       hash2 = AssignmentOverrideApplicator.overrides_hash(overrides.reverse)
       expect(hash1).not_to eq hash2
@@ -982,7 +985,7 @@ describe AssignmentOverrideApplicator do
   end
 
   describe "overridden_due_at" do
-    before :each do
+    before do
       @assignment = create_assignment(:due_at => 5.days.from_now)
       @override = assignment_override_model(:assignment => @assignment)
     end
@@ -1047,7 +1050,7 @@ describe AssignmentOverrideApplicator do
   # pulled from the same assignment/override the due_at is
 
   describe "overridden_unlock_at" do
-    before :each do
+    before do
       @assignment = create_assignment(:due_at => 11.days.from_now, :unlock_at => 10.days.from_now)
       @override = assignment_override_model(:assignment => @assignment)
     end
@@ -1116,7 +1119,7 @@ describe AssignmentOverrideApplicator do
   end
 
   describe "overridden_lock_at" do
-    before :each do
+    before do
       @assignment = create_assignment(:due_at => 1.day.from_now, :lock_at => 5.days.from_now)
       @override = assignment_override_model(:assignment => @assignment)
     end
@@ -1199,7 +1202,7 @@ describe AssignmentOverrideApplicator do
   end
 
   describe "without_overrides" do
-    before :each do
+    before do
       student_in_course
       @assignment = create_assignment(:course => @course)
     end

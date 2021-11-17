@@ -26,9 +26,13 @@ class TestUserApi
   include Api::V1::UserProfile
   attr_accessor :services_enabled, :context, :current_user
 
-  def service_enabled?(service); @services_enabled.include? service; end
+  def service_enabled?(service)
+    @services_enabled.include? service
+  end
 
-  def avatar_image_url(user_id); "avatar_image_url(#{user_id})"; end
+  def avatar_image_url(user_id)
+    "avatar_image_url(#{user_id})"
+  end
 
   def initialize
     @domain_root_account = Account.default
@@ -191,7 +195,7 @@ describe "User Profile API", type: :request do
       @student.user_services.create! :service => 'somethingthatdoesntexistanymore', :service_user_name => 'user', :service_user_id => 'user', :visible => true
     end
 
-    before :each do
+    before do
       allow(Twitter::Connection).to receive(:config).and_return({ :some_hash => "fullofstuff" })
     end
 

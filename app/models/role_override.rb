@@ -285,14 +285,14 @@ class RoleOverride < ActiveRecord::Base
         :available_to => %w(AccountAdmin AccountMembership),
       },
       :view_feature_flags => {
-        :label => lambda { t("View feature settings at an account level") },
-        :label_v2 => lambda { t("Feature Previews - view") },
+        :label => lambda { t("View feature options at an account level") },
+        :label_v2 => lambda { t("Feature Options - view") },
         :true_for => %w(AccountAdmin),
         :available_to => %w(AccountAdmin AccountMembership)
       },
       :manage_feature_flags => {
         :label => lambda { t('permissions.manage_feature_flags', "Enable or disable features at an account level") },
-        :label_v2 => lambda { t("Feature Previews - enable / disable") },
+        :label_v2 => lambda { t("Feature Options - enable / disable") },
         :true_for => %w(AccountAdmin),
         :available_to => %w(AccountAdmin AccountMembership)
       },
@@ -571,7 +571,6 @@ class RoleOverride < ActiveRecord::Base
         :true_for => %w(TeacherEnrollment TaEnrollment DesignerEnrollment AccountAdmin),
         :available_to => %w(TeacherEnrollment TaEnrollment DesignerEnrollment AccountAdmin AccountMembership)
       },
-
       manage_admin_users: {
         label: lambda { t("permissions.manage_admin_users", "Add/remove other teachers, course designers or TAs to the course") },
         label_v2: lambda { t("Users - add / remove teachers, course designers, or TAs in courses") },
@@ -588,7 +587,6 @@ class RoleOverride < ActiveRecord::Base
         ],
         account_allows: lambda { |a| !a.root_account.feature_enabled?(:granular_permissions_manage_users) }
       },
-
       allow_course_admin_actions: {
         label: lambda { t("Allow administrative actions in courses") },
         label_v2: lambda { t("Users - allow administrative actions in courses") },
@@ -605,7 +603,6 @@ class RoleOverride < ActiveRecord::Base
         ],
         account_allows: lambda { |a| a.root_account.feature_enabled?(:granular_permissions_manage_users) }
       },
-
       add_teacher_to_course: {
         label: lambda { t("Add Teachers to courses") },
         label_v2: lambda { t("Teachers - add") },
@@ -754,7 +751,6 @@ class RoleOverride < ActiveRecord::Base
         group_label: lambda { t("Users - Designers") },
         account_allows: lambda { |a| a.root_account.feature_enabled?(:granular_permissions_manage_users) }
       },
-
       :manage_assignments => {
         label: -> { t('permissions.manage_assignments', "Manage (add / edit / delete) assignments and quizzes") },
         label_v2: -> { t("Assignments and Quizzes - add / edit / delete") },
@@ -1814,7 +1810,7 @@ class RoleOverride < ActiveRecord::Base
     }
   )
 
-  ACCESS_TOKEN_SCOPE_PREFIX = 'https://api.instructure.com/auth/canvas'.freeze
+  ACCESS_TOKEN_SCOPE_PREFIX = 'https://api.instructure.com/auth/canvas'
 
   def self.permissions
     Permissions.retrieve
@@ -2050,9 +2046,10 @@ class RoleOverride < ActiveRecord::Base
       # override.enabled.nil? is no longer possible, but is important for the migration that removes nils
       if override.new_record? || override.enabled.nil?
         if last_override
-          if generated_permission[:enabled] == [:descendants]
+          case generated_permission[:enabled]
+          when [:descendants]
             generated_permission[:enabled] = [:self, :descendants]
-          elsif generated_permission[:enabled] == [:self]
+          when [:self]
             generated_permission[:enabled] = nil
           end
         end

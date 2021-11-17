@@ -25,6 +25,7 @@ describe "root account basic settings" do
   let(:account_settings_url) { "/accounts/#{account.id}/settings" }
   let(:reports_url) { "/accounts/#{account.id}/reports_tab" }
   let(:admin_tab_url) { "/accounts/#{account.id}/settings#tab-users" }
+
   include_examples "settings basic tests", :root_account
 
   it "is able to disable enable_gravatar" do
@@ -46,7 +47,7 @@ describe "root account basic settings" do
       @account = Account.default
     end
 
-    before :each do
+    before do
       user_session(@admin)
       @admin.account.enable_feature!(:slack_notifications)
     end
@@ -83,7 +84,7 @@ describe "root account basic settings" do
           account.enable_feature!(:microsoft_group_enrollments_syncing)
         end
 
-        before :each do
+        before do
           account_admin_user(account: account)
           user_session(@admin)
         end
@@ -199,7 +200,7 @@ describe "root account basic settings" do
     account.reload
     expect(account.settings[:ip_filters]).to be_present # should not have cleared them if we didn't do anything
 
-    filter = ff('.ip_filter').detect { |fil| fil.displayed? }
+    filter = ff('.ip_filter').detect(&:displayed?)
     filter.find_element(:css, '.delete_filter_link').click
 
     expect_new_page_load { submit_form("#account_settings") }
@@ -213,7 +214,7 @@ describe "root account basic settings" do
       account_admin_user(:active_all => true)
     end
 
-    before :each do
+    before do
       user_session(@admin)
     end
 

@@ -90,8 +90,6 @@ module SeleniumDriverSetup
                   :server_ip,
                   :server_port
 
-    attr_reader :driver
-
     def reset!
       dump_browser_log if browser_log
       @driver = nil
@@ -125,7 +123,7 @@ module SeleniumDriverSetup
     end
 
     def shutdown
-      server.shutdown if server
+      server&.shutdown
       if driver
         driver.close
         driver.quit
@@ -362,7 +360,7 @@ module SeleniumDriverSetup
 
     def firefox_profile
       if CONFIG[:firefox_path].present?
-        Selenium::WebDriver::Firefox::Binary.path = "#{CONFIG[:firefox_path]}"
+        Selenium::WebDriver::Firefox::Binary.path = (CONFIG[:firefox_path]).to_s
       end
       profile = Selenium::WebDriver::Firefox::Profile.new
       profile.add_extension Rails.root.join("spec/selenium/test_setup/JSErrorCollector.xpi")
@@ -412,7 +410,7 @@ module SeleniumDriverSetup
 
       puts "found available port: #{app_host_and_port}"
     ensure
-      s.close() if s
+      s&.close()
     end
 
     def start_webserver
@@ -431,7 +429,7 @@ module SeleniumDriverSetup
       end.to_app
     end
 
-    ASSET_PATH = %r{\A/(dist|fonts|images|javascripts)/.*\.[a-z0-9]+\z}
+    ASSET_PATH = %r{\A/(dist|fonts|images|javascripts)/.*\.[a-z0-9]+\z}.freeze
     def asset_request?(url)
       url =~ ASSET_PATH
     end
@@ -488,7 +486,7 @@ module SeleniumDriverSetup
       # with our shared conn and transactional fixtures (e.g. special
       # accounts and their caching)
       @allow_requests = false
-      request_mutex.synchronize {}
+      request_mutex.synchronize { nil }
     end
 
     def allow_requests!

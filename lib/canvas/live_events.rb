@@ -237,7 +237,7 @@ module Canvas::LiveEvents
       updated_at: assignment.updated_at,
       points_possible: assignment.points_possible,
       lti_assignment_id: assignment.lti_context_id,
-      lti_assignment_description: assignment.description,
+      lti_assignment_description: LiveEvents.truncate(assignment.description),
       lti_resource_link_id: assignment.lti_resource_link_id,
       lti_resource_link_id_duplicated_from: assignment.duplicate_of&.lti_resource_link_id,
       submission_types: assignment.submission_types
@@ -491,7 +491,7 @@ module Canvas::LiveEvents
                              account_uuid: assoc.account.uuid,
                              created_at: assoc.created_at,
                              updated_at: assoc.updated_at,
-                             is_admin: !(assoc.account.root_account.cached_all_account_users_for(assoc.user).empty?),
+                             is_admin: !assoc.account.root_account.cached_all_account_users_for(assoc.user).empty?,
                            })
   end
 
@@ -969,5 +969,14 @@ module Canvas::LiveEvents
       learning_outcome_id: description.learning_outcome_id,
       root_account_id: description.root_account_id
     }
+  end
+
+  def self.heartbeat
+    data = {
+      environment: Canvas.environment,
+      region_code: Canvas.region_code || 'not_configured',
+      region: Canvas.region || 'not_configured'
+    }
+    post_event_stringified('heartbeat', data)
   end
 end

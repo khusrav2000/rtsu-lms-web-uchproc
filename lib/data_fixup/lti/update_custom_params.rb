@@ -19,7 +19,7 @@
 #
 
 module DataFixup::Lti::UpdateCustomParams
-  LOGGER_PREFIX = "Lti::UpdateCustomParams => ".freeze
+  LOGGER_PREFIX = "Lti::UpdateCustomParams => "
 
   # This script will update all specified instances of LTI tools within Canvas,
   # it is intended to be copied and pasted into a Canvas console
@@ -81,10 +81,9 @@ module DataFixup::Lti::UpdateCustomParams
       # we allow one \w*. before the provided domain
       subdomain_match = subdomain_matching ? '(\\w*\\.)?' : ''
 
-      tools = ContextExternalTool.active.where(
+      ContextExternalTool.active.where(
         '"context_external_tools".url ~ ANY (array[?])', domains.map { |d| "^https?://#{subdomain_match}#{d}/" }
       )
-      tools
     end
   end
 end

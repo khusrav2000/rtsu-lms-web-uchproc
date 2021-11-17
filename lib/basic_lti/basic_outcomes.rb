@@ -37,7 +37,7 @@ module BasicLTI
     # gives instfs about 7 hours to have an outage and eventually take the file
     MAX_ATTEMPTS = 10
 
-    SOURCE_ID_REGEX = %r{^(\d+)-(\d+)-(\d+)-(\d+)-(\w+)$}
+    SOURCE_ID_REGEX = %r{^(\d+)-(\d+)-(\d+)-(\d+)-(\w+)$}.freeze
 
     def self.decode_source_id(tool, sourceid)
       tool.shard.activate do
@@ -69,7 +69,7 @@ module BasicLTI
         res.code_major = 'unsupported'
         res.description = 'Legacy request could not be handled. ¯\_(ツ)_/¯'
       end
-      return res
+      res
     end
 
     class LtiResponse
@@ -92,7 +92,7 @@ module BasicLTI
 
       def operation_ref_identifier
         tag = @lti_request&.at_css('imsx_POXBody *:first').try(:name)
-        tag && tag.sub(%r{Request$}, '')
+        tag&.sub(%r{Request$}, '')
       end
 
       def result_score
@@ -147,24 +147,24 @@ module BasicLTI
       def self.envelope
         return @envelope if @envelope
 
-        @envelope = Nokogiri::XML.parse <<-XML
-      <imsx_POXEnvelopeResponse xmlns = "http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0">
-        <imsx_POXHeader>
-          <imsx_POXResponseHeaderInfo>
-            <imsx_version>V1.0</imsx_version>
-            <imsx_messageIdentifier></imsx_messageIdentifier>
-            <imsx_statusInfo>
-              <imsx_codeMajor></imsx_codeMajor>
-              <imsx_severity>status</imsx_severity>
-              <imsx_description></imsx_description>
-              <imsx_messageRefIdentifier></imsx_messageRefIdentifier>
-              <imsx_operationRefIdentifier></imsx_operationRefIdentifier>
-            </imsx_statusInfo>
-          </imsx_POXResponseHeaderInfo>
-        </imsx_POXHeader>
-        <imsx_POXBody>
-        </imsx_POXBody>
-      </imsx_POXEnvelopeResponse>
+        @envelope = Nokogiri::XML.parse <<~XML
+          <imsx_POXEnvelopeResponse xmlns = "http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0">
+            <imsx_POXHeader>
+              <imsx_POXResponseHeaderInfo>
+                <imsx_version>V1.0</imsx_version>
+                <imsx_messageIdentifier></imsx_messageIdentifier>
+                <imsx_statusInfo>
+                  <imsx_codeMajor></imsx_codeMajor>
+                  <imsx_severity>status</imsx_severity>
+                  <imsx_description></imsx_description>
+                  <imsx_messageRefIdentifier></imsx_messageRefIdentifier>
+                  <imsx_operationRefIdentifier></imsx_operationRefIdentifier>
+                </imsx_statusInfo>
+              </imsx_POXResponseHeaderInfo>
+            </imsx_POXHeader>
+            <imsx_POXBody>
+            </imsx_POXBody>
+          </imsx_POXEnvelopeResponse>
         XML
         @envelope.encoding = 'UTF-8'
         @envelope
@@ -206,9 +206,40 @@ module BasicLTI
         yield if block_given? && !(submission&.grader_id && submission.grader_id > 0 && prioritize_non_tool_grade)
       end
 
+      def self.create_homework_submission(submission_hash, assignment, user)
+        submission = assignment.submit_homework(user, submission_hash.clone) if submission_hash[:submission_type].present?
+        submission = assignment.grade_student(user, submission_hash).first if submission_hash[:grade].present?
+        submission
+      end
+
+      def self.fetch_attachment_and_save_submission(url, attachment, submission_hash, assignment, user, attempt_number = 0)
+        failed_retryable = attachment.clone_url(url, 'rename', true)
+        if failed_retryable && ((attempt_number += 1) < MAX_ATTEMPTS)
+          # Exits out of the first job and creates a second one so that the run_at time won't hold back
+          # the entire n_strand. Also creates it in a different strand for retries, so we shouldn't block
+          # any incoming uploads.
+          job_options = {
+            priority: Delayed::HIGH_PRIORITY,
+            # because inst-jobs only takes 2 items from an array to make a string strand
+            # name and this uses 3
+            n_strand: (Attachment.clone_url_strand(url) << 'failed').join('/'),
+            run_at: Time.now.utc + (attempt_number**4) + 5
+          }
+          delay(**job_options).fetch_attachment_and_save_submission(
+            url,
+            attachment,
+            submission_hash,
+            assignment,
+            user,
+            attempt_number
+          )
+        else
+          create_homework_submission submission_hash, assignment, user
+        end
+      end
+
       protected
 
-      # rubocop:disable Metrics/PerceivedComplexity, Metrics/MethodLength
       def handle_replace_result(tool, assignment, user)
         text_value = self.result_score
         score_value = self.result_total_score
@@ -217,17 +248,17 @@ module BasicLTI
           new_score = Float(text_value)
         rescue
           new_score = false
-          error_message = text_value.nil? ? nil : I18n.t('lib.basic_lti.no_parseable_score.result', <<~NO_POINTS, :grade => text_value)
+          error_message = text_value.nil? ? nil : I18n.t('lib.basic_lti.no_parseable_score.result', <<~TEXT, :grade => text_value)
             Unable to parse resultScore: %{grade}
-          NO_POINTS
+          TEXT
         end
         begin
           raw_score = Float(score_value)
         rescue
           raw_score = false
-          error_message ||= score_value.nil? ? nil : I18n.t('lib.basic_lti.no_parseable_score.result_total', <<~NO_POINTS, :grade => score_value)
+          error_message ||= score_value.nil? ? nil : I18n.t('lib.basic_lti.no_parseable_score.result_total', <<~TEXT, :grade => score_value)
             Unable to parse resultTotalScore: %{grade}
-          NO_POINTS
+          TEXT
         end
         submission_hash = {}
         existing_submission = assignment.submissions.where(user_id: user.id).first
@@ -291,16 +322,16 @@ module BasicLTI
         if error_message
           self.code_major = 'failure'
           self.description = error_message
-        elsif assignment.grading_type != "pass_fail" && (assignment.points_possible.nil?)
+        elsif assignment.grading_type != "pass_fail" && assignment.points_possible.nil?
 
           unless (submission = existing_submission)
             submission = Submission.create!(submission_hash.merge(:user => user,
                                                                   :assignment => assignment))
           end
-          submission.submission_comments.create!(:comment => I18n.t('lib.basic_lti.no_points_comment', <<~NO_POINTS, :grade => submission_hash[:grade]))
+          submission.submission_comments.create!(:comment => I18n.t('lib.basic_lti.no_points_comment', <<~TEXT, :grade => submission_hash[:grade]))
             An external tool attempted to grade this assignment as %{grade}, but was unable
             to because the assignment has no points possible.
-          NO_POINTS
+          TEXT
           self.code_major = 'failure'
           self.description = I18n.t('lib.basic_lti.no_points_possible', 'Assignment has no points possible.')
         else
@@ -310,32 +341,22 @@ module BasicLTI
               n_strand: Attachment.clone_url_strand(url)
             }
 
-            delay(**job_options).fetch_attachment_and_save_submission(
+            self.class.delay(**job_options).fetch_attachment_and_save_submission(
               url,
               attachment,
               submission_hash,
               assignment,
               user
             )
-          else
-            create_homework_submission submission_hash, assignment, user
+          elsif !(@submission = self.class.create_homework_submission(submission_hash, assignment, user))
+            self.code_major = 'failure'
+            self.description = I18n.t('lib.basic_lti.no_submission_created', 'This outcome request failed to create a new homework submission.')
           end
         end
 
         self.body = "<replaceResultResponse />"
 
         true
-      end
-      # rubocop:enable Metrics/PerceivedComplexity, Metrics/MethodLength
-
-      def create_homework_submission(submission_hash, assignment, user)
-        @submission = assignment.submit_homework(user, submission_hash.clone) if submission_hash[:submission_type].present?
-        @submission = assignment.grade_student(user, submission_hash).first if submission_hash[:grade].present?
-
-        unless @submission
-          self.code_major = 'failure'
-          self.description = I18n.t('lib.basic_lti.no_submission_created', 'This outcome request failed to create a new homework submission.')
-        end
       end
 
       def handle_delete_result(tool, assignment, user)
@@ -358,34 +379,6 @@ module BasicLTI
       }
         true
       end
-
-      # rubocop:disable Metrics/ParameterLists
-      def fetch_attachment_and_save_submission(url, attachment, submission_hash, assignment, user, attempt_number = 0)
-        failed_retryable = attachment.clone_url(url, 'rename', true)
-        if failed_retryable && ((attempt_number += 1) < MAX_ATTEMPTS)
-          # Exits out of the first job and creates a second one so that the run_at time won't hold back
-          # the entire n_strand. Also creates it in a different strand for retries, so we shouldn't block
-          # any incoming uploads.
-          job_options = {
-            priority: Delayed::HIGH_PRIORITY,
-            # because inst-jobs only takes 2 items from an array to make a string strand
-            # name and this uses 3
-            n_strand: (Attachment.clone_url_strand(url) << 'failed').join('/'),
-            run_at: Time.now.utc + (attempt_number**4) + 5
-          }
-          delay(**job_options).fetch_attachment_and_save_submission(
-            url,
-            attachment,
-            submission_hash,
-            assignment,
-            user,
-            attempt_number
-          )
-        else
-          create_homework_submission submission_hash, assignment, user
-        end
-      end
-      # rubocop:enable Metrics/ParameterLists
 
       def submission_score
         if @submission.try(:graded?)
@@ -434,23 +427,23 @@ module BasicLTI
         def self.envelope
           return @envelope if @envelope
 
-          @envelope = Nokogiri::XML.parse <<-XML
-        <message_response>
-          <lti_message_type></lti_message_type>
-          <statusinfo>
-            <codemajor></codemajor>
-            <severity>Status</severity>
-            <codeminor>fullsuccess</codeminor>
-          </statusinfo>
-          <result>
-            <sourcedid></sourcedid>
-            <resultscore>
-              <resultvaluesourcedid>decimal</resultvaluesourdedid>
-              <textstring></textstring>
-              <language>en-US</language>
-            </resultscore>
-          </result>
-        </message_response>
+          @envelope = Nokogiri::XML.parse <<~XML
+            <message_response>
+              <lti_message_type></lti_message_type>
+              <statusinfo>
+                <codemajor></codemajor>
+                <severity>Status</severity>
+                <codeminor>fullsuccess</codeminor>
+              </statusinfo>
+              <result>
+                <sourcedid></sourcedid>
+                <resultscore>
+                  <resultvaluesourcedid>decimal</resultvaluesourdedid>
+                  <textstring></textstring>
+                  <language>en-US</language>
+                </resultscore>
+              </result>
+            </message_response>
           XML
           @envelope.encoding = 'UTF-8'
           @envelope

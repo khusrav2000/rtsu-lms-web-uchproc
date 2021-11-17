@@ -199,11 +199,11 @@ describe Role do
       @base_types = Role::ENROLLMENT_TYPES
       @custom_roles = {}
       @base_types.each do |bt|
-        if bt == 'DesignerEnrollment'
-          @custom_roles[bt] = custom_role(bt, "custom #{bt}", :account => @sub_account)
-        else
-          @custom_roles[bt] = custom_role(bt, "custom #{bt}")
-        end
+        @custom_roles[bt] = if bt == 'DesignerEnrollment'
+                              custom_role(bt, "custom #{bt}", :account => @sub_account)
+                            else
+                              custom_role(bt, "custom #{bt}")
+                            end
       end
     end
 
@@ -252,7 +252,7 @@ describe Role do
     end
 
     it "includes inactive roles" do
-      @account.roles.each { |r| r.deactivate! }
+      @account.roles.each(&:deactivate!)
       all = Role.all_enrollment_roles_for_account(@sub_account, true)
       @base_types.each do |bt|
         expect(get_base_type(all, bt)[:custom_roles][0][:name]).to eq "custom #{bt}"
@@ -260,7 +260,7 @@ describe Role do
     end
 
     context "with granular_permissions_manage_users FF disabled" do
-      before :each do
+      before do
         course_with_ta
         @course.root_account.disable_feature!(:granular_permissions_manage_users)
       end
@@ -290,7 +290,7 @@ describe Role do
     end
 
     context "with granular_permissions_manage_users FF enabled" do
-      before :each do
+      before do
         course_with_teacher
         @role = custom_account_role("EnrollmentManager", account: @course.account)
         @admin = account_admin_user(account: @course.account, role: @role)

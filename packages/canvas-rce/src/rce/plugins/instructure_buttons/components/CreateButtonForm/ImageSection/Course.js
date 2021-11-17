@@ -16,15 +16,34 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-import React from 'react'
+import React, {useEffect} from 'react'
 
 import {View} from '@instructure/ui-view'
 import ImageList from '../../../../instructure_image/Images'
 import {useStoreProps} from '../../../../shared/StoreContext'
+import useDataUrl from '../../../../shared/useDataUrl'
+import {actions} from '../../../reducers/imageSection'
 
-const Course = () => {
+const Course = ({dispatch}) => {
   const storeProps = useStoreProps()
   const {files, bookmark, isLoading, hasMore} = storeProps.images[storeProps.contextType]
+  const {setUrl, dataUrl, dataLoading, dataError} = useDataUrl()
+
+  // Handle image selection
+  useEffect(() => {
+    // Don't clear the current image on re-render
+    if (!dataUrl) return
+
+    dispatch({...actions.SET_IMAGE, payload: dataUrl})
+  }, [dataUrl])
+
+
+  // Handle loading states
+  useEffect(() => {
+    dispatch(
+      dataLoading ? actions.START_LOADING : actions.STOP_LOADING
+    )
+  }, [dataLoading])
 
   return (
     <View>
@@ -44,8 +63,9 @@ const Course = () => {
           sort: 'date_added',
           order: 'desc'
         }}
-        onImageEmbed={(file) => {
-          // TODO: Set current image
+        onImageEmbed={file => {
+          setUrl(file.download_url)
+          dispatch({...actions.SET_IMAGE_NAME, payload: file.filename})
         }}
       />
     </View>

@@ -27,7 +27,7 @@ module Importers
       :discussion_topic => DiscussionTopic,
       :quiz => Quizzes::Quiz,
       :wiki_page => WikiPage
-    }
+    }.freeze
 
     include LinkParser::Helpers
 
@@ -39,15 +39,13 @@ module Importers
       load_questions!(link_map)
 
       link_map.each do |item_key, field_links|
-        begin
-          item_key[:item] ||= retrieve_item(item_key)
+        item_key[:item] ||= retrieve_item(item_key)
 
-          replace_item_placeholders!(item_key, field_links)
+        replace_item_placeholders!(item_key, field_links)
 
-          add_missing_link_warnings!(item_key, field_links)
-        rescue
-          @migration.add_warning("An error occurred while translating content links", $!)
-        end
+        add_missing_link_warnings!(item_key, field_links)
+      rescue
+        @migration.add_warning("An error occurred while translating content links", $!)
       end
     end
 
@@ -186,11 +184,7 @@ module Importers
         if item.quiz
           replace_item_placeholders!({ :item => item.quiz }, { :description => links }, true)
         end
-      when DiscussionTopic
-        if item.assignment
-          replace_item_placeholders!({ :item => item.assignment }, { :description => links }, true)
-        end
-      when Quizzes::Quiz
+      when DiscussionTopic, Quizzes::Quiz
         if item.assignment
           replace_item_placeholders!({ :item => item.assignment }, { :description => links }, true)
         end
@@ -208,7 +202,7 @@ module Importers
       end
 
       if quiz_ids.any?
-        Quizzes::Quiz.where(:id => quiz_ids.uniq).where("quiz_data IS NOT NULL").find_each do |quiz|
+        Quizzes::Quiz.where(:id => quiz_ids.uniq).where.not(quiz_data: nil).find_each do |quiz|
           if recursively_sub_placeholders!(quiz['quiz_data'], links)
             Quizzes::Quiz.where(:id => quiz.id).update_all(:quiz_data => quiz['quiz_data'])
           end
@@ -234,7 +228,7 @@ module Importers
         Quizzes::QuizQuestion.where(:id => qq.id).update_all(:question_data => qq['question_data'])
       end
 
-      quiz = Quizzes::Quiz.where(:id => qq.quiz_id).where("quiz_data IS NOT NULL").first
+      quiz = Quizzes::Quiz.where(:id => qq.quiz_id).where.not(quiz_data: nil).first
       if quiz
         if recursively_sub_placeholders!(quiz['quiz_data'], links)
           Quizzes::Quiz.where(:id => quiz.id).update_all(:quiz_data => quiz['quiz_data'])

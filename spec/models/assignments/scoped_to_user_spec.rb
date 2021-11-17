@@ -27,6 +27,7 @@ module Assignments
       course_with_teacher(active_all: true)
       student_in_course(active_all: true, user_name: "some user")
     end
+
     let_once(:published) do
       @course.assignments.create({
                                    title: 'published assignment'
@@ -35,9 +36,7 @@ module Assignments
     let_once(:unpublished) do
       @course.assignments.create({
                                    title: 'unpublished assignment'
-                                 }).tap do |assignment|
-        assignment.unpublish
-      end
+                                 }).tap(&:unpublish)
     end
     let_once(:inactive) do
       @course.assignments.create({

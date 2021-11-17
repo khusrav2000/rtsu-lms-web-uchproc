@@ -141,7 +141,7 @@ describe SearchController, type: :request do
                       { :controller => 'search', :action => 'recipients', :format => 'json', :user_id => @bob.id.to_s, :search => "asdf" })
       json.each { |c| c.delete("avatar_url") }
       expect(json).to eql [
-        { "id" => @bob.id, "pronouns" => nil, "name" => "bob", "pronouns" => nil, "full_name" => "robert", "common_courses" => { @course.id.to_s => ["StudentEnrollment"] }, "common_groups" => { @group.id.to_s => ["Member"] } },
+        { "id" => @bob.id, "pronouns" => nil, "name" => "bob", "full_name" => "robert", "common_courses" => { @course.id.to_s => ["StudentEnrollment"] }, "common_groups" => { @group.id.to_s => ["Member"] } },
       ]
     end
 
@@ -151,13 +151,13 @@ describe SearchController, type: :request do
                       { :controller => 'search', :action => 'recipients', :format => 'json', :user_id => other.id.to_s })
       expect(json).to eq []
       # now they have a conversation in common
-      c = Conversation.initiate([@user, other], true)
+      conversation = Conversation.initiate([@user, other], true)
       json = api_call(:get, "/api/v1/search/recipients?user_id=#{other.id}",
                       { :controller => 'search', :action => 'recipients', :format => 'json', :user_id => other.id.to_s })
       expect(json).to eq []
       # ... but it has to be explicity referenced via from_conversation_id
-      json = api_call(:get, "/api/v1/search/recipients?user_id=#{other.id}&from_conversation_id=#{c.id}",
-                      { :controller => 'search', :action => 'recipients', :format => 'json', :user_id => other.id.to_s, :from_conversation_id => c.id.to_s })
+      json = api_call(:get, "/api/v1/search/recipients?user_id=#{other.id}&from_conversation_id=#{conversation.id}",
+                      { :controller => 'search', :action => 'recipients', :format => 'json', :user_id => other.id.to_s, :from_conversation_id => conversation.id.to_s })
       json.each { |c| c.delete("avatar_url") }
       expect(json).to eql [
         { "id" => other.id, "pronouns" => nil, "name" => "other personage", "full_name" => "other personage", "common_courses" => {}, "common_groups" => {} },
@@ -318,7 +318,7 @@ describe SearchController, type: :request do
 
     context "pagination" do
       it "paginates even if no type is specified" do
-        create_users_in_course(@course, 4.times.map { { name: "cletus", sortable_name: "cletus" } })
+        create_users_in_course(@course, Array.new(4) { { name: "cletus", sortable_name: "cletus" } })
 
         json = api_call(:get, "/api/v1/search/recipients.json?search=cletus&per_page=3",
                         { :controller => 'search', :action => 'recipients', :format => 'json', :search => 'cletus', :per_page => '3' })
@@ -327,7 +327,7 @@ describe SearchController, type: :request do
       end
 
       it "paginates users and return proper pagination headers" do
-        create_users_in_course(@course, 4.times.map { { name: "cletus", sortable_name: "cletus" } })
+        create_users_in_course(@course, Array.new(4) { { name: "cletus", sortable_name: "cletus" } })
 
         json = api_call(:get, "/api/v1/search/recipients.json?search=cletus&type=user&per_page=3",
                         { :controller => 'search', :action => 'recipients', :format => 'json', :search => 'cletus', :type => 'user', :per_page => '3' })
@@ -357,7 +357,7 @@ describe SearchController, type: :request do
       end
 
       it "paginates contexts and return proper pagination headers" do
-        create_courses(4.times.map { { name: "ofcourse" } }, enroll_user: @user)
+        create_courses(Array.new(4) { { name: "ofcourse" } }, enroll_user: @user)
 
         json = api_call(:get, "/api/v1/search/recipients.json?search=ofcourse&type=context&per_page=3",
                         { :controller => 'search', :action => 'recipients', :format => 'json', :search => 'ofcourse', :type => 'context', :per_page => '3' })
@@ -387,7 +387,7 @@ describe SearchController, type: :request do
       end
 
       it "ignores invalid per_page" do
-        create_users_in_course(@course, 11.times.map { { name: "cletus", sortable_name: "cletus" } })
+        create_users_in_course(@course, Array.new(11) { { name: "cletus", sortable_name: "cletus" } })
 
         json = api_call(:get, "/api/v1/search/recipients.json?search=cletus&type=user&per_page=-1",
                         { :controller => 'search', :action => 'recipients', :format => 'json', :search => 'cletus', :type => 'user', :per_page => '-1' })
@@ -418,7 +418,7 @@ describe SearchController, type: :request do
 
       it "paginates combined context/user results" do
         # 6 courses, 6 users, 12 items total
-        courses = create_courses(6.times.map { { name: "term" } }, enroll_user: @user, return_type: :record)
+        courses = create_courses(Array.new(6) { { name: "term" } }, enroll_user: @user, return_type: :record)
         course_ids = courses.map(&:asset_string)
         user_ids = []
         courses.each do |course|

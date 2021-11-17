@@ -194,7 +194,7 @@ describe "Files API", type: :request do
     def upload_data
       @attachment.workflow_state = nil
       @content = Tempfile.new(["test", ".txt"])
-      def @content.content_type
+      def @content.content_type # rubocop:disable Lint/NestedMethodDefinition
         "text/plain"
       end
       @content.write("test file")
@@ -608,17 +608,17 @@ describe "Files API", type: :request do
       expect(json.length).to eq 3
       links = response.headers['Link'].split(",")
       expect(links.all? { |l| l =~ /api\/v1\/folders\/#{@root.id}\/files/ }).to be_truthy
-      expect(links.find { |l| l.match(/rel="next"/) }).to match(/page=2/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+      expect(links.find { |l| l.include?('rel="next"') }).to match(/page=2/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
 
       json = api_call(:get, "/api/v1/folders/#{@root.id}/files?per_page=3&page=3", @files_path_options.merge(:id => @root.id.to_param, :per_page => '3', :page => '3'), {})
       expect(json.length).to eq 1
       links = response.headers['Link'].split(",")
       expect(links.all? { |l| l =~ /api\/v1\/folders\/#{@root.id}\/files/ }).to be_truthy
-      expect(links.find { |l| l.match(/rel="prev"/) }).to match(/page=2/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+      expect(links.find { |l| l.include?('rel="prev"') }).to match(/page=2/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
     end
 
     it "only returns names if requested" do
@@ -692,7 +692,7 @@ describe "Files API", type: :request do
 
     it "includes an instfs_uuid if ?include[]-ed" do
       json = api_call(:get, @files_path, @files_path_options.merge(include: ['instfs_uuid']))
-      expect(json[0].key? "instfs_uuid").to be true
+      expect(json[0]).to have_key "instfs_uuid"
     end
 
     context 'when the context is a user' do
@@ -862,17 +862,17 @@ describe "Files API", type: :request do
       expect(json.length).to eq 3
       links = response.headers['Link'].split(",")
       expect(links.all? { |l| l =~ /api\/v1\/courses\/#{@course.id}\/files/ }).to be_truthy
-      expect(links.find { |l| l.match(/rel="next"/) }).to match(/page=2/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+      expect(links.find { |l| l.include?('rel="next"') }).to match(/page=2/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
 
       json = api_call(:get, "/api/v1/courses/#{@course.id}/files?per_page=3&page=3", @files_path_options.merge(:per_page => '3', :page => '3'), {})
       expect(json.length).to eq 1
       links = response.headers['Link'].split(",")
       expect(links.all? { |l| l =~ /api\/v1\/courses\/#{@course.id}\/files/ }).to be_truthy
-      expect(links.find { |l| l.match(/rel="prev"/) }).to match(/page=2/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3/)
+      expect(links.find { |l| l.include?('rel="prev"') }).to match(/page=2/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3/)
     end
 
     context "content_types" do
@@ -1067,12 +1067,19 @@ describe "Files API", type: :request do
     end
 
     def should_be_locked(json)
+      prohibited_fields = %w(
+        canvadoc_session_url
+        crocodoc_session_url
+      )
+
       expect(json['url']).to eq ""
       expect(json['thumbnail_url']).to eq ""
       expect(json['hidden']).to be_truthy
       expect(json['hidden_for_user']).to be_truthy
       expect(json['locked_for_user']).to be_truthy
       expect(json['preview_url'].include?('verifier')).to be_falsey
+
+      expect(json.keys & prohibited_fields).to be_empty
     end
 
     it "is locked/hidden for a student" do
@@ -1471,7 +1478,7 @@ describe "Files API", type: :request do
       t_course.teachers.first
     end
 
-    before(:each) do
+    before do
       user_session(@teacher)
     end
 

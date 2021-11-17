@@ -41,7 +41,7 @@ class ErrorReport < ActiveRecord::Base
   end
 
   class Reporter
-    IGNORED_CATEGORIES = "404,ActionDispatch::RemoteIp::IpSpoofAttackError,Turnitin::Errors::SubmissionNotScoredError".freeze
+    IGNORED_CATEGORIES = "404,ActionDispatch::RemoteIp::IpSpoofAttackError,Turnitin::Errors::SubmissionNotScoredError"
 
     def ignored_categories
       Setting.get('ignored_error_report_categories', IGNORED_CATEGORIES).split(',')
@@ -107,9 +107,9 @@ class ErrorReport < ActiveRecord::Base
           Rails.logger.error("Failed creating ErrorReport: #{e.inspect}")
           Rails.logger.error("Original error: #{opts[:message]}")
           Rails.logger.error("Original exception: #{opts[:exception_message]}") if opts[:exception_message]
-          @exception.backtrace.each do |line|
+          @exception&.backtrace&.each do |line|
             Rails.logger.error("Trace: #{line}")
-          end if @exception
+          end
         end
         report
       end

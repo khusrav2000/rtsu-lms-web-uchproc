@@ -23,7 +23,7 @@ describe "speed grader submissions" do
   include_context "in-process server selenium tests"
   include SpeedGraderCommon
 
-  before(:each) do
+  before do
     stub_kaltura
 
     course_with_teacher_logged_in
@@ -219,8 +219,8 @@ describe "speed grader submissions" do
       wait_for_ajaximations
       rubric = f('#rubric_full')
       expect(rubric).to be_displayed
-      ff(".rating-description").select { |elt| elt.displayed? && elt.text == "Rockin'" }[0].click
-      ff(".rating-description").select { |elt| elt.displayed? && elt.text == "Amazing" }[0].click
+      ff(".rating-description").find { |elt| elt.displayed? && elt.text == "Rockin'" }.click
+      ff(".rating-description").find { |elt| elt.displayed? && elt.text == "Amazing" }.click
       expect(f("span[data-selenium='rubric_total']")).to include_text('8')
       f('#rubric_full .save_rubric_button').click
       wait_for_ajaximations
@@ -299,7 +299,7 @@ describe "speed grader submissions" do
     end
 
     context "turnitin" do
-      before(:each) do
+      before do
         @assignment.turnitin_enabled = true
         @assignment.save!
       end
@@ -388,7 +388,7 @@ describe "speed grader submissions" do
     end
 
     context "LTI Plagiarism Platform" do
-      before(:each) do
+      before do
         @assignment.save!
       end
 

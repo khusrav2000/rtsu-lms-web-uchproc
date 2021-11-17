@@ -31,12 +31,11 @@ describe PlannerController do
   end
 
   def course_assignment
-    assignment = @course.assignments.create(
+    @course.assignments.create(
       :title => "some assignment #{@course.assignments.count}",
       :assignment_group => @group,
       :due_at => Time.zone.now + 1.week
     )
-    assignment
   end
 
   context "unauthenticated" do
@@ -47,7 +46,7 @@ describe PlannerController do
   end
 
   context "as student" do
-    before :each do
+    before do
       user_session(@student)
     end
 
@@ -277,7 +276,7 @@ describe PlannerController do
           @e2.conclude
         end
 
-        before :each do
+        before do
           user_session(@u)
         end
 
@@ -327,11 +326,13 @@ describe PlannerController do
           @course2_event = @course2.calendar_events.create!(title: "Course 2 event", start_at: 1.minute.from_now, end_at: 1.hour.from_now)
           @group_event = @group.calendar_events.create!(title: "Group event", start_at: 1.minute.from_now, end_at: 1.hour.from_now)
           @user_event = @user.calendar_events.create!(title: "User event", start_at: 1.minute.from_now, end_at: 1.hour.from_now)
-          @deleted_page = wiki_page_model(course: @course1, todo_date: 1.day.from_now); @deleted_page.destroy
-          @deleted_topic = discussion_topic_model(context: @group, todo_date: 1.day.from_now); @deleted_topic.destroy
+          @deleted_page = wiki_page_model(course: @course1, todo_date: 1.day.from_now)
+          @deleted_page.destroy
+          @deleted_topic = discussion_topic_model(context: @group, todo_date: 1.day.from_now)
+          @deleted_topic.destroy
         end
 
-        before :each do
+        before do
           user_session(@student)
         end
 
@@ -655,7 +656,7 @@ describe PlannerController do
             @planner_note2 = planner_note_model(user: @student, todo_date: 1.day.from_now)
           end
 
-          before :each do
+          before do
             user_session(@student)
           end
 
@@ -852,19 +853,19 @@ describe PlannerController do
       end
 
       context "pagination" do
-        PER_PAGE = 5
+        let(:per_page) { 5 }
 
         def test_page(bookmark = nil)
-          opts = { per_page: PER_PAGE }
+          opts = { per_page: 5 }
           opts.merge(page: bookmark) if bookmark.present?
 
           page =  get :index, params: opts
           links = Api.parse_pagination_links(page.headers['Link'])
           response_json = json_parse(page.body)
-          expect(response_json.length).to eq PER_PAGE
+          expect(response_json.length).to eq 5
           ids = response_json.map { |i| i["plannable_id"] }
           expected_ids = []
-          PER_PAGE.times { |i| expected_ids << @assignments[i].id }
+          5.times { |i| expected_ids << @assignments[i].id }
           expect(ids).to eq expected_ids
 
           links.detect { |l| l[:rel] == "next" }["page"]
@@ -1214,7 +1215,7 @@ describe PlannerController do
       @original_enrollment = observer_in_course(active_all: true, associated_user_id: @student)
     end
 
-    before :each do
+    before do
       user_session(@observer)
     end
 

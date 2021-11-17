@@ -32,6 +32,7 @@ module Lti
       attr_reader :original_tool_id
 
       def initialize(original_tool_id)
+        super()
         @original_tool_id = original_tool_id
       end
 
@@ -95,7 +96,7 @@ module Lti
 
         original_tool = ContextExternalTool.find(@original_tool_id)
         @tool = ContextExternalTool.find_external_tool(original_tool.domain, @course, @original_tool_id).tap do |t|
-          unless t && t.content_migration_configured?
+          unless t&.content_migration_configured?
             raise "Unable to find external tool to import content."
           end
         end

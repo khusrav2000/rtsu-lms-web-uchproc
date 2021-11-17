@@ -130,11 +130,11 @@ describe SectionsController, type: :request do
                       { :include => ['students'] })
 
       expect(json.first["name"]).to eq @course.default_section.name
-      expect(json.first.keys.include?("students")).to be_falsey
+      expect(json.first.key?("students")).to be_falsey
     end
 
     it "returns all sections if :all are specified" do
-      12.times { @course2.course_sections.create!(:name => 'Section #{i}') }
+      12.times { |i| @course2.course_sections.create!(name: "Section #{i}") }
 
       endpoint = "/api/v1/courses/#{@course2.id}/sections.json"
       params = { :controller => 'sections', :action => 'index', :course_id => @course2.to_param, :format => 'json' }
@@ -596,6 +596,7 @@ describe SectionsController, type: :request do
                  { course_section: { integration_id: 'taken' } })
         expect(response).to be_bad_request
       end
+
       it "throws error when sis_id is not unique" do
         @course.course_sections.create!(name: "Test Section", sis_source_id: 'taken')
         CourseSection.where(id: @section)

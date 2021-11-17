@@ -70,7 +70,7 @@ module AttachmentFu # :nodoc:
           commands.limit("disk", "1000MB") # because arbitrary numbers are arbitrary
 
           # gif are not handled correct, this is a hack, but it seems to work.
-          if img[:format] =~ /GIF/
+          if img[:format].include?('GIF')
             img.format("png")
           end
 
@@ -83,14 +83,14 @@ module AttachmentFu # :nodoc:
             end
           # extend to thumbnail size
           elsif size.is_a?(String) and size =~ /e$/
-            size = size.gsub(/e/, '')
+            size = size.delete('e')
             commands.resize(size.to_s + '>')
             commands.background('#ffffff')
             commands.gravity('center')
             commands.extent(size)
           # crop thumbnail, the smart way
           elsif size.is_a?(String) and size =~ /c$/
-            size = size.gsub(/c/, '')
+            size = size.delete('c')
 
             # calculate sizes and aspect ratio
             thumb_width, thumb_height = size.split("x")
@@ -116,7 +116,7 @@ module AttachmentFu # :nodoc:
               commands.extent(size)
             # resize image
             else
-              commands.resize("#{size}")
+              commands.resize(size.to_s)
             end
           # crop end
           else

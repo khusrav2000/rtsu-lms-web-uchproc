@@ -28,7 +28,7 @@ describe EventStream::AttrConfig do
       def initialize(opts = {})
         # assumes the class has had attr_config :field declared. but that
         # declaration will happen during specs since it varies
-        field(opts[:field]) if opts.has_key?(:field)
+        field(opts[:field]) if opts.key?(:field)
         attr_config_validate
       end
     end
@@ -134,8 +134,7 @@ describe EventStream::AttrConfig do
     it "requires setting non-defaulted fields before validation" do
       value = double('value')
       @class.attr_config :field
-      obj = @class.new(:field => value)
-      obj.field.== value
+      @class.new(:field => value)
       expect {
         @class.new
       }.to raise_exception ArgumentError

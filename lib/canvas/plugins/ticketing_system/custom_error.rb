@@ -101,25 +101,23 @@ module Canvas::Plugins::TicketingSystem
     end
 
     def become_user_id_uri
-      begin
-        if url && user_id
-          begin
-            become_user_uri = URI.parse(url)
-            become_user_uri.query = (Hash[*(become_user_uri.query || '')
-                            .split('&').map { |part| part.split('=') }.flatten])
-                                    .merge({ 'become_user_id' => user_id }).to_query
-          rescue URI::Error
-            become_user_uri = "unable to parse uri: #{url}"
-          end
-          become_user_uri.to_s
+      if url && user_id
+        begin
+          become_user_uri = URI.parse(url)
+          become_user_uri.query = (Hash[*(become_user_uri.query || '')
+                          .split('&').map { |part| part.split('=') }.flatten])
+                                  .merge({ 'become_user_id' => user_id }).to_query
+        rescue URI::Error
+          become_user_uri = "unable to parse uri: #{url}"
         end
-      rescue
-        nil
+        become_user_uri.to_s
       end
+    rescue
+      nil
     end
 
     def pretty_http_env
-      if http_env && http_env.respond_to?(:each)
+      if http_env.respond_to?(:each)
         http_env.map { |key, val| "#{key}: #{val.inspect}" }.join("\n")
       else
         nil

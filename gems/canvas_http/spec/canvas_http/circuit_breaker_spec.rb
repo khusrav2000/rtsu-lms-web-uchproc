@@ -57,7 +57,7 @@ describe CanvasHttp::CircuitBreaker do
       end
 
       def setnx(key, value)
-        @state[key] = value unless @state.keys.include?(key)
+        @state[key] = value unless @state.key?(key)
       end
 
       def setex(key, ttl, value)
@@ -73,14 +73,14 @@ describe CanvasHttp::CircuitBreaker do
 
   let(:test_redis) { redis_client_klass.new }
 
-  before(:each) do
+  before do
     @old_redis = CanvasHttp::CircuitBreaker.redis
     test_redis.reset!
     CanvasHttp::CircuitBreaker.redis = -> { test_redis }
     CanvasHttp.logger = NullLogger.new
   end
 
-  after(:each) do
+  after do
     CanvasHttp::CircuitBreaker.redis = @old_redis
     CanvasHttp::CircuitBreaker.threshold = nil
     CanvasHttp.logger = nil

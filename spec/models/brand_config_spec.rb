@@ -48,8 +48,8 @@ describe BrandConfig do
     end
 
     it "inherits effective_variables from its parent" do
-      expect(@subaccount_bc.variables.keys.include?("ic-brand-global-nav-bgd")).to be_truthy
-      expect(@subaccount_bc.variables.keys.include?("ic-brand-primary")).to be_falsey
+      expect(@subaccount_bc.variables.key?("ic-brand-global-nav-bgd")).to be_truthy
+      expect(@subaccount_bc.variables.key?("ic-brand-primary")).to be_falsey
 
       expect(@subaccount_bc.effective_variables["ic-brand-global-nav-bgd"]).to eq "#123"
       expect(@subaccount_bc.effective_variables["ic-brand-primary"]).to eq "#321"
@@ -156,8 +156,8 @@ describe BrandConfig do
     describe "with cdn disabled" do
       before do
         expect(Canvas::Cdn).to receive(:enabled?).at_least(:once).and_return(false)
-        expect(@subaccount_bc).to receive(:s3_uploader).never
-        expect(File).to receive(:delete).never
+        expect(@subaccount_bc).not_to receive(:s3_uploader)
+        expect(File).not_to receive(:delete)
       end
 
       it "writes the json representation to the json file" do
@@ -177,7 +177,7 @@ describe BrandConfig do
     end
 
     describe "with cdn enabled" do
-      before :each do
+      before do
         expect(Canvas::Cdn).to receive(:enabled?).at_least(:once).and_return(true)
         s3 = double(bucket: nil)
         allow(Aws::S3::Resource).to receive(:new).and_return(s3)

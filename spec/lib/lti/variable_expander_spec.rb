@@ -225,7 +225,7 @@ module Lti
 
     describe '#self.expansion_keys' do
       let(:expected_keys) do
-        VariableExpander.expansions.keys.map { |c| c.to_s[1..-1] }
+        VariableExpander.expansions.keys.map { |c| c.to_s[1..] }
       end
 
       it 'includes all expansion keys' do
@@ -1069,7 +1069,7 @@ module Lti
           # complaints. The user_factory takes care of this.
           let(:user) { user_factory }
 
-          before(:each) do
+          before do
             # AR complains if you don't save the course to the database first.
             course.save!
             enrolled_section = add_section("section one", { course: course })
@@ -1301,7 +1301,7 @@ module Lti
           exp_hash = { test: '$Canvas.term.startAt' }
           variable_expander.expand_variables!(exp_hash)
 
-          unless term && term.start_at
+          unless term&.start_at
             expect(exp_hash[:test]).to eq '$Canvas.term.startAt'
           end
         end
@@ -1330,7 +1330,7 @@ module Lti
           exp_hash = { test: '$Canvas.term.name' }
           variable_expander.expand_variables!(exp_hash)
 
-          unless term && term.name
+          unless term&.name
             expect(exp_hash[:test]).to eq '$Canvas.term.name'
           end
         end
@@ -1435,6 +1435,14 @@ module Lti
           exp_hash = { test: '$Canvas.assignment.description' }
           variable_expander.expand_variables!(exp_hash)
           expect(exp_hash[:test]).to eq 'desc'
+        end
+
+        it 'has substitution for $Canvas.assignment.description longer than 1000 chracters' do
+          str = SecureRandom.urlsafe_base64(1000)
+          allow(assignment).to receive(:description).and_return(str)
+          exp_hash = { test: '$Canvas.assignment.description' }
+          variable_expander.expand_variables!(exp_hash)
+          expect(exp_hash[:test]).to eq str[0..984] + '... (truncated)'
         end
 
         it 'has substitution for $Canvas.assignment.title' do
@@ -1564,21 +1572,21 @@ module Lti
             allow(assignment).to receive(:unlock_at).and_return(right_now)
             exp_hash = { test: '$Canvas.assignment.unlockAt.iso8601' }
             variable_expander.expand_variables!(exp_hash)
-            expect(exp_hash[:test]).to eq right_now.utc.iso8601.to_s
+            expect(exp_hash[:test]).to eq right_now.utc.iso8601
           end
 
           it 'has substitution for $Canvas.assignment.lockAt.iso8601' do
             allow(assignment).to receive(:lock_at).and_return(right_now)
             exp_hash = { test: '$Canvas.assignment.lockAt.iso8601' }
             variable_expander.expand_variables!(exp_hash)
-            expect(exp_hash[:test]).to eq right_now.utc.iso8601.to_s
+            expect(exp_hash[:test]).to eq right_now.utc.iso8601
           end
 
           it 'has substitution for $Canvas.assignment.dueAt.iso8601' do
             allow(assignment).to receive(:due_at).and_return(right_now)
             exp_hash = { test: '$Canvas.assignment.dueAt.iso8601' }
             variable_expander.expand_variables!(exp_hash)
-            expect(exp_hash[:test]).to eq right_now.utc.iso8601.to_s
+            expect(exp_hash[:test]).to eq right_now.utc.iso8601
           end
 
           it 'handles a nil unlock_at' do
@@ -1605,7 +1613,8 @@ module Lti
       end
 
       context 'user is not logged in' do
-        let(:user) {}
+        let(:user) { nil }
+
         it 'has substitution for $vnd.Canvas.Person.email.sis when user is not logged in' do
           exp_hash = { test: '$vnd.Canvas.Person.email.sis' }
           variable_expander.expand_variables!(exp_hash)
@@ -1797,7 +1806,7 @@ module Lti
         context 'pseudonym' do
           let(:pseudonym) { Pseudonym.new }
 
-          before :each do
+          before do
             allow(SisPseudonym).to receive(:for).with(user, anything, anything).and_return(pseudonym)
           end
 

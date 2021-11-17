@@ -50,7 +50,7 @@ describe "conversations new" do
       expect(f('.btn.dropdown-toggle[data-id="compose-message-course"]')).to include_text('Select course')
 
       # Selects course for rest of elements to display
-      select_message_course("#{@course.name}")
+      select_message_course(@course.name.to_s)
       wait_for_ajaximations
 
       # To field displays
@@ -88,7 +88,7 @@ describe "conversations new" do
     end
 
     context "conversations ui" do
-      before(:each) do
+      before do
         conversations
       end
 
@@ -157,7 +157,7 @@ describe "conversations new" do
     end
 
     describe "message list" do
-      before(:each) do
+      before do
         @participant = conversation(@teacher, @s[0], @s[1], body: 'hi there', workflow_state: 'unread')
         @convo = @participant.conversation
         @convo.update_attribute(:subject, 'test')
@@ -397,7 +397,7 @@ describe "conversations new" do
         button_text = f('.filter-option', course_filter).text
         expect(button_text).not_to eq @course.name
         expect(button_text[0...5]).to eq @course.name[0...5]
-        expect(button_text[-5..-1]).to eq @course.name[-5..-1]
+        expect(button_text[-5..]).to eq @course.name[-5..]
       end
 
       it "filters by course", priority: "1", test_id: 197529 do

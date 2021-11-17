@@ -498,7 +498,15 @@ class CoursesController < ApplicationController
         format.html {
           css_bundle :context_list, :course_list
           js_bundle :course_list
-          js_env({ CREATE_COURSES_PERMISSION: @current_user.create_courses_right(@domain_root_account) })
+
+          create_permission_root_account = @current_user.create_courses_right(@domain_root_account)
+          create_permission_mcc_account = @current_user.create_courses_right(@domain_root_account.manually_created_courses_account)
+          js_env({
+                   CREATE_COURSES_PERMISSIONS: {
+                     PERMISSION: create_permission_root_account || create_permission_mcc_account,
+                     RESTRICT_TO_MCC_ACCOUNT: !!(!create_permission_root_account && create_permission_mcc_account)
+                   }
+                 })
 
           set_k5_mode(require_k5_theme: true)
 
@@ -525,23 +533,26 @@ class CoursesController < ApplicationController
     @current_enrollments = []
     @future_enrollments = []
 
+    completed_states = %i[completed rejected]
+    active_states = %i[active invited]
     all_enrollments.group_by { |e| [e.course_id, e.type] }.values.each do |enrollments|
-      e = enrollments.sort_by { |e| e.state_with_date_sortable }.first
+      first_enrollment = enrollments.min_by(&:state_with_date_sortable)
       if enrollments.count > 1
         # pick the last one so if all sections have "ended" it still shows up in past enrollments because dates are still terrible
-        e.course_section = enrollments.map(&:course_section).sort_by { |cs| cs.end_at || CanvasSort::Last }.last
-        e.readonly!
+        first_enrollment.course_section = enrollments.map(&:course_section).max_by { |cs| cs.end_at || CanvasSort::Last }
+        first_enrollment.readonly!
       end
 
-      state = e.state_based_on_date
-      if [:completed, :rejected].include?(state) ||
-         ([:active, :invited].include?(state) && e.section_or_course_date_in_past?) # strictly speaking, these enrollments are perfectly active but enrollment dates are terrible
-        @past_enrollments << e unless e.workflow_state == "invited"
-      elsif !e.hard_inactive?
-        if e.enrollment_state.pending? || state == :creation_pending || (e.admin? && e.course.start_at&.>(Time.now.utc))
-          @future_enrollments << e unless e.restrict_future_listing?
+      state = first_enrollment.state_based_on_date
+      if completed_states.include?(state) ||
+         (active_states.include?(state) && first_enrollment.section_or_course_date_in_past?) # strictly speaking, these enrollments are perfectly active but enrollment dates are terrible
+        @past_enrollments << first_enrollment unless first_enrollment.workflow_state == "invited"
+      elsif !first_enrollment.hard_inactive?
+        if first_enrollment.enrollment_state.pending? || state == :creation_pending ||
+           (first_enrollment.admin? && first_enrollment.course.start_at&.>(Time.now.utc))
+          @future_enrollments << first_enrollment unless first_enrollment.restrict_future_listing?
         elsif state != :inactive
-          @current_enrollments << e
+          @current_enrollments << first_enrollment
         end
       end
     end
@@ -807,7 +818,7 @@ class CoursesController < ApplicationController
       params[:course] ||= {}
       params_for_create = course_params
 
-      if params_for_create.has_key?(:syllabus_body)
+      if params_for_create.key?(:syllabus_body)
         params_for_create[:syllabus_body] = process_incoming_html_content(params_for_create[:syllabus_body])
       end
 
@@ -1550,11 +1561,11 @@ class CoursesController < ApplicationController
 
       new_settings = {}
 
-      if key_exists
-        new_settings[:engine_selected] = update_user_engine_choice(@course, selection_obj)
-      else
-        new_settings[:engine_selected] = { user_id: selection_obj }
-      end
+      new_settings[:engine_selected] = if key_exists
+                                         update_user_engine_choice(@course, selection_obj)
+                                       else
+                                         { user_id: selection_obj }
+                                       end
       new_settings.reverse_merge!(old_settings)
       @course.settings = new_settings
       @course.save
@@ -1740,9 +1751,9 @@ class CoursesController < ApplicationController
     return !!redirect_to(course_url(@context.id)) unless @pending_enrollment
 
     if params[:reject]
-      return reject_enrollment(@pending_enrollment)
+      reject_enrollment(@pending_enrollment)
     elsif params[:accept]
-      return accept_enrollment(@pending_enrollment)
+      accept_enrollment(@pending_enrollment)
     else
       redirect_to course_url(@context.id)
     end
@@ -1774,7 +1785,7 @@ class CoursesController < ApplicationController
       else
         @context_enrollment = enrollment
         enrollment = nil
-        return false
+        false
       end
     elsif (!@current_user && enrollment.user.registered?) || !enrollment.user.email_channel
       session[:return_to] = course_url(@context.id)
@@ -1886,8 +1897,8 @@ class CoursesController < ApplicationController
   # Returns enrollment (or nil).
   def fetch_enrollment
     # Use the enrollment we already fetched, if possible
-    enrollment = @context_enrollment if @context_enrollment && @context_enrollment.pending? && (@context_enrollment.uuid == params[:invitation] || params[:invitation].blank?)
-    @current_user.reload if @context_enrollment && @context_enrollment.enrollment_state.user_needs_touch # needed to prevent permission caching
+    enrollment = @context_enrollment if @context_enrollment&.pending? && (@context_enrollment.uuid == params[:invitation] || params[:invitation].blank?)
+    @current_user.reload if @context_enrollment&.enrollment_state&.user_needs_touch # needed to prevent permission caching
 
     # Overwrite with the session enrollment, if one exists, and it's different than the current user's
     if session[:enrollment_uuid] && enrollment.try(:uuid) != session[:enrollment_uuid] &&
@@ -1924,15 +1935,16 @@ class CoursesController < ApplicationController
       locks_hash = Rails.cache.fetch(['locked_for_results', @current_user, Digest::MD5.hexdigest(params[:assets])].cache_key) do
         locks = {}
         types.each do |type, ids|
-          if type == 'assignment'
+          case type
+          when 'assignment'
             @context.assignments.active.where(id: ids).each do |assignment|
               locks[assignment.asset_string] = assignment.locked_for?(@current_user)
             end
-          elsif type == 'quiz'
+          when 'quiz'
             @context.quizzes.active.include_assignment.where(id: ids).each do |quiz|
               locks[quiz.asset_string] = quiz.locked_for?(@current_user)
             end
-          elsif type == 'discussion_topic'
+          when 'discussion_topic'
             @context.discussion_topics.active.where(id: ids).each do |topic|
               locks[topic.asset_string] = topic.locked_for?(@current_user)
             end
@@ -2040,7 +2052,7 @@ class CoursesController < ApplicationController
           scope = Course
         end
 
-        if !includes.member?("all_courses")
+        unless includes.member?("all_courses")
           scope = scope.not_deleted
         end
         @context = @course = api_find(scope, params[:id])
@@ -2135,10 +2147,8 @@ class CoursesController < ApplicationController
                                     })
         # env.COURSE variables that only apply to classic courses
         unless @context.elementary_subject_course?
-          course_env_variables.merge!({
-                                        front_page_title: @context&.wiki&.front_page&.title,
-                                        default_view: default_view
-                                      })
+          course_env_variables[:front_page_title] = @context&.wiki&.front_page&.title
+          course_env_variables[:default_view] = default_view
         end
         js_env({ COURSE: course_env_variables })
 
@@ -2280,7 +2290,11 @@ class CoursesController < ApplicationController
                                         image_url: @context.image,
                                         banner_image_url: @context.banner_image,
                                         color: @context.course_color,
-                                        course_overview: @context&.wiki&.front_page&.body,
+                                        course_overview: {
+                                          body: @context.wiki&.front_page&.body,
+                                          url: @context.wiki&.front_page_url,
+                                          canEdit: @context.wiki&.front_page&.grants_any_right?(@current_user, session, :update, :update_content) && !@context.wiki&.front_page&.editing_restricted?(:content)
+                                        },
                                         hide_final_grades: @context.hide_final_grades?,
                                         student_outcome_gradebook_enabled: @context.feature_enabled?(:student_outcome_gradebook),
                                         outcome_proficiency: @context.root_account.feature_enabled?(:account_level_mastery_scales) ? @context.resolved_outcome_proficiency&.as_json : @context.account.resolved_outcome_proficiency&.as_json,
@@ -2420,7 +2434,7 @@ class CoursesController < ApplicationController
     if params[:role_id].present? || !Role.get_built_in_role(params[:enrollment_type], root_account_id: @context.root_account_id)
       custom_role = @context.account.get_role_by_id(params[:role_id]) if params[:role_id].present?
       custom_role ||= @context.account.get_role_by_name(params[:enrollment_type]) # backwards compatibility
-      if custom_role && custom_role.course_role?
+      if custom_role&.course_role?
         if custom_role.inactive?
           render :json => t('errors.role_not_active', "Can't add users for non-active role: '%{role}'", :role => custom_role.name), :status => :bad_request
           return
@@ -2434,7 +2448,7 @@ class CoursesController < ApplicationController
     end
 
     params[:course_section_id] ||= @context.default_section.id
-    if @current_user && @current_user.can_create_enrollment_for?(@context, session, params[:enrollment_type])
+    if @current_user&.can_create_enrollment_for?(@context, session, params[:enrollment_type])
       params[:user_list] ||= ""
 
       # Enrollment settings hash
@@ -2947,11 +2961,11 @@ class CoursesController < ApplicationController
       params[:course][:sis_source_id] = params[:course].delete(:sis_course_id) if api_request?
       if (sis_id = params[:course].delete(:sis_source_id))
         if sis_id != @course.sis_source_id && @course.root_account.grants_right?(@current_user, session, :manage_sis)
-          if sis_id == ''
-            @course.sis_source_id = nil
-          else
-            @course.sis_source_id = sis_id
-          end
+          @course.sis_source_id = if sis_id == ''
+                                    nil
+                                  else
+                                    sis_id
+                                  end
         end
       end
 
@@ -3040,8 +3054,7 @@ class CoursesController < ApplicationController
         end
 
         if (mc_restrictions = params[:course][:blueprint_restrictions])
-          restrictions = Hash[mc_restrictions.to_unsafe_h.map { |k, v| [k.to_sym, value_to_boolean(v)] }]
-          template.default_restrictions = restrictions
+          template.default_restrictions = mc_restrictions.to_unsafe_h.map { |k, v| [k.to_sym, value_to_boolean(v)] }.to_h
         end
 
         if (mc_restrictions_by_type = params[:course][:blueprint_restrictions_by_object_type])
@@ -3169,7 +3182,7 @@ class CoursesController < ApplicationController
           redirect_to(course_url(@course))
         end
       end
-      return false
+      false
     else
       result = @course.process_event(event)
       if result
@@ -3236,11 +3249,11 @@ class CoursesController < ApplicationController
   # @returns Progress
   def batch_update
     @account = api_find(Account, params[:account_id])
-    if params[:event] == 'undelete'
-      permission = :undelete_courses
-    else
-      permission = [:manage_courses, :manage_courses_admin]
-    end
+    permission = if params[:event] == 'undelete'
+                   :undelete_courses
+                 else
+                   [:manage_courses, :manage_courses_admin]
+                 end
 
     if authorized_action(@account, @current_user, permission)
       return render(:json => { :message => 'must specify course_ids[]' }, :status => :bad_request) unless params[:course_ids].is_a?(Array)
@@ -3271,11 +3284,11 @@ class CoursesController < ApplicationController
     @entries = []
     @entries.concat Assignments::ScopedToUser.new(@context, @current_user, @context.assignments.published).scope
     @entries.concat @context.calendar_events.active
-    @entries.concat DiscussionTopic::ScopedToUser.new(@context, @current_user, @context.discussion_topics.published).scope.select { |dt|
-      !dt.locked_for?(@current_user, :check_policies => true)
-    }
+    @entries.concat(DiscussionTopic::ScopedToUser.new(@context, @current_user, @context.discussion_topics.published).scope.reject do |dt|
+      dt.locked_for?(@current_user, :check_policies => true)
+    end)
     @entries.concat WikiPages::ScopedToUser.new(@context, @current_user, @context.wiki_pages.published).scope
-    @entries = @entries.sort_by { |e| e.updated_at }
+    @entries = @entries.sort_by(&:updated_at)
     @entries.each do |entry|
       feed.entries << entry.to_atom(:context => @context)
     end
@@ -3317,8 +3330,11 @@ class CoursesController < ApplicationController
   def reset_content
     get_context
     return unless authorized_action(@context, @current_user, :reset_content)
-    if MasterCourses::MasterTemplate.is_master_course?(@context)
-      return render :json => { :message => 'cannot reset_content on a blueprint course' }, :status => :bad_request
+
+    if MasterCourses::MasterTemplate.is_master_course?(@context) || @context.template?
+      return render json: {
+        :message => 'cannot reset_content on a blueprint or template course'
+      }, :status => :bad_request
     end
 
     @new_course = @context.reset_content
@@ -3361,11 +3377,11 @@ class CoursesController < ApplicationController
     return unless authorized_action(@context, @current_user, :read_as_admin)
 
     assignment_ids = effective_due_dates_params[:assignment_ids]
-    if assignment_ids.present?
-      due_dates = EffectiveDueDates.for_course(@context, assignment_ids)
-    else
-      due_dates = EffectiveDueDates.for_course(@context)
-    end
+    due_dates = if assignment_ids.present?
+                  EffectiveDueDates.for_course(@context, assignment_ids)
+                else
+                  EffectiveDueDates.for_course(@context)
+                end
 
     render json: due_dates.to_hash([
                                      :due_at, :grading_period_id, :in_closed_grading_period
@@ -3551,21 +3567,21 @@ class CoursesController < ApplicationController
 
     # Since course uses write_attribute on settings its not accurate
     # so just ignore it if its in the changes hash
-    changes.delete("settings") if changes.has_key?("settings")
+    changes.delete("settings") if changes.key?("settings")
 
     unless old_settings == new_settings
       settings = Course.settings_options.keys.inject({}) do |results, key|
-        if old_settings.present? && old_settings.has_key?(key)
-          old_value = old_settings[key]
-        else
-          old_value = nil
-        end
+        old_value = if old_settings.present? && old_settings.key?(key)
+                      old_settings[key]
+                    else
+                      nil
+                    end
 
-        if new_settings.present? && new_settings.has_key?(key)
-          new_value = new_settings[key]
-        else
-          new_value = nil
-        end
+        new_value = if new_settings.present? && new_settings.key?(key)
+                      new_settings[key]
+                    else
+                      nil
+                    end
 
         results[key.to_s] = [old_value, new_value] unless old_value == new_value
 
@@ -3616,9 +3632,9 @@ class CoursesController < ApplicationController
     if params[:state]
       states = Array(params[:state])
       states += %w(created claimed) if states.include?('unpublished')
-      conditions = states.map do |state|
+      conditions = states.filter_map do |state|
         Enrollment::QueryBuilder.new(nil, course_workflow_state: state, enforce_course_workflow_state: true).conditions
-      end.compact.join(" OR ")
+      end.join(" OR ")
       enrollments = user.enrollments.eager_load(:course).where(conditions).shard(user.in_region_associated_shards)
 
       if params[:enrollment_role]
