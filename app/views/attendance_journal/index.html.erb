@@ -1,0 +1,29 @@
+<%
+  # Copyright (C) 2020 - present Istiqlolsoft, Inc.
+  #
+  # This file is part of Uchproc canvas.
+  #
+  # Uchproc canvas is free software: you can redistribute it and/or modify it under
+  # the terms of the GNU Affero General Public License as published by the Free
+  # Software Foundation, version 3 of the License.
+  #
+  # Canvas is distributed in the hope that it will be useful, but WITHOUT ANY
+  # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+  # A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+  # details.
+  #
+  # You should have received a copy of the GNU Affero General Public License along
+  # with this program. If not, see <http://www.gnu.org/licenses/>.
+%>
+
+<% provide :page_title do %><%= t('Attendance Journal') %><% end %>
+<%
+  add_body_class "full-width no-page-block hide-content-while-scripts-not-loaded"
+%>
+<div class="attendance-journal-header-view">
+  <h3><%= t('Attendance Journal') %></h3>
+  <div class="attendance-journal-add-topic-container"></div>
+</div>
+<div id="attendance_journal_container" style="display: block; width: 100%">
+
+</div>

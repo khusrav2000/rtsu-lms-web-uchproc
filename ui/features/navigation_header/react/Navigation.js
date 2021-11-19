@@ -36,10 +36,11 @@ const AccountsTray = React.lazy(() => import('./trays/AccountsTray'))
 const ProfileTray = React.lazy(() => import('./trays/ProfileTray'))
 const HistoryTray = React.lazy(() => import('./trays/HistoryTray'))
 const HelpTray = React.lazy(() => import('./trays/HelpTray'))
+const JournalsTray = React.lazy(() => import('./trays/JournalsTray'))
 
 const EXTERNAL_TOOLS_REGEX = /^\/accounts\/[^\/]*\/(external_tools)/
 const ACTIVE_ROUTE_REGEX =
-  /^\/(courses|groups|accounts|grades|calendar|conversations|profile)|^#history/
+  /^\/(courses|groups|accounts|grades|calendar|conversations|profile|journals)|^#history/
 const ACTIVE_CLASS = 'ic-app-header__menu-list-item--active'
 
 const TYPE_URL_MAP = {
@@ -49,7 +50,8 @@ const TYPE_URL_MAP = {
   accounts: '/api/v1/accounts',
   profile: '/api/v1/users/self/tabs',
   history: '/api/v1/users/self/history',
-  help: '/help_links'
+  help: '/help_links',
+  journals: '/journals'
 }
 
 const TYPE_FILTER_MAP = {
@@ -107,6 +109,8 @@ export default class Navigation extends React.Component {
     profileAreLoaded: false,
     historyLoading: false,
     historyAreLoaded: false,
+    journalsLoading: false,
+    journalsAreLoaded: false,
     releaseNotesBadgeDisabled:
       !ENV.FEATURES.embedded_release_notes || ENV.SETTINGS.release_notes_badge_disabled
   }
@@ -346,6 +350,14 @@ export default class Navigation extends React.Component {
             setBadgeDisabled={val => this.setState({releaseNotesBadgeDisabled: val})}
           />
         )
+      case 'journals':
+        return (
+          <JournalsTray
+            journals={this.state.journals}
+            hasLoaded={this.state.journalsAreLoaded}
+            closeTray={this.closeTray}
+          />
+        )
       default:
         return null
     }
@@ -365,6 +377,8 @@ export default class Navigation extends React.Component {
         return I18n.t('%{title} tray', {title: window.ENV.help_link_name})
       case 'history':
         return I18n.t('Recent History tray')
+      case 'journals':
+        return I18n.t('Journals tray')
       default:
         return I18n.t('Global navigation tray')
     }

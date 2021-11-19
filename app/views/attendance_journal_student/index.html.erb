@@ -1,0 +1,51 @@
+<%
+  # Copyright (C) 2020 - present Istiqlolsoft, Inc.
+  #
+  # This file is part of Uchproc canvas.
+  #
+  # Uchproc canvas is free software: you can redistribute it and/or modify it under
+  # the terms of the GNU Affero General Public License as published by the Free
+  # Software Foundation, version 3 of the License.
+  #
+  # Canvas is distributed in the hope that it will be useful, but WITHOUT ANY
+  # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+  # A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+  # details.
+  #
+  # You should have received a copy of the GNU Affero General Public License along
+  # with this program. If not, see <http://www.gnu.org/licenses/>.
+%>
+
+<% provide :page_title do %><%= t('My Attendance Journal') %><% end %>
+<%
+  add_body_class "full-width no-page-block hide-content-while-scripts-not-loaded"
+  css_bundle :attendance_journal
+%>
+<div class="attendance-journal-header-view">
+  <h3><%= t('My Attendance Journal') %></h3>
+  <div class="attendance-journal-add-topic-container"></div>
+</div>
+<div class="responsive attendance-journal-student">
+  <table class="table table-bordered box-shadow--6dp">
+    <thead>
+      <tr>
+        <th><%= t('Course Name') %></th>
+        <th><%= t('Teacher name') %></th>
+        <%for i in 1..18%>
+          <th><%= i %></th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>  
+      <%@student_attendance.map do |att| %>
+        <tr>
+          <td><%= att[:course_name] %></td>
+          <td><%= att[:teachers] %></td>
+          <%for j in 1..18%>
+            <td class="number-cells"><%=att[:attendance][j - 1] %></td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
