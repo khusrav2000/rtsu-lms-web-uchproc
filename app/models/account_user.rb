@@ -71,7 +71,7 @@ class AccountUser < ActiveRecord::Base
     being_deleted = self.workflow_state == 'deleted' && self.workflow_state_before_last_save != 'deleted'
     if (self.saved_change_to_account_id? || self.saved_change_to_user_id?) || being_deleted
       if self.new_record?
-        return if %w{creation_pending deleted}.include?(self.user.workflow_state)
+        return if %w[creation_pending deleted].include?(self.user.workflow_state)
 
         account_chain = self.account.account_chain
         associations = {}
@@ -177,9 +177,8 @@ class AccountUser < ActiveRecord::Base
   end
 
   def self.is_subset_of?(user, account, role)
-    needed_permissions = RoleOverride.manageable_permissions(account).keys.inject({}) do |result, permission|
-      result[permission] = RoleOverride.enabled_for?(account, permission, role, account)
-      result
+    needed_permissions = RoleOverride.manageable_permissions(account).keys.index_with do |permission|
+      RoleOverride.enabled_for?(account, permission, role, account)
     end
     target_permissions = AccountUser.all_permissions_for(user, account)
     needed_permissions.all? do |(permission, needed_permission)|

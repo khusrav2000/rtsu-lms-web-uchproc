@@ -29,7 +29,7 @@ module Api::V1::AuthenticationEvent
       :login => Shard.relative_id_for(event.pseudonym_id, Shard.current, Shard.current),
       :account => Shard.relative_id_for(event.account_id, Shard.current, Shard.current),
       :user => Shard.relative_id_for(event.user_id, Shard.current, Shard.current),
-      :page_view => event.request_id && PageView.find_by_id(event.request_id).try(:id)
+      :page_view => event.request_id && PageView.find_by(id: event.request_id).try(:id)
     }
 
     {
@@ -82,7 +82,7 @@ module Api::V1::AuthenticationEvent
     end
 
     page_view_ids = events.filter_map(&:request_id)
-    page_views = PageView.find_all_by_id(page_view_ids) if page_view_ids.length > 0
+    page_views = PageView.find_all_by_id(page_view_ids) unless page_view_ids.empty?
     page_views ||= []
 
     {

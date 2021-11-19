@@ -97,7 +97,7 @@ class MasterCourses::MasterMigration < ActiveRecord::Base
   end
 
   def in_running_state?
-    %w{created queued exporting imports_queued}.include?(self.workflow_state)
+    %w[created queued exporting imports_queued].include?(self.workflow_state)
   end
 
   def still_running?
@@ -159,7 +159,7 @@ class MasterCourses::MasterMigration < ActiveRecord::Base
     # the primary export is the one we'll use to mark the content tags as exported (i.e. the first one)
     cms = []
     cms += export_to_child_courses(:selective, up_to_date_subs, true).to_a if up_to_date_subs.any?
-    cms += export_to_child_courses(:full, new_subs, !up_to_date_subs.any?).to_a if new_subs.any?
+    cms += export_to_child_courses(:full, new_subs, up_to_date_subs.none?).to_a if new_subs.any?
 
     unless self.workflow_state == 'exports_failed'
       self.workflow_state = 'imports_queued'
@@ -322,7 +322,7 @@ class MasterCourses::MasterMigration < ActiveRecord::Base
       end
     end
 
-    unless self.migration_results.where.not(:state => %w{completed failed}).exists?
+    unless self.migration_results.where.not(:state => %w[completed failed]).exists?
       self.class.transaction do
         self.lock!
         if self.workflow_state == 'imports_queued'

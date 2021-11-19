@@ -195,7 +195,7 @@ class DiscussionTopicsApiController < ApplicationController
 
       if @topic.allow_rating?
         entry_ratings  = DiscussionEntryParticipant.entry_ratings(entry_ids, @current_user)
-        entry_ratings  = Hash[entry_ratings.map { |k, v| [k.to_s, v] }] if stringify_json_ids?
+        entry_ratings  = entry_ratings.transform_keys(&:to_s) if stringify_json_ids?
       end
 
       # as an optimization, the view structure is pre-serialized as a json
@@ -212,7 +212,7 @@ class DiscussionTopicsApiController < ApplicationController
       fragments = fragments.map { |k, v| %("#{k}": #{v}) }
       render :json => "{ #{fragments.join(', ')} }"
     else
-      head 503
+      head :service_unavailable
     end
   end
 
@@ -696,7 +696,7 @@ class DiscussionTopicsApiController < ApplicationController
   end
 
   def save_entry
-    has_attachment = params[:attachment].present? && params[:attachment].size > 0 &&
+    has_attachment = params[:attachment].present? && !params[:attachment].empty? &&
                      @entry.grants_right?(@current_user, session, :attach)
     return if has_attachment && !@topic.for_assignment? && params[:attachment].size > 1.kilobytes &&
               quota_exceeded(@current_user, named_context_url(@context, :context_discussion_topic_url, @topic.id))

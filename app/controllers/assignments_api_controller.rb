@@ -808,7 +808,7 @@ class AssignmentsApiController < ApplicationController
 
       if params[:assignment_ids]
         if params[:assignment_ids].length > Api.max_per_page
-          return render json: { message: "Request contains too many assignment_ids.  Limit #{Api.max_per_page}" }, status: 400
+          return render json: { message: "Request contains too many assignment_ids.  Limit #{Api.max_per_page}" }, status: :bad_request
         end
 
         scope = scope.where(id: params[:assignment_ids])
@@ -834,7 +834,7 @@ class AssignmentsApiController < ApplicationController
 
       if params[:assignment_ids] && assignments.length != params[:assignment_ids].length
         invalid_ids = params[:assignment_ids] - assignments.map(&:id).map(&:to_s)
-        return render json: { message: "Invalid assignment_ids: #{invalid_ids.join(',')}" }, status: 400
+        return render json: { message: "Invalid assignment_ids: #{invalid_ids.join(',')}" }, status: :bad_request
       end
 
       submissions = submissions_hash(include_params, assignments, submissions_for_user)
@@ -846,7 +846,7 @@ class AssignmentsApiController < ApplicationController
       override_dates = value_to_boolean(override_param)
       if override_dates || include_all_dates || include_override_objects
         ActiveRecord::Associations::Preloader.new.preload(assignments, :assignment_overrides)
-        assignments.select { |a| a.assignment_overrides.size == 0 }
+        assignments.select { |a| a.assignment_overrides.empty? }
                    .each { |a| a.has_no_overrides = true }
 
         if AssignmentOverrideApplicator.should_preload_override_students?(assignments, user, "assignments_api")
@@ -1448,7 +1448,7 @@ class AssignmentsApiController < ApplicationController
       return if @context.students_visible_to(@current_user).include?(@user)
     end
     # self, observer
-    authorized_action(@user, @current_user, %i(read_as_parent read))
+    authorized_action(@user, @current_user, %i[read_as_parent read])
   end
 
   def needs_grading_permission?

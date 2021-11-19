@@ -126,7 +126,7 @@ class WikiPage < ActiveRecord::Base
     # TODO i18n (see wiki.rb)
 
     if self.title == "Front Page" && self.new_record?
-      baddies = self.context.wiki_pages.not_deleted.where(title: "Front Page").select { |p| p.url != "front-page" }
+      baddies = self.context.wiki_pages.not_deleted.where(title: "Front Page").reject { |p| p.url == "front-page" }
       baddies.each { |p|
         p.title = to_cased_title.call(p.url)
         p.save_without_broadcasting!
@@ -168,7 +168,7 @@ class WikiPage < ActiveRecord::Base
     # a url of "front-page" once "front-page-1" or "front-page-2" is created
     # We modify it to allow "front-page" and start the indexing at "front-page-2"
     # instead of "front-page-1"
-    if urls.size > 0 && urls.detect { |u| u == base_url }
+    if !urls.empty? && urls.detect { |u| u == base_url }
       n = 2
       while urls.detect { |u| u == "#{base_url}-#{n}" }
         n = n.succ
@@ -340,7 +340,7 @@ class WikiPage < ActiveRecord::Base
   def effective_roles
     context_roles = context.default_wiki_editing_roles rescue nil
     roles = (editing_roles || context_roles || default_roles).split(',')
-    roles == %w(teachers) ? [] : roles # "Only teachers" option doesn't grant rights excluded by RoleOverrides
+    roles == %w[teachers] ? [] : roles # "Only teachers" option doesn't grant rights excluded by RoleOverrides
   end
 
   def available_for?(user, session = nil)
@@ -430,7 +430,7 @@ class WikiPage < ActiveRecord::Base
     return unless wiki_pages.any?
 
     front_page_url = context.wiki.get_front_page_url
-    wiki_pages.each { |wp| wp.can_unpublish = !(wp.url == front_page_url) }
+    wiki_pages.each { |wp| wp.can_unpublish = wp.url != front_page_url }
   end
 
   def self.reinterpret_version_yaml(yaml_string)
@@ -440,8 +440,8 @@ class WikiPage < ActiveRecord::Base
     # in the yaml.  This doctors the yaml back, and can be removed
     # when the "content_imports" exception type for psych syntax errors
     # isn't happening anymore.
-    pattern_1 = /(<a[^<>]*?id=.*?"media_comment.*?\/>)/im
-    pattern_2 = /(<a[^<>]*?id=.*?"media_comment.*?<\/a>)/
+    pattern_1 = %r{(<a[^<>]*?id=.*?"media_comment.*?/>)}im
+    pattern_2 = %r{(<a[^<>]*?id=.*?"media_comment.*?</a>)}
     replacements = []
     [pattern_1, pattern_2].each do |regex_pattern|
       yaml_string.scan(regex_pattern).each do |matched_groups|

@@ -251,7 +251,7 @@ class AppointmentGroup < ActiveRecord::Base
       if appointment_group_sub_contexts.present? && appointment_group_sub_contexts.first.sub_context_type == 'CourseSection'
         sub_context_ids = appointment_group_sub_contexts.map(&:sub_context_id)
         user_visible_section_ids = contexts.map { |c|
-          c.section_visibilities_for(user).map { |v| v[:course_section_id] }
+          c.section_visibilities_for(user).pluck(:course_section_id)
         }.flatten
         next true if (sub_context_ids - user_visible_section_ids).empty?
       end
@@ -392,7 +392,7 @@ class AppointmentGroup < ActiveRecord::Base
                     else
                       # can't have more than one group_category
                       group_categories = sub_contexts.find_all { |sc| sc.instance_of? GroupCategory }
-                      raise %Q{inconsistent appointment group: #{self.id} #{group_categories}} if group_categories.length > 1
+                      raise "inconsistent appointment group: #{self.id} #{group_categories}" if group_categories.length > 1
 
                       group_category_id = group_categories.first.id
                       user.current_groups.detect { |g| g.group_category_id == group_category_id }
@@ -420,10 +420,9 @@ class AppointmentGroup < ActiveRecord::Base
   ].freeze
 
   def update_appointments
-    changed = Hash[
+    changed =
       EVENT_ATTRIBUTES.select { |attr| saved_change_to_attribute?(attr) }
-                      .map { |attr| [attr, send(attr)] }
-    ]
+                      .index_with { |attr| send(attr) }
 
     if @contexts_changed
       changed[:root_account_id] = self.context&.root_account_id

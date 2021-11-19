@@ -140,7 +140,7 @@ class DiscussionEntry < ActiveRecord::Base
 
   def self.rating_sums(entry_ids)
     sums = self.where(:id => entry_ids).where('COALESCE(rating_sum, 0) != 0')
-    Hash[sums.map { |x| [x.id, x.rating_sum] }]
+    sums.map { |x| [x.id, x.rating_sum] }.to_h
   end
 
   def set_depth
@@ -219,7 +219,7 @@ class DiscussionEntry < ActiveRecord::Base
   end
 
   def update_discussion
-    if %w(workflow_state message attachment_id editor_id).any? { |a| self.saved_change_to_attribute?(a) }
+    if %w[workflow_state message attachment_id editor_id].any? { |a| self.saved_change_to_attribute?(a) }
       dt = self.discussion_topic
       loop do
         dt.touch

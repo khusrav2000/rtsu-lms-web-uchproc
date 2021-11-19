@@ -258,9 +258,7 @@ class ContextModule < ActiveRecord::Base
   def duplicate
     copy_title = get_copy_title(self, t("Copy"), self.name)
     new_module = duplicate_base_model(copy_title)
-    living_tags = self.content_tags.select do |content_tag|
-      !content_tag.deleted?
-    end
+    living_tags = self.content_tags.reject(&:deleted?)
     new_module.content_tags = living_tags.map do |content_tag|
       duplicate_content_tag(content_tag)
     end
@@ -515,9 +513,9 @@ class ContextModule < ActiveRecord::Base
     tags = self.content_tags.not_deleted.index_by(&:id)
     validated_reqs = requirements.select do |req|
       if req[:id] && (tag = tags[req[:id]])
-        if %w(must_view must_mark_done must_contribute).include?(req[:type])
+        if %w[must_view must_mark_done must_contribute].include?(req[:type])
           true
-        elsif %w(must_submit min_score).include?(req[:type])
+        elsif %w[must_submit min_score].include?(req[:type])
           true if tag.scoreable?
         end
       end
@@ -625,7 +623,7 @@ class ContextModule < ActiveRecord::Base
   def cached_not_deleted_tags
     @cached_not_deleted_tags ||= if self.content_tags.loaded?
                                    # don't reload the preloaded content
-                                   self.content_tags.select { |tag| !tag.deleted? }
+                                   self.content_tags.reject(&:deleted?)
                                  else
                                    self.content_tags.not_deleted.to_a
                                  end
@@ -639,7 +637,7 @@ class ContextModule < ActiveRecord::Base
     when "wiki_page", "page"
       item = opts[:wiki_page] || self.context.wiki_pages.where(id: params[:id]).first
     when "attachment", "file"
-      item = opts[:attachment] || self.context.attachments.not_deleted.find_by_id(params[:id])
+      item = opts[:attachment] || self.context.attachments.not_deleted.find_by(id: params[:id])
     when "assignment"
       item = opts[:assignment] || self.context.assignments.active.where(id: params[:id]).first
       item = item.submittable_object if item.respond_to?(:submittable_object) && item.submittable_object
@@ -758,7 +756,7 @@ class ContextModule < ActiveRecord::Base
     new_tags = []
     items.each do |item|
       next unless item.is_a?(ActiveRecord::Base)
-      next unless %w(Attachment Assignment WikiPage Quizzes::Quiz DiscussionTopic ContextExternalTool).include?(item.class_name)
+      next unless %w[Attachment Assignment WikiPage Quizzes::Quiz DiscussionTopic ContextExternalTool].include?(item.class_name)
 
       item = item.submittable_object if item.is_a?(Assignment) && item.submittable_object
       next if tags.any? { |tag| tag.content_type == item.class_name && tag.content_id == item.id }
@@ -851,7 +849,7 @@ class ContextModule < ActiveRecord::Base
     progressions = self.context_module_progressions.where(user_id: users)
     progressions_hash = {}
     progressions.each { |p| progressions_hash[p.user_id] = p }
-    newbies = users.select { |u| !progressions_hash[u.id] }
+    newbies = users.reject { |u| progressions_hash[u.id] }
     progressions += newbies.map { |u| find_or_create_progression(u) }
     progressions.each { |p| p.user = users_hash[p.user_id] }
     progressions.uniq
@@ -896,7 +894,7 @@ class ContextModule < ActiveRecord::Base
 
   def migration_position
     @migration_position_counter ||= 0
-    @migration_position_counter = @migration_position_counter + 1
+    @migration_position_counter += 1
   end
   attr_accessor :item_migration_position
 

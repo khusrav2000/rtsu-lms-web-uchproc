@@ -415,7 +415,7 @@ module QuizzesHelper
     if text.empty?
       ''
     else
-      content_tag(:div, text.join('').html_safe, { :class => 'quiz_comment' })
+      content_tag(:div, text.join.html_safe, { :class => 'quiz_comment' })
     end
   end
 
@@ -444,7 +444,7 @@ module QuizzesHelper
       entry[:blank_id] = AssessmentQuestion.variable_id(entry[:blank_id])
     end
     # Requires mutliline option to be robust
-    res.gsub!(%r{<input.*?name=\\?['"](question_.*?)\\?['"].*?>}m) do |match|
+    res.gsub!(/<input.*?name=\\?['"](question_.*?)\\?['"].*?>/m) do |match|
       blank = match.match(RE_EXTRACT_BLANK_ID).to_a[1]
       blank.delete!('\\')
       answer = answer_list.detect { |entry| entry[:blank_id] == blank } || {}
@@ -455,10 +455,10 @@ module QuizzesHelper
         #  Replace the {{question_IDNUM_VARIABLEID}} template text with the user's answer text.
         match = match.sub(/\{\{question_.*?\}\}/, answer.to_s).
                 # Match on "/>" but only when at the end of the string and insert "readonly" if set to be readonly
-                sub(/\/*>\Z/, readonly_markup)
+                sub(%r{/*>\Z}, readonly_markup)
       end
       # add labelling to input element regardless
-      match.sub(/\/*>\Z/, "#{label_attr} />")
+      match.sub(%r{/*>\Z}, "#{label_attr} />")
     end
 
     if answer_list.empty?
@@ -539,7 +539,7 @@ module QuizzesHelper
 
   def link_to_take_quiz(link_body, opts = {})
     opts = opts.with_indifferent_access
-    class_array = (opts['class'] || "").split(" ")
+    class_array = (opts['class'] || "").split
     class_array << 'element_toggler' if @quiz.cant_go_back?
     opts['class'] = class_array.compact.join(" ")
     opts['aria-controls'] = 'js-sequential-warning-dialogue' if @quiz.cant_go_back?
@@ -663,7 +663,7 @@ module QuizzesHelper
     end
 
     titles = titles.map { |title| h(title) }
-    "title=\"#{titles.join(' ')}\"".html_safe if titles.length > 0 # rubocop:disable Rails/OutputSafety
+    "title=\"#{titles.join(' ')}\"".html_safe unless titles.empty? # rubocop:disable Rails/OutputSafety
   end
 
   def matching_answer_title(item_text, did_select_answer, selected_answer_text, is_correct_answer, correct_answer_text, show_correct_answers)
@@ -688,7 +688,7 @@ module QuizzesHelper
     end
 
     titles = titles.map { |title| h(title) }
-    "title=\"#{titles.join(' ')}\"".html_safe if titles.length > 0 # rubocop:disable Rails/OutputSafety
+    "title=\"#{titles.join(' ')}\"".html_safe unless titles.empty? # rubocop:disable Rails/OutputSafety
   end
 
   def show_correct_answers?

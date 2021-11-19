@@ -249,7 +249,7 @@ module CanvasCache
         response
       end
 
-      SET_COMMANDS = %i{set setex}.freeze
+      SET_COMMANDS = %i[set setex].freeze
       def log_request_response(request, response, start_time)
         return if request.nil? # redis client does internal keepalives and connection commands
         return if CanvasCache::Redis.log_style == 'off'
@@ -361,7 +361,6 @@ module CanvasCache
       # one-off in script/console if you aren't using twemproxy, or in specs:
       ALLOWED_UNSUPPORTED = %w[
         keys
-        auth
         quit
         flushall
         flushdb

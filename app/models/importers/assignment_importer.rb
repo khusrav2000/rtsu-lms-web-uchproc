@@ -76,10 +76,10 @@ module Importers
     def self.create_tool_settings(tool_setting_hash, tool_proxy, assignment)
       return if tool_proxy.blank? || tool_setting_hash.blank?
 
-      ts_vendor_code = tool_setting_hash.dig('vendor_code')
-      ts_product_code = tool_setting_hash.dig('product_code')
-      ts_custom = tool_setting_hash.dig('custom')
-      ts_custom_params = tool_setting_hash.dig('custom_parameters')
+      ts_vendor_code = tool_setting_hash['vendor_code']
+      ts_product_code = tool_setting_hash['product_code']
+      ts_custom = tool_setting_hash['custom']
+      ts_custom_params = tool_setting_hash['custom_parameters']
 
       return unless tool_proxy.product_family.vendor_code == ts_vendor_code &&
                     tool_proxy.product_family.product_code == ts_product_code
@@ -272,7 +272,7 @@ module Importers
         if gs
           item.grading_standard = gs if gs
         else
-          migration.add_warning(t('errors.import.grading_standard_not_found', %{The assignment "%{title}" referenced a grading scheme that was not found in the target course's account chain.}, :title => hash[:title]))
+          migration.add_warning(t('errors.import.grading_standard_not_found', %(The assignment "%{title}" referenced a grading scheme that was not found in the target course's account chain.), :title => hash[:title]))
         end
       end
       if quiz

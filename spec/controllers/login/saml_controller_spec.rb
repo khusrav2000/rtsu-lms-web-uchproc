@@ -269,7 +269,7 @@ describe Login::SamlController do
     session[:parent_registration] = { observee: { unique_id: 'foo@example.com' } }
     post :create, params: { :SAMLResponse => "foo" }
     expect(response).to be_redirect
-    expect(response.location).to match(/example.com\/logout/)
+    expect(response.location).to match(%r{example.com/logout})
   end
 
   context "with relay state" do
@@ -296,7 +296,7 @@ describe Login::SamlController do
         [saml_response, "https://otheraccount/courses/1"]
       )
 
-      account2 = double()
+      account2 = double
       expect(Account).to receive(:find_by_domain).and_return(account2)
       expect_any_instantiation_of(@pseudonym).to receive(:works_for_account?).with(account2, true).and_return(true)
 
@@ -489,7 +489,7 @@ describe Login::SamlController do
         expect(response.location.starts_with?(@aac2.log_in_url)).to be_truthy
       end
 
-      it "reject  unknown specified AAC" do
+      it "reject unknown specified AAC" do
         get_new("0")
         expect(response.status).to eq 404
       end

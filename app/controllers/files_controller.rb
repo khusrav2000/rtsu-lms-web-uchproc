@@ -487,7 +487,7 @@ class FilesController < ApplicationController
     get_context
     @attachment = @context ? @context.attachments.not_deleted.find_by(id: params[:id]) : Attachment.not_deleted.find_by(id: params[:id])
     unless @attachment
-      render json: { errors: [{ message: "The specified resource does not exist." }] }, status: 404
+      render json: { errors: [{ message: "The specified resource does not exist." }] }, status: :not_found
       return
     end
     params[:include] = Array(params[:include])
@@ -525,7 +525,7 @@ class FilesController < ApplicationController
       if @attachment.deleted?
         if @current_user.nil? || @attachment.user_id != @current_user.id
           @not_found_message = t('could_not_find_file', "This file has been deleted")
-          render status: 404, template: "shared/errors/404_message", formats: [:html]
+          render status: :not_found, template: "shared/errors/404_message", formats: [:html]
           return
         end
         flash[:notice] = t 'notices.deleted', "The file %{display_name} has been deleted", display_name: @attachment.display_name
@@ -587,7 +587,7 @@ class FilesController < ApplicationController
           @headers = false
           @show_left_side = false
         end
-        if attachment.content_type&.match(/\Avideo\/|audio\//)
+        if attachment.content_type&.match(%r{\Avideo/|audio/})
           attachment.context_module_action(@current_user, :read)
         end
         format.html do
@@ -632,7 +632,7 @@ class FilesController < ApplicationController
           end
 
           json_include = if @attachment.context.is_a?(User) || @attachment.context.is_a?(Course)
-                           { include: %w(enhanced_preview_url) }
+                           { include: %w[enhanced_preview_url] }
                          else
                            {}
                          end
@@ -957,10 +957,10 @@ class FilesController < ApplicationController
         begin
           homework_service.submit(params[:eula_agreement_timestamp], params[:comment])
           homework_service.success!
-        rescue => error
-          error_id = Canvas::Errors.capture_exception(self.class.name, error)[:error_report]
+        rescue => e
+          error_id = Canvas::Errors.capture_exception(self.class.name, e)[:error_report]
           message = "Unexpected error, ID: #{error_id || 'unknown'}"
-          logger.error "Error submitting a file: #{error} - #{error.backtrace}"
+          logger.error "Error submitting a file: #{e} - #{e.backtrace}"
           homework_service.failed!(message)
         end
       elsif progress.running?
@@ -1159,7 +1159,7 @@ class FilesController < ApplicationController
       end
 
       if (@attachment.folder_id_changed? || @attachment.display_name_changed?) && @attachment.folder.active_file_attachments.where(display_name: @attachment.display_name).where("id<>?", @attachment.id).exists?
-        return render json: { message: "file already exists; use on_duplicate='overwrite' or 'rename'" }, status: :conflict unless %w(overwrite rename).include?(params[:on_duplicate])
+        return render json: { message: "file already exists; use on_duplicate='overwrite' or 'rename'" }, status: :conflict unless %w[overwrite rename].include?(params[:on_duplicate])
 
         on_duplicate = params[:on_duplicate].to_sym
       end

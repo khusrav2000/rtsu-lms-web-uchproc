@@ -517,7 +517,7 @@ class ContentMigrationsController < ApplicationController
   def find_migration_plugin(name)
     if name.include?('context_external_tool')
       plugin = Canvas::Plugin.new(name)
-      plugin.meta[:settings] = { requires_file_upload: true, worker: 'CCWorker', valid_contexts: %w{Course} }.with_indifferent_access
+      plugin.meta[:settings] = { requires_file_upload: true, worker: 'CCWorker', valid_contexts: %w[Course] }.with_indifferent_access
       plugin
     else
       Canvas::Plugin.find(name)
@@ -596,7 +596,7 @@ class ContentMigrationsController < ApplicationController
 
   def link_content_export_attachment
     ret = false
-    export = ContentExport.find_by_id(params[:settings][:content_export_id])
+    export = ContentExport.find_by(id: params[:settings][:content_export_id])
     if export&.grants_right?(@current_user, session, :read)
       if export.workflow_state == 'exported' && export.attachment
         @content_migration.attachment = export.attachment.clone_for(@content_migration)

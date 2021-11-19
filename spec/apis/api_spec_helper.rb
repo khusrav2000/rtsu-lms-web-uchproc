@@ -155,7 +155,7 @@ def check_document(html, course, attachment, include_verifiers)
   expect(video).to be_present
   expect(video['poster']).to match(%r{http://www.example.com/media_objects/qwerty/thumbnail})
   expect(video['src']).to match(%r{http://www.example.com/courses/#{course.id}/media_download})
-  expect(video['src']).to match(%r{entryId=qwerty})
+  expect(video['src']).to match(/entryId=qwerty/)
   expect(doc.css('a').last['data-api-endpoint']).to match(%r{http://www.example.com/api/v1/courses/#{course.id}/pages/awesome-page})
   expect(doc.css('a').last['data-api-returntype']).to eq 'Page'
 end
@@ -164,7 +164,7 @@ end
 # response from the api for that field, which will be verified for correctness.
 def should_translate_user_content(course, include_verifiers = true)
   attachment = attachment_model(:context => course)
-  content = %{
+  content = <<~HTML
     <p>
       Hello, students.<br>
       This will explain everything: <img id="1" src="/courses/#{course.id}/files/#{attachment.id}/preview" alt="important">
@@ -173,7 +173,7 @@ def should_translate_user_content(course, include_verifiers = true)
       Also, watch this awesome video: <a href="/media_objects/qwerty" class="instructure_inline_media_comment video_comment" id="media_comment_qwerty"><img></a>
       And refer to this <a href="/courses/#{course.id}/pages/awesome-page">awesome wiki page</a>.
     </p>
-  }
+  HTML
   html = yield content
   check_document(html, course, attachment, include_verifiers)
 

@@ -130,7 +130,7 @@ describe DiscussionTopicsController do
         term = @course.account.enrollment_terms.create!(
           :name => 'mew',
           :start_at => 6.months.ago(now),
-          :end_at => 1.months.ago(now)
+          :end_at => 1.month.ago(now)
         )
         @course.enrollment_term = term
         @course.update!(start_at: 5.months.ago(now), conclude_at: 2.months.ago(now))
@@ -258,6 +258,17 @@ describe DiscussionTopicsController do
       get 'index', params: { group_id: group.id }
       expect(response).to be_successful
       expect(assigns[:js_env][:DIRECT_SHARE_ENABLED]).to be(false)
+    end
+
+    it "sets discussions reporting and anonymity when their flags are enabled" do
+      Account.site_admin.enable_feature! :react_discussions_post
+      Account.site_admin.enable_feature! :discussions_reporting
+      Account.site_admin.enable_feature! :discussion_anonymity
+
+      user_session(@teacher)
+      get 'index', params: { course_id: @course.id }
+      expect(assigns[:js_env][:student_reporting_enabled]).to be(true)
+      expect(assigns[:js_env][:discussion_anonymity_enabled]).to be(true)
     end
   end
 
@@ -630,7 +641,7 @@ describe DiscussionTopicsController do
 
     it "marks as read when topic is in the future as teacher" do
       course_topic(:skip_set_user => true)
-      teacher2 = @course.shard.activate { user_factory() }
+      teacher2 = @course.shard.activate { user_factory }
       teacher2enrollment = @course.enroll_user(teacher2, "TeacherEnrollment")
       teacher2.save!
       teacher2enrollment.course = @course # set the reverse association
@@ -1284,7 +1295,7 @@ describe DiscussionTopicsController do
       feed = Atom::Feed.load_feed(response.body) rescue nil
       expect(feed).not_to be_nil
       expect(feed.links.first.rel).to match(/self/)
-      expect(feed.links.first.href).to match(/http:\/\//)
+      expect(feed.links.first.href).to match(%r{http://})
     end
 
     it "does not include entries in an anonymous feed" do

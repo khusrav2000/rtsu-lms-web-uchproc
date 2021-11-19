@@ -222,7 +222,7 @@ module AccountReports::ReportHelper
     shards = root_account.trusted_account_ids.map { |id| Shard.shard_for(id) }
     shards << root_account.shard
     User.preload_shard_associations(users)
-    shards = shards & users.map(&:associated_shards).flatten
+    shards &= users.map(&:associated_shards).flatten
     pseudonyms = Pseudonym.shard(shards.uniq).where(user_id: users.map(&:id))
     pseudonyms = pseudonyms.active unless include_deleted
     pseudonyms.each do |p|
@@ -274,7 +274,7 @@ module AccountReports::ReportHelper
   end
 
   def valid_enrollment_workflow_states
-    %w(invited creation_pending active completed inactive deleted rejected).freeze &
+    %w[invited creation_pending active completed inactive deleted rejected].freeze &
       Api.value_to_array(@account_report.parameters["enrollment_states"])
   end
 
@@ -552,7 +552,7 @@ module AccountReports::ReportHelper
   def read_csv_in_chunks(filename, chunk_size = 1000)
     CSV.open(filename) do |csv|
       rows = []
-      while !(row = csv.readline).nil?
+      until (row = csv.readline).nil?
         rows << row
         if rows.size == chunk_size
           yield rows

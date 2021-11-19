@@ -218,7 +218,7 @@ class CourseLinkValidator
       begin
         if ImportedHtmlConverter.relative_url?(url) || (self.domain_regex && url.match(self.domain_regex))
           result = if valid_route?(url)
-                     if url.match(/\/courses\/(\d+)/) && self.course.id.to_s != $1
+                     if url.match(%r{/courses/(\d+)}) && self.course.id.to_s != $1
                        :course_mismatch
                      else
                        check_object_status(url)
@@ -250,7 +250,7 @@ class CourseLinkValidator
     path = path.chomp("/")
 
     @route_set ||= ::Rails.application.routes.set.routes.select { |r| r.verb === "GET" }
-    @route_set.any? { |r| r.path.match(path) } || (!Pathname(path).each_filename.include?('..') && File.exist?(File.join(Rails.root, "public", path)))
+    @route_set.any? { |r| r.path.match(path) } || (!Pathname(path).each_filename.include?('..') && Rails.root.join("public", path[1..]).file?)
   end
 
   # makes sure that links to course objects exist and are in a visible state
@@ -260,7 +260,7 @@ class CourseLinkValidator
 
     object ||= Context.find_asset_by_url(url)
     unless object
-      return :missing_item unless [nil, 'syllabus'].include?(url.match(/\/courses\/\d+\/\w+\/(.+)/)&.[](1))
+      return :missing_item unless [nil, 'syllabus'].include?(url.match(%r{/courses/\d+/\w+/(.+)})&.[](1))
       return :missing_item if url.include?('/media_objects_iframe/')
 
       return nil
@@ -307,7 +307,7 @@ class CourseLinkValidator
 
     begin
       response = CanvasHttp.head(url, { "Accept-Encoding" => "gzip" }, redirect_limit: 9, redirect_spy: redirect_proc)
-      if %w{404 405}.include?(response.code)
+      if %w[404 405].include?(response.code)
         response = CanvasHttp.get(url, { "Accept-Encoding" => "gzip" }, redirect_limit: 9, redirect_spy: redirect_proc) do
           # don't read the response body
         end

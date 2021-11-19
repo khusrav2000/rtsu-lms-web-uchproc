@@ -58,7 +58,7 @@ describe ExternalToolsController do
 
     it "does not return a JWT token for another context" do
       teacher_course = @course
-      other_course = course_factory()
+      other_course = course_factory
 
       @tool.context_id = other_course.id
       @tool.save!
@@ -1068,7 +1068,7 @@ describe ExternalToolsController do
         expect(assigns[:lti_launch].params['accept_unsigned']).to eq "false"
       end
 
-      it "adds a data element with a jwt that contains the id if a content_item_id param is present " do
+      it "adds a data element with a jwt that contains the id if a content_item_id param is present" do
         u = user_factory(active_all: true)
         account.account_users.create!(user: u)
         user_session u
@@ -1080,7 +1080,7 @@ describe ExternalToolsController do
         expect(json_data[:content_item_id]).to eq collab.id.to_s
       end
 
-      it "adds a data element with a jwt that contains the consumer_key if a content_item_id param is present " do
+      it "adds a data element with a jwt that contains the consumer_key if a content_item_id param is present" do
         u = user_factory(active_all: true)
         account.account_users.create!(user: u)
         user_session u
@@ -1394,6 +1394,7 @@ describe ExternalToolsController do
         post 'create', params: params, format: 'json'
         ContextExternalTool.find_by(id: tool_id)
       end
+
       let(:tool_id) { response.status == 200 ? JSON.parse(response.body)['id'] : -1 }
       let(:tool_configuration) { Lti::ToolConfiguration.create! settings: settings, developer_key: developer_key }
       let(:developer_key) { DeveloperKey.create!(account: account) }
@@ -2193,19 +2194,19 @@ describe ExternalToolsController do
 
     it 'redirects if there is no matching tool for the launch_url, and tool id' do
       params = { course_id: @course.id, url: 'http://my_non_esisting_tool_domain.com', id: -1 }
-      expect(get :generate_sessionless_launch, params: params).to redirect_to course_url(@course)
+      expect(get(:generate_sessionless_launch, params: params)).to redirect_to course_url(@course)
     end
 
     it 'redirects if there is no matching tool for the and tool id' do
       params = { :course_id => @course.id, id: -1 }
-      expect(get :generate_sessionless_launch, params: params).to redirect_to course_url(@course)
+      expect(get(:generate_sessionless_launch, params: params)).to redirect_to course_url(@course)
     end
 
     it 'redirects if there is no launch url associated with the tool' do
       no_url_tool = new_valid_tool(@course)
       no_url_tool.update!(url: nil)
       params = { :course_id => @course.id, id: no_url_tool.id }
-      expect(get :generate_sessionless_launch, params: params).to redirect_to course_url(@course)
+      expect(get(:generate_sessionless_launch, params: params)).to redirect_to course_url(@course)
     end
 
     context 'with 1.3 tool' do

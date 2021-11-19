@@ -88,7 +88,7 @@ class CalendarEvent < ActiveRecord::Base
     events = events.values if events.is_a?(Hash)
     next record.errors.add(attr, t('errors.no_updating_user', "Can't update child events unless an updating_user is set")) if events.present? && !record.updating_user
 
-    context_codes = events.map { |e| e[:context_code] }
+    context_codes = events.pluck(:context_code)
     next record.errors.add(attr, t('errors.duplicate_child_event_contexts', "Duplicate child event contexts")) if context_codes != context_codes.uniq
 
     contexts = find_all_by_asset_string(context_codes).group_by(&:asset_string)
@@ -126,7 +126,7 @@ class CalendarEvent < ActiveRecord::Base
   end
 
   def hidden?
-    !appointment_group? && child_events.size > 0
+    !appointment_group? && !child_events.empty?
   end
 
   def effective_context
@@ -344,8 +344,8 @@ class CalendarEvent < ActiveRecord::Base
   def sync_child_events
     locked_changes = LOCKED_ATTRIBUTES.select { |attr| saved_change_to_attribute?(attr) }
     cascaded_changes = CASCADED_ATTRIBUTES.select { |attr| saved_change_to_attribute?(attr) }
-    child_events.are_locked.update_all Hash[locked_changes.map { |attr| [attr, send(attr)] }] if locked_changes.present?
-    child_events.are_unlocked.update_all Hash[cascaded_changes.map { |attr| [attr, send(attr)] }] if cascaded_changes.present?
+    child_events.are_locked.update_all(locked_changes.index_with { |attr| send(attr) }) if locked_changes.present?
+    child_events.are_unlocked.update_all(cascaded_changes.index_with { |attr| send(attr) }) if cascaded_changes.present?
   end
 
   def sync_conference
@@ -413,7 +413,7 @@ class CalendarEvent < ActiveRecord::Base
         appointment_group.clear_cached_available_slots!
         appointment_group.save!
       end
-      if parent_event && parent_event.child_events.size == 0
+      if parent_event && parent_event.child_events.empty?
         parent_event.workflow_state = parent_event.locked? ? 'active' : 'deleted'
         parent_event.save!
       end
@@ -735,7 +735,7 @@ class CalendarEvent < ActiveRecord::Base
 
           event.description.concat("Participants: ")
           current_appts.each { |appt| event.description.concat("\n" + appt[:user]) }
-          comments = current_appts.map { |appt| appt[:comments] }.join(",\n")
+          comments = current_appts.pluck(:comments).join(",\n")
           event.description.concat("\n\n" + comments)
         end
       end

@@ -180,9 +180,9 @@ class RubricAssessmentsController < ApplicationController
 
           render json: json
         end
-      rescue Assignment::GradeError => error
-        json = { errors: { base: error.to_s, error_code: error.error_code } }
-        render json: json, status: error.status_code || :bad_request
+      rescue Assignment::GradeError => e
+        json = { errors: { base: e.to_s, error_code: e.error_code } }
+        render json: json, status: e.status_code || :bad_request
       end
     end
   end
@@ -223,7 +223,7 @@ class RubricAssessmentsController < ApplicationController
     value_to_boolean(params[:final]) && @association_object.permits_moderation?(@current_user)
   end
 
-  def ensure_adjudication_possible(provisional:)
+  def ensure_adjudication_possible(provisional:, &block)
     # Non-assignment association objects crash if they're passed into this
     # controller, since find_asset_for_assessment only exists on assignments.
     # The check here thus serves only to make sure the crash doesn't happen on
@@ -233,9 +233,7 @@ class RubricAssessmentsController < ApplicationController
     @association_object.ensure_grader_can_adjudicate(
       grader: @current_user,
       provisional: provisional,
-      occupy_slot: true
-    ) do
-      yield
-    end
+      occupy_slot: true, &block
+    )
   end
 end

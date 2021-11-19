@@ -30,7 +30,7 @@ class Profile < ActiveRecord::Base
   validates :path, format: { :with => /\A[a-z0-9-]+\z/ }
   validates :path, uniqueness: { :scope => :root_account_id }
   validates :context_id, uniqueness: { :scope => :context_type }
-  validates :visibility, inclusion: { :in => %w{public unlisted private} }
+  validates :visibility, inclusion: { :in => %w[public unlisted private] }
 
   def title=(title)
     write_attribute(:title, title)
@@ -86,7 +86,7 @@ class Profile < ActiveRecord::Base
   # some tricks to make it behave like STI with a type column
   def self.inherited(klass)
     super
-    context_type = klass.name.sub(/Profile\z/, '')
+    context_type = klass.name.delete_suffix('Profile')
     klass.class_eval { alias_method context_type.downcase.underscore, :context }
   end
 

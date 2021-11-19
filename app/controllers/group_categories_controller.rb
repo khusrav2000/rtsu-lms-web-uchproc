@@ -103,7 +103,7 @@ class GroupCategoriesController < ApplicationController
   include Api::V1::Group
   include Api::V1::Progress
 
-  SETTABLE_GROUP_ATTRIBUTES = %w(name description join_level is_public group_category avatar_attachment).freeze
+  SETTABLE_GROUP_ATTRIBUTES = %w[name description join_level is_public group_category avatar_attachment].freeze
 
   include TextHelper
 
@@ -365,7 +365,7 @@ class GroupCategoriesController < ApplicationController
   #
   def destroy
     if authorized_action(@context, @current_user, [:manage_groups, :manage_groups_delete])
-      @group_category = @group_category || @context.group_categories.where(id: params[:category_id]).first
+      @group_category ||= @context.group_categories.where(id: params[:category_id]).first
       return render(:json => { 'status' => 'not found' }, :status => :not_found) unless @group_category
       return render(:json => { 'status' => 'unauthorized' }, :status => :unauthorized) if @group_category.protected?
 

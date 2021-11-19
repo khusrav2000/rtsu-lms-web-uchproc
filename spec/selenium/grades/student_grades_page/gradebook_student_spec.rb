@@ -136,7 +136,7 @@ describe 'Student Gradebook' do
     f('#show_all_details_button').click
     details = ff('[id^="grade_info"]')
     details.each do |detail|
-      expect(detail.css_value 'display').to eq 'none'
+      expect(detail.css_value('display')).to eq 'none'
     end
   end
 
@@ -182,7 +182,7 @@ describe 'Student Gradebook' do
 
   context 'Comments' do
     # create a course, publish and enroll teacher and student
-    let_once(:test_course) { course_factory() }
+    let_once(:test_course) { course_factory }
     let_once(:teacher) { user_factory(active_all: true) }
     let_once(:student) { user_factory(active_all: true) }
     let_once(:published_course) do

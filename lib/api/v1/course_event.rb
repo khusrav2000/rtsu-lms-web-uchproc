@@ -27,7 +27,7 @@ module Api::V1::CourseEvent
   def course_event_json(event, _user, _session)
     links = {
       :course => Shard.relative_id_for(event.course_id, Shard.current, Shard.current),
-      :page_view => event.request_id && PageView.find_by_id(event.request_id).try(:id),
+      :page_view => event.request_id && PageView.find_by(id: event.request_id).try(:id),
       :user => Shard.relative_id_for(event.user_id, Shard.current, Shard.current),
       :sis_batch => Shard.relative_id_for(event.sis_batch_id, Shard.current, Shard.current)
     }
@@ -85,15 +85,15 @@ module Api::V1::CourseEvent
     course_ids.concat(events.filter_map do |event|
       event.event_data[event.event_type] if event.event_data
     end)
-    courses = Course.where(id: course_ids).to_a if course_ids.length > 0
+    courses = Course.where(id: course_ids).to_a unless course_ids.empty?
     courses ||= []
 
     page_view_ids = events.filter_map(&:request_id)
-    page_views = PageView.find_all_by_id(page_view_ids) if page_view_ids.length > 0
+    page_views = PageView.find_all_by_id(page_view_ids) unless page_view_ids.empty?
     page_views ||= []
 
     user_ids = events.filter_map(&:user_id)
-    users = User.where(id: user_ids).to_a if user_ids.length > 0
+    users = User.where(id: user_ids).to_a unless user_ids.empty?
     users ||= []
 
     {

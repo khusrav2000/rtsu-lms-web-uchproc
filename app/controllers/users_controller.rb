@@ -421,12 +421,12 @@ class UsersController < ApplicationController
     end
     page_opts[:total_entries] = nil unless @context.root_account.allow_last_page_on_users?
 
-    includes = (params[:include] || []) & %w{avatar_url email last_login time_zone uuid}
+    includes = (params[:include] || []) & %w[avatar_url email last_login time_zone uuid]
     includes << 'last_login' if params[:sort] == 'last_login' && !includes.include?('last_login')
     GuardRail.activate(:secondary) do
       users = Api.paginate(users, self, api_v1_account_users_url, page_opts)
       user_json_preloads(users, includes.include?('email'))
-      User.preload_last_login(users, @context.resolved_root_account_id) if includes.include?('last_login') && !(params[:sort] == 'last_login')
+      User.preload_last_login(users, @context.resolved_root_account_id) if includes.include?('last_login') && params[:sort] != 'last_login'
       render :json => users.map { |u| user_json(u, @current_user, session, includes) }
     end
   end
@@ -446,7 +446,7 @@ class UsersController < ApplicationController
       return_url = session[:masquerade_return_to]
       session.delete(:masquerade_return_to)
       @current_user.associate_with_shard(@user.shard, :shadow) if PageView.db?
-      if /.*\/users\/#{@user.id}\/masquerade/.match?(request.referer)
+      if %r{.*/users/#{@user.id}/masquerade}.match?(request.referer)
         return_to(return_url, dashboard_url)
       else
         return_to(return_url, request.referer || dashboard_url)
@@ -1139,7 +1139,7 @@ class UsersController < ApplicationController
 
   def ignore_item
     unless %w[grading submitting reviewing moderation].include?(params[:purpose])
-      return render(:json => { :ignored => false }, :status => 400)
+      return render(:json => { :ignored => false }, :status => :bad_request)
     end
 
     @current_user.ignore_item!(ActiveRecord::Base.find_by_asset_string(params[:asset_string], ['Assignment', 'AssessmentRequest', 'Quizzes::Quiz']),
@@ -1310,7 +1310,7 @@ class UsersController < ApplicationController
           render status: status
         end
         format.json do
-          render json: user_json(@user, @current_user, session, %w{locale avatar_url},
+          render json: user_json(@user, @current_user, session, %w[locale avatar_url],
                                  @current_user.pseudonym.account),
                  status: status
         end
@@ -1606,7 +1606,7 @@ class UsersController < ApplicationController
     create_user
   end
 
-  BOOLEAN_PREFS = %i(manual_mark_as_read collapse_global_nav hide_dashcard_color_overlays release_notes_badge_disabled comment_library_suggestions_enabled elementary_dashboard_disabled).freeze
+  BOOLEAN_PREFS = %i[manual_mark_as_read collapse_global_nav hide_dashcard_color_overlays release_notes_badge_disabled comment_library_suggestions_enabled elementary_dashboard_disabled].freeze
 
   # @API Update user settings.
   # Update an existing user's settings.
@@ -1645,7 +1645,7 @@ class UsersController < ApplicationController
     when request.get?
       return unless authorized_action(user, @current_user, :read)
 
-      render json: BOOLEAN_PREFS.each_with_object({}) { |pref, h| h[pref] = !!user.preferences[pref] }
+      render json: BOOLEAN_PREFS.index_with { |pref| !!user.preferences[pref] }
     when request.put?
       return unless authorized_action(user, @current_user, [:manage, :manage_user_details])
 
@@ -1656,7 +1656,7 @@ class UsersController < ApplicationController
       respond_to do |format|
         format.json {
           if user.save
-            render json: BOOLEAN_PREFS.each_with_object({}) { |pref, h| h[pref] = !!user.preferences[pref] }
+            render json: BOOLEAN_PREFS.index_with { |pref| !!user.preferences[pref] }
           else
             render(json: user.errors, status: :bad_request)
           end
@@ -1681,8 +1681,8 @@ class UsersController < ApplicationController
       return render(json: { :message => "This endpoint only works against the current user" }, status: :unauthorized)
     end
 
-    valid_names = %w{home modules pages assignments quizzes settings files people announcements
-                     grades discussions syllabus collaborations import conferences}
+    valid_names = %w[home modules pages assignments quizzes settings files people announcements
+                     grades discussions syllabus collaborations import conferences]
 
     # Check if the page_name is valid
     unless valid_names.include?(params[:page_name])
@@ -2030,7 +2030,7 @@ class UsersController < ApplicationController
                           @user.grants_right?(@current_user, :update_avatar) &&
                           @user.grants_right?(@current_user, :manage_user_details)
 
-    includes = %w{locale avatar_url email time_zone}
+    includes = %w[locale avatar_url email time_zone]
     if (title = user_params.delete(:title))
       @user.profile.title = title
       includes << "title"
@@ -2131,7 +2131,7 @@ class UsersController < ApplicationController
         render :json => { 'url' => url }
       end
     else
-      render :status => 404, :plain => t('could_not_find_url', "Could not find download URL")
+      render :status => :not_found, :plain => t('could_not_find_url', "Could not find download URL")
     end
   end
 
@@ -2408,7 +2408,7 @@ class UsersController < ApplicationController
         render(:json => user_json(into_user,
                                   @current_user,
                                   session,
-                                  %w{locale},
+                                  %w[locale],
                                   destination_account))
       end
     end
@@ -2772,7 +2772,7 @@ class UsersController < ApplicationController
       flash[:error] = t('no_self_registration', "Self registration has not been enabled for this account")
       respond_to do |format|
         format.html { redirect_to root_url }
-        format.json { render :json => {}, :status => 403 }
+        format.json { render :json => {}, :status => :forbidden }
       end
       false
     end
@@ -2869,7 +2869,7 @@ class UsersController < ApplicationController
   end
 
   def api_show_includes
-    includes = %w{locale avatar_url permissions email effective_locale}
+    includes = %w[locale avatar_url permissions email effective_locale]
     includes += Array.wrap(params[:include]) & ['uuid', 'last_login']
     includes
   end
@@ -2928,7 +2928,7 @@ class UsersController < ApplicationController
 
     notify_policy = Users::CreationNotifyPolicy.new(manage_user_logins, params[:pseudonym])
 
-    includes = %w{locale}
+    includes = %w[locale]
 
     cc_params = params[:communication_channel]
 

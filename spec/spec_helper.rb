@@ -134,9 +134,9 @@ module ActionView::TestCase::Behavior
     if self.is_a?(RSpec::Rails::HelperExampleGroup)
       # the original implementation. we can't call super because
       # we replaced the whole original method
-      return Hash[_user_defined_ivars.map do |ivar|
+      return _user_defined_ivars.map do |ivar|
         [ivar[1..].to_sym, instance_variable_get(ivar)]
-      end]
+      end.to_h
     end
     {}
   end
@@ -147,7 +147,7 @@ if ENV['ENABLE_AXE_SELENIUM'] == '1'
   Stormbreaker.install!
   Stormbreaker.configure do |config|
     config.driver = lambda { SeleniumDriverSetup.driver }
-    config.skip = [:'color-contrast', :'duplicate-id']
+    config.skip = [:"color-contrast", :"duplicate-id"]
     config.rules = [:wcag2a, :wcag2aa, :section508]
     if ENV['RSPEC_PROCESSES']
       config.serialize_output = true
@@ -340,11 +340,11 @@ RSpec::Expectations.configuration.on_potential_false_positives = :raise
 require 'rspec_junit_formatter'
 
 RSpec.configure do |config|
-  config.example_status_persistence_file_path = Rails.root.join('tmp', "rspec#{ENV.fetch('PARALLEL_INDEX', '0').to_i}")
+  config.example_status_persistence_file_path = Rails.root.join("tmp/rspec#{ENV.fetch('PARALLEL_INDEX', '0').to_i}")
   config.fail_if_no_examples = true
   config.use_transactional_fixtures = true
   config.use_instantiated_fixtures = false
-  config.fixture_path = Rails.root.join('spec', 'fixtures')
+  config.fixture_path = Rails.root.join('spec/fixtures')
   config.infer_spec_type_from_file_location!
   config.raise_errors_for_deprecations!
   config.color = true
@@ -660,10 +660,10 @@ RSpec.configure do |config|
 
   # inspired by http://blog.jayfields.com/2007/08/ruby-calling-methods-of-specific.html
   module AttachmentStorageSwitcher
-    BACKENDS = %w{FileSystem S3}.map { |backend| AttachmentFu::Backends.const_get(:"#{backend}Backend") }.freeze
+    BACKENDS = %w[FileSystem S3].map { |backend| AttachmentFu::Backends.const_get(:"#{backend}Backend") }.freeze
 
     class As # :nodoc:
-      private(*instance_methods.select { |m| m !~ /(^__|^\W|^binding$|^untaint$)/ })
+      private(*instance_methods.reject { |m| m =~ /(^__|^\W|^binding$|^untaint$)/ })
 
       def initialize(subject, ancestor)
         @subject = subject
@@ -671,7 +671,7 @@ RSpec.configure do |config|
       end
 
       def method_missing(sym, *args, &blk)
-        @ancestor.instance_method(sym).bind(@subject).call(*args, &blk)
+        @ancestor.instance_method(sym).bind_call(@subject, *args, &blk)
       end
     end
 
@@ -779,18 +779,16 @@ RSpec.configure do |config|
     end
   end
 
-  def track_jobs
-    @jobs_tracking = Delayed::JobTracking.track { yield }
+  def track_jobs(&block)
+    @jobs_tracking = Delayed::JobTracking.track(&block)
   end
 
   def created_jobs
     @jobs_tracking.created
   end
 
-  def expects_job_with_tag(tag, count = 1)
-    track_jobs do
-      yield
-    end
+  def expects_job_with_tag(tag, count = 1, &block)
+    track_jobs(&block)
     expect(created_jobs.count { |j| j.tag == tag }).to eq count
   end
 
@@ -911,7 +909,7 @@ module I18nStubs
 end
 LazyPresumptuousI18nBackend.prepend(I18nStubs)
 
-Dir[Rails.root + '{gems,vendor}/plugins/*/spec_canvas/spec_helper.rb'].sort.each { |file| require file }
+Dir[Rails.root.join('{gems,vendor}/plugins/*/spec_canvas/spec_helper.rb')].sort.each { |file| require file }
 
 Shoulda::Matchers.configure do |config|
   config.integrate do |with|

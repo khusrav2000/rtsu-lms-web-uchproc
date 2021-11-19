@@ -180,7 +180,7 @@ class Quizzes::QuizQuestion < ActiveRecord::Base
     return if self.question_data && !(self.question_data.is_type?(:fill_in_multiple_blanks) || self.question_data.is_type?(:short_answer))
 
     qd = self.question_data
-    qd.answers = qd.answers.select { |answer| !answer['text'].empty? }
+    qd.answers = qd.answers.reject { |answer| answer['text'].empty? }
     self.question_data = qd
     self.question_data_will_change!
     true
@@ -218,7 +218,7 @@ class Quizzes::QuizQuestion < ActiveRecord::Base
   # All questions will be assigned to the given quiz_group, and will be
   # assigned as part of the root quiz if no group is given
   def self.update_all_positions!(questions, quiz_group = nil)
-    return unless questions.size > 0
+    return if questions.empty?
 
     group_id = quiz_group ? quiz_group.id : 'NULL'
     updates = questions.map do |q|

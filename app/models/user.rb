@@ -21,7 +21,7 @@
 require 'atom'
 
 class User < ActiveRecord::Base
-  GRAVATAR_PATTERN = /^https?:\/\/[a-zA-Z0-9.-]+\.gravatar\.com\//.freeze
+  GRAVATAR_PATTERN = %r{^https?://[a-zA-Z0-9.-]+\.gravatar\.com/}.freeze
   MAX_ROOT_ACCOUNT_ID_SYNC_ATTEMPTS = 5
 
   include ManyRootAccounts
@@ -451,9 +451,9 @@ class User < ActiveRecord::Base
     courses_for_enrollments(enrollments.current_and_concluded)
   end
 
-  def self.skip_updating_account_associations(&block)
+  def self.skip_updating_account_associations
     @skip_updating_account_associations = true
-    block.call
+    yield
   ensure
     @skip_updating_account_associations = false
   end
@@ -566,7 +566,7 @@ class User < ActiveRecord::Base
   #   Through account_users
   #      User -> AccountUser -> Account
   def self.calculate_account_associations(user, data, account_chain_cache)
-    return [] if %w{creation_pending deleted}.include?(user.workflow_state) || user.fake_student?
+    return [] if %w[creation_pending deleted].include?(user.workflow_state) || user.fake_student?
 
     enrollments = data[:enrollments][user.id] || []
     sections = enrollments.map { |e| data[:sections][e.course_section_id] }
@@ -815,7 +815,7 @@ class User < ActiveRecord::Base
 
     # Doe, John, Sr.
     # Otherwise change Ho, Chi, Min to Ho, Chi Min
-    if suffix && !(suffix =~ SUFFIXES)
+    if suffix && suffix !~ SUFFIXES
       given = "#{given} #{suffix}"
       suffix = nil
     end
@@ -1599,16 +1599,14 @@ class User < ActiveRecord::Base
     colors_hash = get_preference(:custom_colors) || {}
     if Shard.current != self.shard
       # translate asset strings to be relative to current shard
-      colors_hash = Hash[
-        colors_hash.filter_map do |asset_string, value|
-          opts = asset_string.split("_")
-          id_relative_to_user_shard = opts.pop.to_i
-          next if id_relative_to_user_shard > Shard::IDS_PER_SHARD && Shard.shard_for(id_relative_to_user_shard) == self.shard # this is old data and should be ignored
+      colors_hash = colors_hash.filter_map do |asset_string, value|
+        opts = asset_string.split("_")
+        id_relative_to_user_shard = opts.pop.to_i
+        next if id_relative_to_user_shard > Shard::IDS_PER_SHARD && Shard.shard_for(id_relative_to_user_shard) == self.shard # this is old data and should be ignored
 
-          new_id = Shard.relative_id_for(id_relative_to_user_shard, self.shard, Shard.current)
-          ["#{opts.join('_')}_#{new_id}", value]
-        end
-      ]
+        new_id = Shard.relative_id_for(id_relative_to_user_shard, self.shard, Shard.current)
+        ["#{opts.join('_')}_#{new_id}", value]
+      end.to_h
     end
     colors_hash
   end
@@ -1638,7 +1636,7 @@ class User < ActiveRecord::Base
       self.shard.activate do
         scope = user_preference_values.where(:key => :course_nicknames)
         scope = scope.where(sub_key: courses) if courses
-        Hash[scope.pluck(:sub_key, :value)]
+        scope.pluck(:sub_key, :value).to_h
       end
     else
       preferences[:course_nicknames] || {}
@@ -1832,13 +1830,12 @@ class User < ActiveRecord::Base
       accts = self.associated_accounts.where("accounts.id = ? OR accounts.root_account_id = ?", rid, rid)
       return [] if accts.blank?
 
-      children = accts.inject({}) do |hash, acct|
+      children = accts.each_with_object({}) do |acct, hash|
         pid = acct.parent_account_id
         if pid.present?
           hash[pid] ||= []
           hash[pid] << acct
         end
-        hash
       end
 
       enrollment_account_ids = in_root_account
@@ -2046,8 +2043,8 @@ class User < ActiveRecord::Base
     return @_has_student_enrollment if defined?(@_has_student_enrollment)
 
     @_has_student_enrollment = Rails.cache.fetch_with_batched_keys(['has_student_enrollment', ApplicationController.region].cache_key, batch_object: self, batched_keys: :enrollments) do
-      self.enrollments.shard(in_region_associated_shards).where(:type => %w{StudentEnrollment StudentViewEnrollment})
-          .where.not(:workflow_state => %w{rejected inactive deleted}).exists?
+      self.enrollments.shard(in_region_associated_shards).where(:type => %w[StudentEnrollment StudentViewEnrollment])
+          .where.not(:workflow_state => %w[rejected inactive deleted]).exists?
     end
   end
 
@@ -2056,8 +2053,8 @@ class User < ActiveRecord::Base
     return @_non_student_enrollment if defined?(@_non_student_enrollment)
 
     @_non_student_enrollment = Rails.cache.fetch_with_batched_keys(['has_non_student_enrollment', ApplicationController.region].cache_key, batch_object: self, batched_keys: :enrollments) do
-      self.enrollments.shard(in_region_associated_shards).where.not(type: %w{StudentEnrollment StudentViewEnrollment ObserverEnrollment})
-          .where.not(workflow_state: %w{rejected inactive deleted}).exists?
+      self.enrollments.shard(in_region_associated_shards).where.not(type: %w[StudentEnrollment StudentViewEnrollment ObserverEnrollment])
+          .where.not(workflow_state: %w[rejected inactive deleted]).exists?
     end
   end
 
@@ -2081,13 +2078,13 @@ class User < ActiveRecord::Base
 
   def participating_student_current_and_concluded_course_ids
     cached_course_ids('student_current_and_concluded') do |enrollments|
-      enrollments.current_and_concluded.not_inactive_by_date_ignoring_access.where(type: %w{StudentEnrollment StudentViewEnrollment})
+      enrollments.current_and_concluded.not_inactive_by_date_ignoring_access.where(type: %w[StudentEnrollment StudentViewEnrollment])
     end
   end
 
   def participating_student_course_ids
     cached_course_ids('participating_student') do |enrollments|
-      enrollments.current.active_by_date.where(type: %w{StudentEnrollment StudentViewEnrollment})
+      enrollments.current.active_by_date.where(type: %w[StudentEnrollment StudentViewEnrollment])
     end
   end
 
@@ -2255,7 +2252,7 @@ class User < ActiveRecord::Base
 
     now = Time.zone.now
 
-    opts[:end_at] ||= 1.weeks.from_now
+    opts[:end_at] ||= 1.week.from_now
     opts[:limit] ||= 20
 
     # if we're looking through a lot of courses, we should probably not spend a lot of time
@@ -2272,7 +2269,7 @@ class User < ActiveRecord::Base
     if filter_after_db
       original_count = events.count
       if events.any? { |e| e.context_code.start_with?("course_section_") }
-        section_ids = events.map(&:context_code).grep(/\Acourse_section_\d+\z/).map { |s| s.sub(/\Acourse_section_/, '').to_i }
+        section_ids = events.map(&:context_code).grep(/\Acourse_section_\d+\z/).map { |s| s.delete_prefix('course_section_').to_i }
         section_course_codes = Course.joins(:course_sections).where(:course_sections => { :id => section_ids })
                                      .pluck(:id).map { |id| "course_#{id}" }
         visible_section_codes = self.section_context_codes(section_course_codes)
@@ -2421,7 +2418,7 @@ class User < ActiveRecord::Base
 
     Rails.cache.fetch([self, include_concluded_codes, 'conversation_context_codes4'].cache_key, :expires_in => 1.day) do
       Shard.birth.activate do
-        associations = %w{courses concluded_courses current_groups}
+        associations = %w[courses concluded_courses current_groups]
         associations.slice!(1) unless include_concluded_codes
 
         associations.inject([]) do |result, association|
@@ -2500,7 +2497,7 @@ class User < ActiveRecord::Base
   end
 
   def section_context_codes(context_codes, skip_visibility_filter = false)
-    course_ids = context_codes.grep(/\Acourse_\d+\z/).map { |s| s.sub(/\Acourse_/, '').to_i }
+    course_ids = context_codes.grep(/\Acourse_\d+\z/).map { |s| s.delete_prefix('course_').to_i }
     return [] unless course_ids.present?
 
     section_ids = []
@@ -2605,7 +2602,7 @@ class User < ActiveRecord::Base
 
   def eportfolios_enabled?
     accounts = associated_root_accounts.reject(&:site_admin?)
-    accounts.size == 0 || accounts.any? { |a| a.settings[:enable_eportfolios] != false }
+    accounts.empty? || accounts.any? { |a| a.settings[:enable_eportfolios] != false }
   end
 
   def initiate_conversation(users, private = nil, options = {})
@@ -2734,7 +2731,7 @@ class User < ActiveRecord::Base
     favorites = self.courses_with_primary_enrollment(:favorite_courses, enrollment_uuid, opts)
                     .select { |c| can_favorite.call(c) }
     # if favoritable courses (classic courses or k5 courses with admin enrollment) exist, show those and all non-favoritable courses
-    @menu_courses = if favorites.length > 0
+    @menu_courses = if !favorites.empty?
                       favorites + courses.reject { |c| can_favorite.call(c) }
                     else
                       courses
@@ -2772,7 +2769,7 @@ class User < ActiveRecord::Base
       if type != 'StudentEnrollment' && course.grants_right?(self, session, :manage_admin_users)
         return true
       end
-      if %w{StudentEnrollment ObserverEnrollment}.include?(type) && course.grants_right?(self, session, :manage_students)
+      if %w[StudentEnrollment ObserverEnrollment].include?(type) && course.grants_right?(self, session, :manage_students)
         return true
       end
     end
@@ -3028,7 +3025,7 @@ class User < ActiveRecord::Base
     # Convert the string "StudentEnrollment" to "student".
     # Return only valid matching types. Otherwise, nil.
     type = type.to_s.downcase.sub(/(view)?enrollment/, '')
-    %w{student teacher ta observer}.include?(type) ? type : nil
+    %w[student teacher ta observer].include?(type) ? type : nil
   end
 
   def self.preload_shard_associations(users)
@@ -3241,7 +3238,7 @@ class User < ActiveRecord::Base
   def generate_observer_pairing_code
     code = nil
     loop do
-      code = SecureRandom.base64().gsub(/\W/, '')[0..5]
+      code = SecureRandom.base64.gsub(/\W/, '')[0..5]
       break unless ObserverPairingCode.active.where(code: code).exists?
     end
     observer_pairing_codes.create(expires_at: 7.days.from_now, code: code)

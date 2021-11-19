@@ -33,8 +33,8 @@ module Stats
       enumerable.each { |item| self << item }
     end
 
-    def each
-      @items.each { |i| yield i }
+    def each(&block)
+      @items.each(&block)
     end
 
     def <<(item)
@@ -61,7 +61,7 @@ module Stats
     end
     alias_method :count, :size
     def empty?
-      @items.size == 0
+      @items.empty?
     end
 
     def mean
@@ -98,7 +98,7 @@ module Stats
       # this one is very good
       # method is summarized well here:
       # http://www.stat.yale.edu/Courses/1997-98/101/numsum.htm
-      if @items.length == 0
+      if @items.empty?
         return [nil, nil, nil]
       end
 

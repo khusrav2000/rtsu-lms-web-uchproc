@@ -415,6 +415,7 @@ class DiscussionTopicsController < ApplicationController
           },
           discussion_topic_menu_tools: external_tools_display_hashes(:discussion_topic_menu),
           student_reporting_enabled: Account.site_admin.feature_enabled?(:discussions_reporting),
+          discussion_anonymity_enabled: @context.feature_enabled?(:react_discussions_post) && Account.site_admin.feature_enabled?(:discussion_anonymity),
           discussion_topic_index_menu_tools: (@domain_root_account&.feature_enabled?(:commons_favorites) ?
             external_tools_display_hashes(:discussion_topic_index_menu) : []),
         }
@@ -575,7 +576,8 @@ class DiscussionTopicsController < ApplicationController
       PERMISSIONS: {
         manage_files: @context.grants_any_right?(@current_user, session, *RoleOverride::GRANULAR_FILE_PERMISSIONS)
       },
-      REACT_DISCUSSIONS_POST: @context.feature_enabled?(:react_discussions_post)
+      REACT_DISCUSSIONS_POST: @context.feature_enabled?(:react_discussions_post),
+      ANONYMOUS_DISCUSSIONS: Account.site_admin.feature_enabled?(:discussion_anonymity)
     }
 
     post_to_sis = Assignment.sis_grade_export_enabled?(@context)
@@ -746,7 +748,7 @@ class DiscussionTopicsController < ApplicationController
                                              course_id: @context).not_fake.active_or_pending_by_date_ignoring_access
                                       .group(:course_section_id).count
               section_data = @topic.course_sections.map do |cs|
-                cs.attributes.slice(*%w{id name}).merge(:user_count => user_counts[cs.id] || 0)
+                cs.attributes.slice(*%w[id name]).merge(:user_count => user_counts[cs.id] || 0)
               end
             end
             api_url = lambda do |endpoint, *params|
@@ -1107,7 +1109,7 @@ class DiscussionTopicsController < ApplicationController
   def reorder
     if authorized_action(@context.discussion_topics.temp_record, @current_user, :update)
       order = Api.value_to_array(params[:order])
-      reject! "order parameter required" unless order && order.length > 0
+      reject! "order parameter required" unless order && !order.empty?
       topics = pinned_topics.where(id: order)
       reject! "topics not found" unless topics.length == order.length
       topics[0].update_order(order)
@@ -1142,12 +1144,12 @@ class DiscussionTopicsController < ApplicationController
     @user_can_moderate
   end
 
-  API_ALLOWED_TOPIC_FIELDS = %w(title message discussion_type delayed_post_at lock_at podcast_enabled
+  API_ALLOWED_TOPIC_FIELDS = %w[title message discussion_type delayed_post_at lock_at podcast_enabled
                                 podcast_has_student_posts require_initial_post pinned todo_date
-                                group_category_id allow_rating only_graders_can_rate sort_by_rating).freeze
+                                group_category_id allow_rating only_graders_can_rate sort_by_rating].freeze
 
-  API_ALLOWED_TOPIC_FIELDS_FOR_GROUP = %w(title message discussion_type podcast_enabled pinned todo_date
-                                          allow_rating only_graders_can_rate sort_by_rating).freeze
+  API_ALLOWED_TOPIC_FIELDS_FOR_GROUP = %w[title message discussion_type podcast_enabled pinned todo_date
+                                          allow_rating only_graders_can_rate sort_by_rating].freeze
 
   def set_sections
     if params[:specific_sections] != "all"
@@ -1226,7 +1228,7 @@ class DiscussionTopicsController < ApplicationController
 
     allowed_fields = @context.is_a?(Group) ? API_ALLOWED_TOPIC_FIELDS_FOR_GROUP : API_ALLOWED_TOPIC_FIELDS
     discussion_topic_hash = params.permit(*allowed_fields)
-    only_pinning = discussion_topic_hash.except(*%w{pinned}).blank?
+    only_pinning = discussion_topic_hash.except(*%w[pinned]).blank?
 
     # allow pinning/unpinning if a subtopic and we can update the root
     topic_to_check = only_pinning && @topic.root_topic ? @topic.root_topic : @topic
@@ -1281,7 +1283,7 @@ class DiscussionTopicsController < ApplicationController
         @topic.update(discussion_topic_hash)
         @topic.root_topic.try(:save)
       end
-      if !@topic.errors.any? && !@topic.root_topic.try(:errors).try(:any?)
+      if @topic.errors.none? && !@topic.root_topic.try(:errors).try(:any?)
         log_asset_access(@topic, 'topics', 'topics', 'participate')
 
         apply_positioning_parameters
@@ -1487,7 +1489,7 @@ class DiscussionTopicsController < ApplicationController
     # handle creating/removing attachment
     if @topic.grants_right?(@current_user, session, :attach)
       attachment = params[:attachment] &&
-                   params[:attachment].size > 0 &&
+                   !params[:attachment].empty? &&
                    params[:attachment]
 
       return if attachment && attachment.size > 1.kilobytes &&

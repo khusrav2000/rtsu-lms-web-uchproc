@@ -124,7 +124,7 @@ class Pseudonym < ActiveRecord::Base
     return unless self.user && !User.skip_updating_account_associations?
 
     if self.id_before_last_save.nil?
-      return if %w{creation_pending deleted}.include?(self.user.workflow_state)
+      return if %w[creation_pending deleted].include?(self.user.workflow_state)
 
       self.user.update_account_associations(:incremental => true, :precalculated_associations => { self.account_id => 0 })
     elsif self.saved_change_to_account_id?
@@ -445,7 +445,7 @@ class Pseudonym < ActiveRecord::Base
   def valid_ssha?(plaintext_password)
     return false if plaintext_password.blank? || self.sis_ssha.blank?
 
-    decoded = Base64.decode64(self.sis_ssha.sub(/\A\{SSHA\}/, ""))
+    decoded = Base64.decode64(self.sis_ssha.delete_prefix('{SSHA}'))
     digest = decoded[0, 40]
     salt = decoded[40..]
     return false unless digest && salt

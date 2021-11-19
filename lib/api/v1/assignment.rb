@@ -33,7 +33,7 @@ module Api::V1::Assignment
               :rubric_association].freeze
 
   API_ALLOWED_ASSIGNMENT_OUTPUT_FIELDS = {
-    :only => %w(
+    :only => %w[
       id
       position
       description
@@ -64,11 +64,11 @@ module Api::V1::Assignment
       anonymous_grading
       allowed_attempts
       annotatable_attachment_id
-    )
+    ]
   }.freeze
 
   API_ASSIGNMENT_NEW_RECORD_FIELDS = {
-    :only => %w(
+    :only => %w[
       graders_anonymous_to_graders
       grader_comments_visible_to_graders
       grader_names_visible_to_final_grader
@@ -77,7 +77,7 @@ module Api::V1::Assignment
       assignment_group_id
       post_to_sis
       annotatable_attachment_id
-    )
+    ]
   }.freeze
 
   EDITABLE_ATTRS_IN_CLOSED_GRADING_PERIOD = %w[
@@ -373,14 +373,14 @@ module Api::V1::Assignment
       if submission.is_a?(Array)
         ActiveRecord::Associations::Preloader.new.preload(submission, :quiz_submission) if assignment.quiz?
         hash['submission'] = submission.map { |s| submission_json(s, assignment, user, session, assignment.context, params[:include], params) }
-        should_show_statistics = should_show_statistics && submission.any? do |s|
+        should_show_statistics &&= submission.any? do |s|
           s.assignment = assignment # Avoid extra query in submission.hide_grade_from_student? to get assignment
           s.eligible_for_showing_score_statistics?
         end
       else
         hash['submission'] = submission_json(submission, assignment, user, session, assignment.context, params[:include], params)
         submission.assignment = assignment # Avoid extra query in submission.hide_grade_from_student? to get assignment
-        should_show_statistics = should_show_statistics && submission.eligible_for_showing_score_statistics?
+        should_show_statistics &&= submission.eligible_for_showing_score_statistics?
       end
 
       if should_show_statistics && (stats = assignment&.score_statistic)
@@ -455,7 +455,7 @@ module Api::V1::Assignment
     settings.slice(*API_ALLOWED_VERICITE_SETTINGS)
   end
 
-  API_ALLOWED_ASSIGNMENT_INPUT_FIELDS = %w(
+  API_ALLOWED_ASSIGNMENT_INPUT_FIELDS = %w[
     name
     description
     position
@@ -489,9 +489,9 @@ module Api::V1::Assignment
     anonymous_instructor_annotations
     allowed_attempts
     important_dates
-  ).freeze
+  ].freeze
 
-  API_ALLOWED_TURNITIN_SETTINGS = %w(
+  API_ALLOWED_TURNITIN_SETTINGS = %w[
     originality_report_visibility
     s_paper_check
     internet_check
@@ -501,14 +501,14 @@ module Api::V1::Assignment
     exclude_small_matches_type
     exclude_small_matches_value
     submit_papers_to
-  ).freeze
+  ].freeze
 
-  API_ALLOWED_VERICITE_SETTINGS = %w(
+  API_ALLOWED_VERICITE_SETTINGS = %w[
     originality_report_visibility
     exclude_quoted
     exclude_self_plag
     store_in_index
-  ).freeze
+  ].freeze
 
   def create_api_assignment(assignment, assignment_params, user, context = assignment.context, calculate_grades: nil)
     return :forbidden unless grading_periods_allow_submittable_create?(assignment, assignment_params)
@@ -883,7 +883,7 @@ module Api::V1::Assignment
     else
       # assignment id -> specific submission. never return an array when
       # include[]=observed_users was _not_ supplied
-      hash = Hash[subs_list.map { |s| [s.assignment_id, s] }]
+      hash = subs_list.index_by(&:assignment_id)
     end
     hash
   end
@@ -948,7 +948,7 @@ module Api::V1::Assignment
     return invalid unless assignment_editable_fields_valid?(updated_assignment, user)
     return invalid unless assignment_final_grader_valid?(updated_assignment, context)
 
-    external_tool_tag_attributes = assignment_params.dig(:external_tool_tag_attributes)
+    external_tool_tag_attributes = assignment_params[:external_tool_tag_attributes]
     if external_tool_tag_attributes&.include?(:custom_params)
       custom_params = external_tool_tag_attributes[:custom_params]
       unless custom_params_valid?(custom_params)
@@ -1064,7 +1064,7 @@ module Api::V1::Assignment
     assignment.assignment_configuration_tool_lookups.present? &&
       assignment_params['submission_types']&.present? &&
       (
-        !assignment.submission_types.split(',').any? { |t| assignment_params['submission_types'].include?(t) } ||
+        assignment.submission_types.split(',').none? { |t| assignment_params['submission_types'].include?(t) } ||
         assignment_params['submission_types'].blank?
       )
   end

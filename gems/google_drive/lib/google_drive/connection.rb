@@ -40,8 +40,8 @@ module GoogleDrive
       'google_drive'
     end
 
-    def with_timeout_protection
-      Timeout.timeout(@timeout || 30) { yield }
+    def with_timeout_protection(&block)
+      Timeout.timeout(@timeout || 30, &block)
     rescue Timeout::Error
       raise ConnectionException, 'Google Drive connection timed out'
     end
@@ -250,7 +250,7 @@ module GoogleDrive
         folder.add_file(entry) unless is_folder
       end
 
-      if extensions && extensions.length > 0
+      if extensions && !extensions.empty?
         root = root.select { |e| extensions.include?(e.extension) }
       end
 

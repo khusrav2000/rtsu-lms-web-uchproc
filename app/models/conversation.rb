@@ -412,7 +412,7 @@ class Conversation < ActiveRecord::Base
         # some of the participants we're about to insert may have been soft-deleted,
         # so we'll hard-delete them before reinserting. It would probably be better
         # to update them instead, but meh.
-        inserting_user_ids = message_participant_data.map { |d| d[:user_id] }
+        inserting_user_ids = message_participant_data.pluck(:user_id)
         ConversationMessageParticipant.unique_constraint_retry do
           ConversationMessageParticipant.where(
             :conversation_message_id => message.id, :user_id => inserting_user_ids
@@ -451,16 +451,12 @@ class Conversation < ActiveRecord::Base
 
   def infer_new_tags_for(participant, all_new_tags)
     active_tags   = participant.user.conversation_context_codes(false)
-    context_codes = active_tags.present? ? active_tags : participant.user.conversation_context_codes
+    context_codes = active_tags.presence || participant.user.conversation_context_codes
     visible_codes = all_new_tags & context_codes
 
-    new_tags = if visible_codes.present?
-                 # limit available codes to codes the user can see
-                 visible_codes
-               else
-                 # otherwise, use all of the available tags.
-                 current_context_strings & context_codes
-               end
+    # limit available codes to codes the user can see
+    # otherwise, use all of the available tags
+    new_tags = visible_codes.presence || (current_context_strings & context_codes)
 
     message_tags = if self.private?
                      if new_tags.present?
@@ -763,7 +759,7 @@ class Conversation < ActiveRecord::Base
   end
 
   def replies_locked_for?(user)
-    return false unless %w{Course Group}.include?(self.context_type)
+    return false unless %w[Course Group].include?(self.context_type)
 
     course = self.context.is_a?(Course) ? self.context : self.context.context
 
