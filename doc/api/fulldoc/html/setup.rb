@@ -67,23 +67,23 @@ module YARD::Templates::Helpers::BaseHelper
     #   # @return api:Assignments:AssignmentOverride An Assignment Override
     #   # => <a href="assignments.html#Assignment">An Assignment Override</a>
     elsif args.first.is_a?(String) && args.first =~ %r{^api:([^:]+):(.*)}
-      scope_name, resource_name = $1.downcase, $2.gsub('+', ' ')
+      scope_name, resource_name = $1.downcase, $2.tr('+', ' ')
       link_url("#{scope_name}.html##{resource_name}", args[1] || resource_name)
     elsif args.first.is_a?(String) && args.first == 'Appendix:' && args.size > 1
-      __errmsg = "unable to locate referenced appendix '#{args[1]}'"
+      errmsg = "unable to locate referenced appendix '#{args[1]}'"
 
       unless (appendix = lookup_appendix(args[1].to_s))
-        raise __errmsg
+        raise errmsg
       end
 
       topic, _controller = *lookup_topic(appendix.namespace.to_s)
 
       if topic
         html_file = "#{topicize topic.first}.html"
-        bookmark = "#{appendix.name.to_s.gsub(' ', '+')}-appendix"
+        bookmark = "#{appendix.name.to_s.tr(' ', '+')}-appendix"
         link_url("#{html_file}##{bookmark}", appendix.title)
       else
-        raise __errmsg
+        raise errmsg
       end
 
     # A non-API link, delegate to YARD's HTML linker
@@ -128,7 +128,7 @@ module YARD::Templates::Helpers::HtmlHelper
   include CanvasAPI::Deprecatable
 
   def topicize(str)
-    str.gsub(' ', '_').underscore
+    str.tr(' ', '_').underscore
   end
 
   def url_for_file(filename, anchor = nil)
@@ -139,20 +139,20 @@ module YARD::Templates::Helpers::HtmlHelper
 
   # override yard-appendix link_appendix
   def link_appendix(ref)
-    __errmsg = "unable to locate referenced appendix '#{ref}'"
+    errmsg = "unable to locate referenced appendix '#{ref}'"
 
     unless (appendix = lookup_appendix(ref.to_s))
-      raise __errmsg
+      raise errmsg
     end
 
     topic, _controller = *lookup_topic(appendix.namespace.to_s)
 
     unless topic
-      raise __errmsg
+      raise errmsg
     end
 
     html_file = "#{topicize topic.first}.html"
-    bookmark = "#{appendix.name.to_s.gsub(' ', '+')}-appendix"
+    bookmark = "#{appendix.name.to_s.tr(' ', '+')}-appendix"
     link_url("#{html_file}##{bookmark}", appendix.title)
   end
 end
@@ -161,7 +161,7 @@ def init
   options[:objects] = run_verifier(options[:objects])
   options[:resources] = options[:objects]
                         .group_by { |o| o.tags('API').first.text }
-                        .sort_by  { |o| o.first }
+                        .sort_by  { |o| o.first.downcase }
   generate_swagger_json
   generate_data_services_markdown_pages
   scope_writer = ApiScopeMappingWriter.new(options[:resources])
@@ -242,7 +242,7 @@ def serialize_index
 end
 
 def asset(path, content)
-  options[:serializer].serialize(path, content) if options[:serializer]
+  options[:serializer]&.serialize(path, content)
 end
 
 def generate_assets

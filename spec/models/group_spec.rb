@@ -265,7 +265,7 @@ describe Group do
   end
 
   context 'with granular permissions enabled' do
-    before :each do
+    before do
       @course.root_account.enable_feature!(:granular_permissions_manage_groups)
     end
 
@@ -374,7 +374,7 @@ describe Group do
       group1 = @course.groups.create(:group_category => group_category, :join_level => 'parent_context_auto_join')
       group2 = @course.groups.create(:group_category => group_category, :join_level => 'parent_context_request')
       group3 = @course.groups.create(:group_category => group_category, :join_level => 'invitation_only')
-      expect([group1, group2, group3].map { |g| g.auto_accept? }).to eq [true, false, false]
+      expect([group1, group2, group3].map(&:auto_accept?)).to eq [true, false, false]
     end
 
     it "is false unless the group is student organized or a community" do
@@ -385,7 +385,7 @@ describe Group do
       group1 = @course.groups.create(:group_category => @course.group_categories.create(:name => "random category"), :join_level => jl)
       group2 = @course.groups.create(:group_category => GroupCategory.student_organized_for(@course), :join_level => jl)
       group3 = @account.groups.create(:group_category => GroupCategory.communities_for(@account), :join_level => jl)
-      expect([group1, group2, group3].map { |g| g.auto_accept? }).to eq [false, true, true]
+      expect([group1, group2, group3].map(&:auto_accept?)).to eq [false, true, true]
     end
   end
 
@@ -397,7 +397,7 @@ describe Group do
       group1 = @course.groups.create(:group_category => group_category, :join_level => 'parent_context_auto_join')
       group2 = @course.groups.create(:group_category => group_category, :join_level => 'parent_context_request')
       group3 = @course.groups.create(:group_category => group_category, :join_level => 'invitation_only')
-      expect([group1, group2, group3].map { |g| g.allow_join_request? }).to eq [true, true, false]
+      expect([group1, group2, group3].map(&:allow_join_request?)).to eq [true, true, false]
     end
 
     it "is false unless the group is student organized or a community" do
@@ -408,7 +408,7 @@ describe Group do
       group1 = @course.groups.create(:group_category => @course.group_categories.create(:name => "random category"), :join_level => jl)
       group2 = @course.groups.create(:group_category => GroupCategory.student_organized_for(@course), :join_level => jl)
       group3 = @account.groups.create(:group_category => GroupCategory.communities_for(@account), :join_level => jl)
-      expect([group1, group2, group3].map { |g| g.allow_join_request? }).to eq [false, true, true]
+      expect([group1, group2, group3].map(&:allow_join_request?)).to eq [false, true, true]
     end
   end
 
@@ -709,14 +709,14 @@ describe Group do
 
         it 'returns the plugin names' do
           tabs = @group.tabs_available(@user)
-          expect(tabs.select { |t| t[:css_class] == 'conferences' }[0][:label]).to eq("Big blue button Wimba (Conferences)")
+          expect(tabs.find { |t| t[:css_class] == 'conferences' }[:label]).to eq("Big blue button Wimba (Conferences)")
         end
       end
 
       context 'when WebConferences are not enabled' do
         it "returns Conferences" do
           tabs = @group.tabs_available(@user)
-          expect(tabs.select { |t| t[:css_class] == 'conferences' }[0][:label]).to eq("Conferences")
+          expect(tabs.find { |t| t[:css_class] == 'conferences' }[:label]).to eq("Conferences")
         end
       end
     end
@@ -855,7 +855,7 @@ describe Group do
   end
 
   describe '#favorite_for_user?' do
-    before :each do
+    before do
       context = course_model
       @group_fave = Group.create!(:name => "group1", :context => context)
       @group_not_fave = Group.create!(:name => "group2", :context => context)

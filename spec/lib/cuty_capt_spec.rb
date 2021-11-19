@@ -19,11 +19,11 @@
 #
 
 describe CutyCapt do
-  before(:each) do
+  before do
     CutyCapt.config = nil
   end
 
-  after :each do
+  after do
     CutyCapt.config = nil
     ConfigFile.unstub
   end
@@ -76,7 +76,7 @@ describe CutyCapt do
 
       allow(CutyCapt).to receive(:cuty_arguments).and_return(["/bin/sleep", "60"])
       expect {
-        Timeout::timeout(10) { CutyCapt.snapshot_url("http://google.com/") }
+        Timeout.timeout(10) { CutyCapt.snapshot_url("http://google.com/") }
       }.not_to raise_error
     end
   end

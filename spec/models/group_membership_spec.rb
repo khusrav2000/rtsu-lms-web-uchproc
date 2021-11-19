@@ -64,8 +64,15 @@ describe GroupMembership do
 
   context "section homogeneity" do
     # can't use 'course' because it is defined in spec_helper, so use 'course1'
-    let_once(:course1) { course_with_teacher(:active_all => true); @course }
-    let_once(:student) { student = user_model; course1.enroll_student(student); student }
+    let_once(:course1) {
+      course_with_teacher(:active_all => true)
+      @course
+    }
+    let_once(:student) {
+      student = user_model
+      course1.enroll_student(student)
+      student
+    }
     let_once(:group_category) { GroupCategory.student_organized_for(course1) }
     let_once(:group) { course1.groups.create(:group_category => group_category) }
     let_once(:group_membership) { group.group_memberships.create(:user => student) }
@@ -90,7 +97,7 @@ describe GroupMembership do
 
   context "Notifications" do
     context "in published course" do
-      before :each do
+      before do
         course_with_teacher(active_all: true)
         @student1 = student_in_course(active_all: true).user
         @group1 = @course.groups.create(group_category: GroupCategory.student_organized_for(@course))
@@ -332,7 +339,7 @@ describe GroupMembership do
       @membership.group = @group
       @group.group_category = @group_category
 
-      @assignments = 3.times.map { assignment_model(:course => @course) }
+      @assignments = Array.new(3) { assignment_model(:course => @course) }
       @assignments.last.group_category = nil
       @assignments.last.save!
     end
@@ -340,7 +347,7 @@ describe GroupMembership do
     it "triggers a batch when membership is created" do
       new_user = user_factory
 
-      expect(DueDateCacher).to receive(:recompute).never
+      expect(DueDateCacher).not_to receive(:recompute)
       expect(DueDateCacher).to receive(:recompute_users_for_course).with(
         new_user.id,
         @course.id,
@@ -351,7 +358,7 @@ describe GroupMembership do
     end
 
     it "triggers a batch when membership is deleted" do
-      expect(DueDateCacher).to receive(:recompute).never
+      expect(DueDateCacher).not_to receive(:recompute)
       expect(DueDateCacher).to receive(:recompute_users_for_course).with(
         @membership.user.id,
         @course.id,
@@ -361,14 +368,14 @@ describe GroupMembership do
     end
 
     it "does not trigger when nothing changed" do
-      expect(DueDateCacher).to receive(:recompute).never
-      expect(DueDateCacher).to receive(:recompute_course).never
+      expect(DueDateCacher).not_to receive(:recompute)
+      expect(DueDateCacher).not_to receive(:recompute_course)
       @membership.save
     end
 
     it "does not trigger when it's an account group" do
-      expect(DueDateCacher).to receive(:recompute).never
-      expect(DueDateCacher).to receive(:recompute_course).never
+      expect(DueDateCacher).not_to receive(:recompute)
+      expect(DueDateCacher).not_to receive(:recompute_course)
       @group = Account.default.groups.create!(:name => 'Group!')
       @group.group_memberships.create!(:user => user_factory)
     end

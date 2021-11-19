@@ -37,6 +37,7 @@ describe EportfolioEntriesController do
 
   describe "GET 'show'" do
     before(:once) { eportfolio_entry(@category) }
+
     it "requires authorization" do
       get 'show', params: { :eportfolio_id => @portfolio.id, :id => @entry.id }
       assert_unauthorized
@@ -73,14 +74,28 @@ describe EportfolioEntriesController do
     end
 
     describe "js_env" do
-      it "sets SKIP_ENHANCING_USER_CONTENT to true" do
+      before do
         user_session(@user)
         @category.name = "some category"
         @category.save!
         @entry.name = "some entry"
         @entry.save!
+      end
+
+      it "sets SKIP_ENHANCING_USER_CONTENT to true" do
         get 'show', params: { eportfolio_id: @portfolio.id, category_name: @category.slug, entry_name: @entry.slug }
         expect(assigns.dig(:js_env, :SKIP_ENHANCING_USER_CONTENT)).to be true
+      end
+
+      it "sets SECTION_COUNT_IDX before layout and templates are rendered" do
+        @entry.content = [
+          { section_type: 'rich_text', content: '<p>1</p>' },
+          { section_type: 'rich_text', content: '<p>2</p>' },
+          { section_type: 'rich_text', content: '<p>3</p>' }
+        ]
+        @entry.save!
+        get 'show', params: { eportfolio_id: @portfolio.id, category_name: @category.slug, entry_name: @entry.slug }
+        expect(assigns.dig(:js_env, :SECTION_COUNT_IDX)).to eq 3
       end
     end
 
@@ -160,6 +175,7 @@ describe EportfolioEntriesController do
 
   describe "PUT 'update'" do
     before(:once) { eportfolio_entry(@category) }
+
     it "requires authorization" do
       put 'update', params: { :eportfolio_id => @portfolio.id, :id => @entry.id }
       assert_unauthorized
@@ -176,6 +192,7 @@ describe EportfolioEntriesController do
 
   describe "DELETE 'destroy'" do
     before(:once) { eportfolio_entry(@category) }
+
     it "requires authorization" do
       delete 'destroy', params: { :eportfolio_id => @portfolio.id, :id => @entry.id }
       assert_unauthorized
@@ -192,6 +209,7 @@ describe EportfolioEntriesController do
 
   describe "GET 'attachment'" do
     before(:once) { eportfolio_entry(@category) }
+
     it "requires authorization" do
       get 'attachment', params: { :eportfolio_id => @portfolio.id, :entry_id => @entry.id, :attachment_id => 1 }
       assert_unauthorized

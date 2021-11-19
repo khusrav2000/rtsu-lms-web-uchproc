@@ -91,14 +91,13 @@ describe "Groups API", type: :request do
   end
 
   def user_json(user, **)
-    hash = {
+    {
       'id' => user.id,
       'created_at' => user.created_at.iso8601,
       'name' => user.name,
       'sortable_name' => user.sortable_name,
       'short_name' => user.short_name
     }
-    hash
   end
 
   def membership_json(membership, is_admin = false)
@@ -137,7 +136,7 @@ describe "Groups API", type: :request do
     json = api_call(:get, "/api/v1/users/self/groups", @category_path_options.merge(:action => "index"))
     expect(json).to eq [group_json(@community), group_json(@group)]
     links = response.headers['Link'].split(",")
-    expect(links.all? { |l| l =~ /api\/v1\/users\/self\/groups/ }).to be_truthy
+    expect(links.all? { |l| l.include?('api/v1/users/self/groups') }).to be_truthy
   end
 
   describe "show SIS fields based on manage_sis permissions" do
@@ -300,37 +299,37 @@ describe "Groups API", type: :request do
     json = api_call(:get, "#{@community_path}.json?include[]=favorites",
                     @category_path_options.merge(:group_id => @community.to_param, :action => "show",
                                                  :include => ["favorites"]))
-    expect(json.key?("is_favorite")).to be_truthy
+    expect(json).to have_key("is_favorite")
   end
 
   it "includes the group category" do
     @user = @member
     json = api_call(:get, "#{@community_path}.json?include[]=group_category", @category_path_options.merge(:group_id => @community.to_param, :action => "show", :include => ["group_category"]))
-    expect(json.has_key?("group_category")).to be_truthy
+    expect(json).to have_key("group_category")
   end
 
   it 'includes permissions' do
     # Make sure it only returns permissions when asked
     json = api_call(:get, @community_path, @category_path_options.merge(:group_id => @community.to_param, :action => "show", :format => 'json'))
-    expect(json.has_key?("permissions")).to be_falsey
+    expect(json).not_to have_key("permissions")
 
     # When its asked to return permissions make sure they are there
     json = api_call(:get, "#{@community_path}.json?include[]=permissions", @category_path_options.merge(:group_id => @community.to_param, :action => "show", :format => 'json', :include => ["permissions"]))
-    expect(json.has_key?("permissions")).to be_truthy
+    expect(json).to have_key("permissions")
   end
 
   it 'includes permission create_discussion_topic' do
     json = api_call(:get, "#{@community_path}.json?include[]=permissions", @category_path_options.merge(:group_id => @community.to_param, :action => "show", :format => 'json', :include => ["permissions"]))
 
-    expect(json.has_key?("permissions")).to be_truthy
-    expect(json["permissions"].has_key?("create_discussion_topic")).to be_truthy
+    expect(json).to have_key("permissions")
+    expect(json["permissions"]).to have_key("create_discussion_topic")
   end
 
   it 'includes permission create_student_announcements' do
     json = api_call(:get, "#{@community_path}.json?include[]=permissions", @category_path_options.merge(:group_id => @community.to_param, :action => "show", :format => 'json', :include => ["permissions"]))
 
-    expect(json.has_key?("permissions")).to be_truthy
-    expect(json["permissions"].has_key?("create_announcement")).to be_truthy
+    expect(json).to have_key("permissions")
+    expect(json["permissions"]).to have_key("create_announcement")
     expect(json['permissions']['create_announcement']).to be_truthy
   end
 
@@ -818,7 +817,7 @@ describe "Groups API", type: :request do
       }.to change(User, :count).by(2)
       @memberships = @community.reload.group_memberships.where(:workflow_state => "invited").order(:id).to_a
       expect(@memberships.count).to eq 2
-      expect(@json.sort_by { |a| a['id'] }).to eq @memberships.map { |gm| membership_json(gm) }
+      expect(@json.sort_by { |a| a['id'] }).to eq(@memberships.map { |gm| membership_json(gm) })
     end
 
     it "does not allow a member to invite people to a group" do
@@ -1027,7 +1026,7 @@ describe "Groups API", type: :request do
       @group = @course.groups.create!(:name => 'Group 1')
     end
 
-    before :each do
+    before do
       user_session @teacher
     end
 

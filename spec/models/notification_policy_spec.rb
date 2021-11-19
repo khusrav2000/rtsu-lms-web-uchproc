@@ -29,7 +29,7 @@ describe NotificationPolicy do
       @student = factory_with_protected_attributes(User, :name => "student", :workflow_state => "registered")
       e = @course.enroll_student(@student)
       e.accept!
-      Notification.all.each { |n| n.destroy }
+      Notification.all.each(&:destroy)
       Notification.reset_cache!
       @notif = Notification.create!(:name => "Assignment Created", :subject => "Test", :category => 'TestNever')
     end
@@ -72,7 +72,7 @@ describe NotificationPolicy do
                          :subject => "Hello",
                          :category => "TestImmediately"
     allow_any_instance_of(Message).to receive(:get_template).and_return("here's a free id <%= data.course_id %>")
-    class DataTest < ActiveRecord::Base
+    klass = Class.new(ActiveRecord::Base) do
       self.table_name = :courses
 
       has_a_broadcast_policy
@@ -95,10 +95,10 @@ describe NotificationPolicy do
         Account.default
       end
     end
-    dt = DataTest.new(account_id: Account.default.id,
-                      root_account_id: Account.default.id,
-                      enrollment_term_id: Account.default.default_enrollment_term.id,
-                      workflow_state: 'created')
+    dt = klass.new(account_id: Account.default.id,
+                   root_account_id: Account.default.id,
+                   enrollment_term_id: Account.default.default_enrollment_term.id,
+                   workflow_state: 'created')
     dt.save!
     msg = dt.messages_sent["Hello"].find { |m| m.to == "blarg@example.com" }
     expect(msg).not_to be_nil
@@ -223,7 +223,8 @@ describe NotificationPolicy do
       n2 = notification_policy_model(trifecta_opts.merge(:notification => notify2))
       params = { :category => 'multi_category', :channel_id => @communication_channel.id, :frequency => Notification::FREQ_IMMEDIATELY }
       NotificationPolicy.setup_for(@user, params)
-      n1.reload; n2.reload
+      n1.reload
+      n2.reload
       expect(n1.frequency).to eq Notification::FREQ_IMMEDIATELY
       expect(n2.frequency).to eq Notification::FREQ_IMMEDIATELY
     end
@@ -261,7 +262,7 @@ describe NotificationPolicy do
       @announcement = notification_model(:name => 'Setting 1', :category => 'Announcement')
     end
 
-    before :each do
+    before do
       allow(Notification).to receive(:all).and_return([@notification])
     end
 

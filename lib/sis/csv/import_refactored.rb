@@ -27,7 +27,7 @@ module SIS
       attr_accessor :root_account, :batch, :finished, :counts,
                     :override_sis_stickiness, :add_sis_stickiness, :clear_sis_stickiness, :logger
 
-      IGNORE_FILES = /__macosx|desktop d[bf]|\A\..*/i
+      IGNORE_FILES = /__macosx|desktop d[bf]|\A\..*/i.freeze
 
       # The order of this array is important:
       #  * Account must be imported before Term and Course
@@ -91,19 +91,20 @@ module SIS
         @batch.data[:downloadable_attachment_ids] ||= []
         @files.each do |file|
           if File.file?(file)
-            if File.extname(file).downcase == '.zip'
+            case File.extname(file).downcase
+            when '.zip'
               tmp_dir = Dir.mktmpdir
               @tmp_dirs << tmp_dir
-              CanvasUnzip::extract_archive(file, tmp_dir)
+              CanvasUnzip.extract_archive(file, tmp_dir)
               Dir[File.join(tmp_dir, "**/**")].each do |fn|
                 next if File.directory?(fn) || !!(fn =~ IGNORE_FILES)
 
-                file_name = fn[tmp_dir.size + 1..-1]
+                file_name = fn[tmp_dir.size + 1..]
                 att = create_batch_attachment(File.join(tmp_dir, file_name))
                 process_file(tmp_dir, file_name, att)
               end
-            elsif File.extname(file).downcase == '.csv'
-              att = @batch.attachment if @batch.attachment && File.extname(@batch.attachment.filename).downcase == '.csv'
+            when '.csv'
+              att = @batch.attachment if @batch.attachment && File.extname(@batch.attachment.filename).casecmp?('.csv')
               att ||= create_batch_attachment file
               process_file(File.dirname(file), File.basename(file), att)
             end
@@ -126,17 +127,15 @@ module SIS
       def number_of_rows(create_importers:)
         IMPORTERS.each do |importer|
           @csvs[importer].reject! do |csv|
-            begin
-              rows = count_rows(csv, importer, create_importers: create_importers)
-              unless create_importers
-                @rows[importer] += rows
-                @total_rows += rows
-              end
-              false
-            rescue ::CSV::MalformedCSVError
-              SisBatch.add_error(csv, I18n.t("Malformed CSV"), sis_batch: @batch, failure: true)
-              true
+            rows = count_rows(csv, importer, create_importers: create_importers)
+            unless create_importers
+              @rows[importer] += rows
+              @total_rows += rows
             end
+            false
+          rescue ::CSV::MalformedCSVError
+            SisBatch.add_error(csv, I18n.t("Malformed CSV"), sis_batch: @batch, failure: true)
+            true
           end
         end
       end
@@ -212,7 +211,7 @@ module SIS
 
       def update_progress
         completed_count = @batch.parallel_importers.where(workflow_state: "completed").count
-        current_progress = [(completed_count.to_f * 100 / @parallel_importers.values.map(&:count).sum).round, 99].min
+        current_progress = [(completed_count.to_f * 100 / @parallel_importers.values.sum(&:count)).round, 99].min
         SisBatch.where(:id => @batch).where("progress IS NULL or progress < ?", current_progress).update_all(progress: current_progress)
       end
 
@@ -322,7 +321,7 @@ module SIS
           end
         end
         @parallel_importers.each do |type, importers|
-          @batch.data[:counts][type.to_s.pluralize.to_sym] = importers.map(&:rows_processed).sum
+          @batch.data[:counts][type.to_s.pluralize.to_sym] = importers.sum(&:rows_processed)
         end
         finish
       end
@@ -392,7 +391,7 @@ module SIS
 
       def process_file(base, file, att)
         csv = { base: base, file: file, fullpath: File.join(base, file), attachment: att }
-        if File.file?(csv[:fullpath]) && File.extname(csv[:fullpath]).downcase == '.csv'
+        if File.file?(csv[:fullpath]) && File.extname(csv[:fullpath]).casecmp?('.csv')
           unless Attachment.valid_utf8?(File.open(csv[:fullpath]))
             SisBatch.add_error(csv, I18n.t("Invalid UTF-8"), sis_batch: @batch, failure: true)
             return

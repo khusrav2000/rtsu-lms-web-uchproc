@@ -19,7 +19,7 @@
 
 module CustomWaitMethods
   def wait_for_dom_ready
-    result = driver.execute_async_script(<<-JS)
+    result = driver.execute_async_script(<<~JS)
       var callback = arguments[arguments.length - 1];
       if (document.readyState === "complete") {
         callback(0);
@@ -40,7 +40,7 @@ module CustomWaitMethods
   # If we're looking for the loading image, we can't just do a normal assertion, because the image
   # could end up getting loaded too quickly.
   def wait_for_transient_element(selector)
-    driver.execute_script(<<-JS)
+    driver.execute_script(<<~JS)
       window.__WAIT_FOR_LOADING_IMAGE = 0
       window.__WAIT_FOR_LOADING_IMAGE_CALLBACK = null
 
@@ -79,7 +79,7 @@ module CustomWaitMethods
 
     yield
 
-    result = driver.execute_async_script(<<-JS)
+    result = driver.execute_async_script(<<~JS)
       var callback = arguments[arguments.length - 1]
       if (window.__WAIT_FOR_LOADING_IMAGE == 2) {
         callback(0)
@@ -94,7 +94,7 @@ module CustomWaitMethods
   def wait_for_ajax_requests(bridge = nil)
     bridge = driver if bridge.nil?
 
-    result = bridge.execute_async_script(<<-JS)
+    result = bridge.execute_async_script(<<~JS)
       var callback = arguments[arguments.length - 1];
       // see code in ui/boot/index.js for where
       // __CANVAS_IN_FLIGHT_XHR_REQUESTS__ and 'canvasXHRComplete' come from
@@ -132,7 +132,7 @@ module CustomWaitMethods
   def wait_for_animations(bridge = nil)
     bridge = driver if bridge.nil?
 
-    bridge.execute_async_script(<<-JS)
+    bridge.execute_async_script(<<~JS)
       var callback = arguments[arguments.length - 1];
       if (typeof($) == 'undefined') {
         callback(-1);
@@ -207,14 +207,12 @@ module CustomWaitMethods
   def keep_trying_until(seconds = SeleniumDriverSetup::SECONDS_UNTIL_GIVING_UP)
     frd_error = Selenium::WebDriver::Error::TimeoutError.new
     wait_for(timeout: seconds, method: :keep_trying_until) do
-      begin
-        yield
-      rescue SeleniumExtensions::Error, Selenium::WebDriver::Error::StaleElementReferenceError # don't keep trying, abort ASAP
-        raise
-      rescue StandardError, RSpec::Expectations::ExpectationNotMetError
-        frd_error = $ERROR_INFO
-        nil
-      end
+      yield
+    rescue SeleniumExtensions::Error, Selenium::WebDriver::Error::StaleElementReferenceError # don't keep trying, abort ASAP
+      raise
+    rescue StandardError, RSpec::Expectations::ExpectationNotMetError
+      frd_error = $ERROR_INFO
+      nil
     end or CallStackUtils.raise(frd_error)
   end
 
@@ -224,30 +222,10 @@ module CustomWaitMethods
     parent = element.find_element(:xpath, '..')
     tiny_frame = nil
     keep_trying_until do
-      begin
-        tiny_frame = disable_implicit_wait { parent.find_element(:css, 'iframe') }
-      rescue => e
-        puts "#{e.inspect}"
-        false
-      end
-    end
-    tiny_frame
-  end
-
-  # a slightly modified version of wait_for_tiny
-  # that's simpler for the normal case where
-  # the RCE is created via serviceRCELoader, which
-  # adds the 'ic-RichContentEditor' class name
-  def wait_for_rce(element = nil)
-    element ||= f('.ic-RichContentEditor')
-    tiny_frame = nil
-    keep_trying_until do
-      begin
-        tiny_frame = disable_implicit_wait { element.find_element(:css, 'iframe') }
-      rescue => e
-        puts "#{e.inspect}"
-        false
-      end
+      tiny_frame = disable_implicit_wait { parent.find_element(:css, 'iframe') }
+    rescue => e
+      puts e.inspect
+      false
     end
     tiny_frame
   end
@@ -260,12 +238,10 @@ module CustomWaitMethods
     element ||= f('.rce-wrapper')
     tiny_frame = nil
     keep_trying_until do
-      begin
-        tiny_frame = disable_implicit_wait { element.find_element(:css, 'iframe') }
-      rescue => e
-        puts "#{e.inspect}"
-        false
-      end
+      tiny_frame = disable_implicit_wait { element.find_element(:css, 'iframe') }
+    rescue => e
+      puts e.inspect
+      false
     end
     tiny_frame
   end

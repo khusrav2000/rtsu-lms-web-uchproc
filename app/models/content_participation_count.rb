@@ -48,7 +48,7 @@ class ContentParticipationCount < ActiveRecord::Base
 
         # if the participant was just created, the count will already be correct
         if opts[:offset].present? && !participant.new_record?
-          participant.unread_count = participant.unread_count(!:refresh) + opts[:offset]
+          participant.unread_count = participant.unread_count(refresh: false) + opts[:offset]
         end
         participant.save if participant.new_record? || participant.changed?
       end
@@ -73,7 +73,7 @@ class ContentParticipationCount < ActiveRecord::Base
     GuardRail.activate(:secondary) do
       potential_ids = Rails.cache.fetch_with_batched_keys(["potential_unread_submission_ids", context.global_id].cache_key,
                                                           batch_object: user, batched_keys: :submissions) do
-        submission_conditions = sanitize_sql_for_conditions([<<~SQL, user.id, context.class.to_s, context.id])
+        submission_conditions = sanitize_sql_for_conditions([<<~SQL.squish, user.id, context.class.to_s, context.id])
           submissions.user_id = ? AND
           assignments.context_type = ? AND
           assignments.context_id = ? AND
@@ -84,12 +84,12 @@ class ContentParticipationCount < ActiveRecord::Base
         subs_with_grades = Submission.active.graded
                                      .joins(:assignment)
                                      .where(submission_conditions)
-                                     .where("submissions.score IS NOT NULL")
+                                     .where.not(submissions: { score: nil })
                                      .pluck(:id)
         subs_with_comments = Submission.active
                                        .joins(:assignment, :submission_comments)
                                        .where(submission_conditions)
-                                       .where(<<~SQL, user).pluck(:id)
+                                       .where(<<~SQL.squish, user).pluck(:id)
                                          (submission_comments.hidden IS NULL OR NOT submission_comments.hidden)
                                          AND NOT submission_comments.draft
                                          AND submission_comments.provisional_grade_id IS NULL
@@ -107,7 +107,7 @@ class ContentParticipationCount < ActiveRecord::Base
     end
   end
 
-  def unread_count(refresh = true)
+  def unread_count(refresh: true)
     refresh_unread_count if refresh && !frozen? && ttl.present? && self.updated_at.utc < ttl.seconds.ago.utc
     read_attribute(:unread_count)
   end

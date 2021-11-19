@@ -24,7 +24,7 @@ describe CoursesController do
   include K5Common
 
   describe "GET 'index'" do
-    before(:each) do
+    before do
       controller.instance_variable_set(:@domain_root_account, Account.default)
     end
 
@@ -51,7 +51,8 @@ describe CoursesController do
       expect(assigns[:current_enrollments][0]).to eql(@enrollment)
       expect(assigns[:past_enrollments]).not_to be_nil
       expect(assigns[:future_enrollments]).not_to be_nil
-      expect(assigns[:js_env][:CREATE_COURSES_PERMISSION]).to be_nil
+      expect(assigns[:js_env][:CREATE_COURSES_PERMISSIONS][:PERMISSION]).to be_nil
+      expect(assigns[:js_env][:CREATE_COURSES_PERMISSIONS][:RESTRICT_TO_MCC_ACCOUNT]).to be_falsey
     end
 
     it "does not duplicate enrollments in variables" do
@@ -593,7 +594,10 @@ describe CoursesController do
       end
 
       it "does not include published course enrollments if account disallows future view and listing" do
-        Account.default.tap { |a| a.settings.merge!(:restrict_student_future_view => true, :restrict_student_future_listing => true); a.save! }
+        Account.default.tap { |a|
+          a.settings.merge!(:restrict_student_future_view => true, :restrict_student_future_listing => true)
+          a.save!
+        }
 
         course1 = Account.default.courses.create! start_at: 1.month.from_now, restrict_enrollments_to_course_dates: true, workflow_state: 'available'
         enrollment1 = course_with_student course: course1
@@ -608,7 +612,10 @@ describe CoursesController do
 
       it "does not include unpublished course enrollments if account disallows future listing" do
         # even if it _would_ be accessible if it were published
-        Account.default.tap { |a| a.settings.merge!(:restrict_student_future_view => true, :restrict_student_future_listing => true); a.save! }
+        Account.default.tap { |a|
+          a.settings.merge!(:restrict_student_future_view => true, :restrict_student_future_listing => true)
+          a.save!
+        }
 
         course1 = Account.default.courses.create! start_at: 1.month.from_now, restrict_enrollments_to_course_dates: true
         course1.restrict_student_future_view = false
@@ -650,7 +657,7 @@ describe CoursesController do
     describe "per-assignment permissions" do
       let(:assignment_permissions) { assigns[:js_env][:PERMISSIONS][:by_assignment_id] }
 
-      before(:each) do
+      before do
         @course = Course.create!(default_view: "assignments")
         @teacher = course_with_user("TeacherEnrollment", course: @course, active_all: true).user
         @ta = course_with_user("TaEnrollment", course: @course, active_all: true).user
@@ -686,7 +693,7 @@ describe CoursesController do
     end
 
     describe 'Course notification settings' do
-      before(:each) do
+      before do
         @course = Course.create!(default_view: "assignments")
         @teacher = course_with_user("TeacherEnrollment", course: @course, active_all: true).user
       end
@@ -1204,7 +1211,7 @@ describe CoursesController do
         @c2 = @s2.add_comment(:author => @teacher, :comment => "some comment2")
       end
 
-      before(:each) do
+      before do
         user_session(@me)
       end
 
@@ -1748,7 +1755,7 @@ describe CoursesController do
           @student.enrollments.destroy_all
         end
 
-        before :each do
+        before do
           user_session(@student)
         end
 
@@ -1845,7 +1852,7 @@ describe CoursesController do
         toggle_k5_setting(@course.account)
       end
 
-      before :each do
+      before do
         user_session(@student)
       end
 
@@ -1913,7 +1920,7 @@ describe CoursesController do
       post 'unenroll_user', params: { :course_id => @course.id, :id => @enrollment.id }
       @course.reload
       expect(response).to be_successful
-      expect(@course.enrollments.map { |e| e.user }).not_to be_include(@student)
+      expect(@course.enrollments.map(&:user)).not_to be_include(@student)
     end
 
     it "does not allow teachers to unenroll themselves" do
@@ -1928,7 +1935,7 @@ describe CoursesController do
       post 'unenroll_user', params: { :course_id => @course.id, :id => @teacher_enrollment.id }
       @course.reload
       expect(response).to be_successful
-      expect(@course.enrollments.map { |e| e.user }).not_to be_include(@teacher)
+      expect(@course.enrollments.map(&:user)).not_to be_include(@teacher)
     end
   end
 
@@ -1957,8 +1964,8 @@ describe CoursesController do
       post 'enroll_users', params: { :course_id => @course.id, :user_list => "\"Sam\" <sam@yahoo.com>, \"Fred\" <fred@yahoo.com>" }
       expect(response).to be_successful
       @course.reload
-      expect(@course.students.map { |s| s.name }).to be_include("Sam")
-      expect(@course.students.map { |s| s.name }).to be_include("Fred")
+      expect(@course.students.map(&:name)).to be_include("Sam")
+      expect(@course.students.map(&:name)).to be_include("Fred")
     end
 
     it "does not enroll people in hard-concluded courses" do
@@ -1967,8 +1974,8 @@ describe CoursesController do
       post 'enroll_users', params: { :course_id => @course.id, :user_list => "\"Sam\" <sam@yahoo.com>, \"Fred\" <fred@yahoo.com>" }
       expect(response).not_to be_successful
       @course.reload
-      expect(@course.students.map { |s| s.name }).not_to be_include("Sam")
-      expect(@course.students.map { |s| s.name }).not_to be_include("Fred")
+      expect(@course.students.map(&:name)).not_to be_include("Sam")
+      expect(@course.students.map(&:name)).not_to be_include("Fred")
     end
 
     it "does not enroll people in soft-concluded courses" do
@@ -1980,8 +1987,8 @@ describe CoursesController do
       post 'enroll_users', params: { :course_id => @course.id, :user_list => "\"Sam\" <sam@yahoo.com>, \"Fred\" <fred@yahoo.com>" }
       expect(response).not_to be_successful
       @course.reload
-      expect(@course.students.map { |s| s.name }).not_to be_include("Sam")
-      expect(@course.students.map { |s| s.name }).not_to be_include("Fred")
+      expect(@course.students.map(&:name)).not_to be_include("Sam")
+      expect(@course.students.map(&:name)).not_to be_include("Fred")
     end
 
     it "records initial_enrollment_type on new users" do
@@ -2012,8 +2019,8 @@ describe CoursesController do
       expect(response).to be_successful
       @course.reload
       expect(@course.students).to be_empty
-      expect(@course.observers.map { |s| s.name }).to be_include("Sam")
-      expect(@course.observers.map { |s| s.name }).to be_include("Fred")
+      expect(@course.observers.map(&:name)).to be_include("Sam")
+      expect(@course.observers.map(&:name)).to be_include("Fred")
       expect(@course.observer_enrollments.map(&:workflow_state)).to eql(['invited', 'invited'])
     end
 
@@ -2253,14 +2260,14 @@ describe CoursesController do
 
     it "does not publish when offer is false" do
       @course.claim!
-      expect(Auditors::Course).to receive(:record_published).never
+      expect(Auditors::Course).not_to receive(:record_published)
       user_session(@teacher)
       put 'update', params: { :id => @course.id, :offer => "false" }
       expect(@course.reload).to be_claimed
     end
 
     it "does not log published event if course was already published" do
-      expect(Auditors::Course).to receive(:record_published).never
+      expect(Auditors::Course).not_to receive(:record_published)
       user_session(@teacher)
       put 'update', params: { :id => @course.id, :offer => true }
     end
@@ -2427,7 +2434,7 @@ describe CoursesController do
 
     it "doesn't allow a teacher to undelete a course" do
       @course.destroy
-      expect(Auditors::Course).to receive(:record_restored).never
+      expect(Auditors::Course).not_to receive(:record_restored)
       user_session(@teacher)
       put 'update', params: { :id => @course.id, :course => { :event => 'undelete' }, :format => :json }
       expect(response.status).to eq 401
@@ -2550,7 +2557,7 @@ describe CoursesController do
     end
 
     describe "touching content when public visibility changes" do
-      before :each do
+      before do
         user_session(@teacher)
         @assignment = @course.assignments.create!(:name => "name")
         @time = 1.day.ago
@@ -2604,7 +2611,7 @@ describe CoursesController do
     end
 
     describe "course images" do
-      before :each do
+      before do
         user_session(@teacher)
       end
 
@@ -2681,7 +2688,7 @@ describe CoursesController do
     end
 
     describe 'course colors' do
-      before :each do
+      before do
         user_session(@teacher)
       end
 
@@ -2725,7 +2732,7 @@ describe CoursesController do
         ta_in_course
       end
 
-      before :each do
+      before do
         user_session(@admin)
       end
 
@@ -2902,7 +2909,8 @@ describe CoursesController do
 
   describe "POST 'self_unenrollment'" do
     before(:once) { course_with_student(:active_all => true) }
-    before(:each) { user_session(@student) }
+
+    before { user_session(@student) }
 
     it "unenrolls" do
       @enrollment.update_attribute(:self_enrolled, true)
@@ -2940,7 +2948,7 @@ describe CoursesController do
     end
 
     it 'does not try and publish grades' do
-      expect_any_instance_of(Course).to receive(:publish_final_grades).never
+      expect_any_instance_of(Course).not_to receive(:publish_final_grades)
       user_session(@teacher)
       get 'sis_publish_status', params: { :course_id => @course.id }
       expect(response).to be_successful
@@ -2949,7 +2957,7 @@ describe CoursesController do
 
     it 'returns reasonable json for a few enrollments' do
       user_session(@teacher)
-      user_ids = create_users(3.times.map { { name: "User" } })
+      user_ids = create_users(Array.new(3) { { name: "User" } })
       students = create_enrollments(@course, user_ids, return_type: :record)
       students[0].tap do |enrollment|
         enrollment.grade_publishing_status = "published"
@@ -3002,7 +3010,7 @@ describe CoursesController do
     it "publishes grades and return results" do
       course_with_teacher_logged_in :active_all => true
       @teacher = @user
-      user_ids = create_users(3.times.map { { name: "User" } })
+      user_ids = create_users(Array.new(3) { { name: "User" } })
       students = create_enrollments(@course, user_ids, return_type: :record)
       students[0].tap do |enrollment|
         enrollment.grade_publishing_status = "published"
@@ -3188,6 +3196,21 @@ describe CoursesController do
       expect(response).to be_bad_request
     end
 
+    it "does not allow resetting course templates (granular permissions)" do
+      @course.root_account.enable_feature!(:granular_permissions_manage_courses)
+      @course.root_account.role_overrides.create!(
+        role: teacher_role,
+        permission: 'manage_courses_reset',
+        enabled: true
+      )
+      @course.enrollments.each(&:destroy)
+      @course.update!(template: true)
+      user_session(@teacher)
+      post 'reset_content', params: { :course_id => @course.id }
+      assert_status(401)
+      expect(@course.reload).to be_available
+    end
+
     it "logs reset audit event" do
       @course.root_account.disable_feature!(:granular_permissions_manage_courses)
       user_session(@teacher)
@@ -3260,10 +3283,8 @@ describe CoursesController do
 
       changed_settings = controller.changed_settings(changes, course.settings)
 
-      changes.merge!(
-        hide_final_grade: false,
-        hide_distribution_graphs: false
-      )
+      changes[:hide_final_grade] = false
+      changes[:hide_distribution_graphs] = false
 
       expect(changed_settings).to eq changes
     end
@@ -3278,10 +3299,8 @@ describe CoursesController do
 
       changed_settings = controller.changed_settings(changes, course.settings, old_values)
 
-      changes.merge!(
-        hide_final_grade: false,
-        hide_distribution_graphs: false
-      )
+      changes[:hide_final_grade] = false
+      changes[:hide_distribution_graphs] = false
 
       expect(changed_settings).to eq changes
     end
@@ -3294,7 +3313,7 @@ describe CoursesController do
         account_admin_user :account => @account
       end
 
-      before :each do
+      before do
         user_session @user
       end
 
@@ -3345,7 +3364,7 @@ describe CoursesController do
           @account.account_users.create!(user: @user, role: role)
         end
 
-        before :each do
+        before do
           user_session @user
         end
 
@@ -3376,7 +3395,7 @@ describe CoursesController do
           @account.account_users.create!(user: @user, role: role)
         end
 
-        before :each do
+        before do
           user_session @user
         end
 
@@ -3412,7 +3431,8 @@ describe CoursesController do
           @account = Account.default
           course_with_teacher(:account => @account, :active_all => true)
         end
-        before(:each) { user_session(@teacher) }
+
+        before { user_session(@teacher) }
 
         it "ignores storage_quota" do
           post 'update', params: { :id => @course.id, :course =>
@@ -3965,7 +3985,7 @@ describe CoursesController do
       @course = course_factory(active_all: true)
     end
 
-    before :each do
+    before do
       user_session(@user)
     end
 

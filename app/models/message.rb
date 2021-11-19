@@ -263,15 +263,13 @@ class Message < ActiveRecord::Base
   # populate the avatar, name, and email in the conversation email notification
 
   def author
-    @_author ||= begin
-      if author_context.has_attribute?(:user_id)
-        User.find(context.user_id)
-      elsif author_context.has_attribute?(:author_id)
-        User.find(context.author_id)
-      else
-        nil
-      end
-    end
+    @_author ||= if author_context.has_attribute?(:user_id)
+                   User.find(context.user_id)
+                 elsif author_context.has_attribute?(:author_id)
+                   User.find(context.author_id)
+                 else
+                   nil
+                 end
   end
 
   def author_context
@@ -404,7 +402,7 @@ class Message < ActiveRecord::Base
       context = context.root_account if context.respond_to?(:root_account)
 
       # Going through SisPseudonym.for is important since the account could change
-      if context && context.respond_to?(:root_account)
+      if context.respond_to?(:root_account)
         p = SisPseudonym.for(user, context, type: :implicit, require_sis: false)
         context = p.account if p
       else
@@ -531,7 +529,7 @@ class Message < ActiveRecord::Base
   def get_template(filename)
     path = Canvas::MessageHelper.find_message_path(filename)
 
-    if !(File.exist?(path) rescue false)
+    unless (File.exist?(path) rescue false)
       return false if filename.include?('slack')
 
       filename = self.notification.name.downcase.gsub(/\s/, '_') + ".email.erb"
@@ -604,7 +602,7 @@ class Message < ActiveRecord::Base
       # they can only change it if they are registered in the first place
       # do not show this for emails telling users to register
       if footer_message.present? && !self.notification&.registration?
-        self.body = <<-END.strip_heredoc
+        self.body = <<~TEXT.strip_heredoc
           #{self.body}
 
 
@@ -614,7 +612,7 @@ class Message < ActiveRecord::Base
           ________________________________________
 
           #{footer_message}
-        END
+        TEXT
       end
     end
 
@@ -673,7 +671,7 @@ class Message < ActiveRecord::Base
     # Set the timezone back to what it originally was
     Time.zone = original_time_zone if original_time_zone.present?
 
-    hacked_course.apply_nickname_for!(nil) if hacked_course
+    hacked_course&.apply_nickname_for!(nil)
 
     @i18n_scope = nil
   end
@@ -876,11 +874,12 @@ class Message < ActiveRecord::Base
       unbounded_loop_paranoia_counter = 10
       current_context = context
 
-      until current_context&.is_a_context?
-        return nil if unbounded_loop_paranoia_counter <= 0 || current_context.nil?
-        return nil unless current_context.respond_to?(:context)
+      loop do
+        break if unbounded_loop_paranoia_counter.zero? ||
+                 current_context.nil? ||
+                 current_context.is_a_context?
 
-        current_context = current_context.context
+        current_context = current_context.try(:context)
         unbounded_loop_paranoia_counter -= 1
       end
 
@@ -893,8 +892,7 @@ class Message < ActiveRecord::Base
     context = context.context if context.respond_to?(:context)
     return context if context.is_a?(Course)
 
-    context = (context.respond_to?(:course) && context.course) ? context.course : link_root_account
-    context
+    (context.respond_to?(:course) && context.course) ? context.course : link_root_account
   end
 
   def notification_service_id
@@ -1030,7 +1028,7 @@ class Message < ActiveRecord::Base
       @exception = e
       logger.error "Exception: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
       cancel if e.message.try(:match, /Bad recipient/)
-    rescue StandardError, Timeout::Error => e
+    rescue => e
       @exception = e
       logger.error "Exception: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
     end
@@ -1077,7 +1075,7 @@ class Message < ActiveRecord::Base
   #
   # Returns nothing.
   def deliver_via_sms
-    if to =~ /^\+[0-9]+$/
+    if /^\+[0-9]+$/.match?(to)
       begin
         unless user.account.feature_enabled?(:international_sms)
           raise "International SMS is currently disabled for this user's account"
@@ -1114,18 +1112,16 @@ class Message < ActiveRecord::Base
   #
   # Returns nothing.
   def deliver_via_push
-    begin
-      self.user.notification_endpoints.each do |notification_endpoint|
-        notification_endpoint.destroy unless notification_endpoint.push_json(sns_json)
-      end
-      complete_dispatch
-    rescue StandardError => e
-      @exception = e
-      error_string = "Exception: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-      logger.error error_string
-      cancel
-      raise e
+    self.user.notification_endpoints.each do |notification_endpoint|
+      notification_endpoint.destroy unless notification_endpoint.push_json(sns_json)
     end
+    complete_dispatch
+  rescue StandardError => e
+    @exception = e
+    error_string = "Exception: #{e.class}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+    logger.error error_string
+    cancel
+    raise e
   end
 
   private
@@ -1134,7 +1130,7 @@ class Message < ActiveRecord::Base
     return name_helper.from_name if name_helper.from_name.present?
 
     if name_helper.asset.is_a? AppointmentGroup
-      if !name_helper.asset.contexts_for_user(user).nil?
+      unless name_helper.asset.contexts_for_user(user).nil?
         names = name_helper.asset.contexts_for_user(user).map(&:name).join(", ")
         if names == ""
           return name_helper.asset.context.name
@@ -1173,7 +1169,7 @@ class Message < ActiveRecord::Base
                     elsif asset.respond_to?(:course) && asset.course.is_a?(Course)
                       asset.course
                     end
-    hacked_course.apply_nickname_for!(user) if hacked_course
+    hacked_course&.apply_nickname_for!(user)
     hacked_course
   end
 end

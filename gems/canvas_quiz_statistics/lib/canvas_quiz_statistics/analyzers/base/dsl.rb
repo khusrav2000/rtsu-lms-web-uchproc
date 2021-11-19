@@ -104,9 +104,7 @@ module CanvasQuizStatistics::Analyzers::Base::DSL
     return inherit_metrics(options[:from]) if metric_keys.first == :all
 
     metric_keys.each do |metric_key|
-      metric = metrics.detect do |metric|
-        metric[:key] == metric_key
-      end
+      metric = metrics.detect { |m| m[:key] == metric_key }
 
       unless metric.present?
         raise "Metric #{metric_key} could not be found in #{options[:from]}"
@@ -124,7 +122,7 @@ module CanvasQuizStatistics::Analyzers::Base::DSL
 
   def metrics_for(question_type)
     target = question_type.to_s
-    target = "#{target}_question" unless target =~ /_question$/
+    target = "#{target}_question" unless /_question$/.match?(target)
 
     self.metrics[target.to_sym]
   end

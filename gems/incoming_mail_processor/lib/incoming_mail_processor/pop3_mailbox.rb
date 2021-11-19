@@ -26,7 +26,7 @@ module IncomingMailProcessor
   class Pop3Mailbox
     include ConfigurableTimeout
 
-    UsedPopMethods = [:start, :mails, :finish]
+    UsedPopMethods = [:start, :mails, :finish].freeze
 
     attr_accessor :server, :port, :ssl, :username, :password
 
@@ -48,6 +48,7 @@ module IncomingMailProcessor
     def disconnect
       @pop.finish
     rescue
+      nil
     end
 
     def each_message(opts = {})

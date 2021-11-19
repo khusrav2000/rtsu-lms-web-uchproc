@@ -34,7 +34,7 @@ def init
       @file = File.basename(@file.path)
     end
     @object = @object.dup if @object.frozen?
-    def @object.source_type; nil; end
+    def @object.source_type; end # rubocop:disable Lint/NestedMethodDefinition rubocop bug?
     sections :layout, [:diskfile]
   elsif options[:all_resources]
     sections :layout, [T('topic')]
@@ -60,7 +60,7 @@ end
 
 def diskfile
   content = "<div id='filecontents'>" +
-            case (File.extname(@file)[1..-1] || '').downcase
+            case (File.extname(@file)[1..] || '').downcase
             when 'htm', 'html'
               @contents
             when 'txt'

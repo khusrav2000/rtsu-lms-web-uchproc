@@ -25,7 +25,7 @@
 module Lti
   class VariableExpander
     SUBSTRING_REGEX = /(?<=\${).*?(?=})/.freeze # matches only the stuff inside `${}`
-    PARAMETERS_REGEX = /^(\$.+)\<(.+)\>$/.freeze # matches key and argument
+    PARAMETERS_REGEX = /^(\$.+)<(.+)>$/.freeze # matches key and argument
 
     attr_reader :context, :root_account, :controller, :current_user
 
@@ -52,7 +52,7 @@ module Lti
     end
 
     def self.expansion_keys
-      self.expansions.keys.map { |c| c.to_s[1..-1] }
+      self.expansions.keys.map { |c| c.to_s[1..] }
     end
 
     def self.default_name_expansions
@@ -88,8 +88,8 @@ module Lti
     ASSIGNMENT_GUARD = -> { @assignment }
     FILE_UPLOAD_GUARD = -> { !!@assignment && @assignment.submission_types.split(',').include?('online_upload') }
     COLLABORATION_GUARD = -> { @collaboration }
-    MEDIA_OBJECT_GUARD = -> { @attachment && @attachment.media_object }
-    USAGE_RIGHTS_GUARD = -> { @attachment && @attachment.usage_rights }
+    MEDIA_OBJECT_GUARD = -> { @attachment&.media_object }
+    USAGE_RIGHTS_GUARD = -> { @attachment&.usage_rights }
     MEDIA_OBJECT_ID_GUARD = -> { @attachment && (@attachment.media_object || @attachment.media_entry_id) }
     LTI1_GUARD = -> { @tool.is_a?(ContextExternalTool) }
     MASQUERADING_GUARD = -> { !!@controller && @controller.logged_in_user != @current_user }
@@ -121,7 +121,7 @@ module Lti
     def [](key)
       k = (key[0] == '$' && key) || "$#{key}"
       expansion, args = self.class.find_expansion(k)
-      expansion.expand(self, *args) if expansion
+      expansion&.expand(self, *args)
     end
 
     def expand_variables!(var_hash)
@@ -275,9 +275,9 @@ module Lti
     register_expansion 'com.instructure.Assignment.description', [],
                        -> do
                          if @assignment
-                           @assignment.description
+                           @assignment.lti_safe_description
                          elsif @originality_report
-                           @originality_report.submission.assignment.description
+                           @originality_report.submission.assignment.lti_safe_description
                          elsif @secure_params.present?
                            Lti::Security.decoded_lti_assignment_description(@secure_params)
                          end
@@ -1233,7 +1233,7 @@ module Lti
     #   "Example Description"
     #   ```
     register_expansion 'Canvas.assignment.description', [],
-                       -> { @assignment.description },
+                       -> { @assignment.lti_safe_description },
                        ASSIGNMENT_GUARD
 
     # Returns the Canvas id of the group the current user is in if launching
@@ -1585,7 +1585,7 @@ module Lti
     end
 
     def lti_1_3?
-      @tool && @tool.respond_to?(:use_1_3?) && @tool.use_1_3?
+      @tool.respond_to?(:use_1_3?) && @tool.use_1_3?
     end
   end
 end

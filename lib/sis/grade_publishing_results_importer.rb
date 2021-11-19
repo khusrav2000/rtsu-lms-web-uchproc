@@ -23,10 +23,8 @@ module SIS
     def process
       importer = Work.new(@batch, @root_account, @logger)
       yield importer
-      return importer.success_count
+      importer.success_count
     end
-
-    private
 
     class Work
       attr_accessor :success_count

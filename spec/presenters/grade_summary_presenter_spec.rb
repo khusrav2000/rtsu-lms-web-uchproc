@@ -25,7 +25,7 @@ describe GradeSummaryPresenter do
       let(:assignment) { assignment_model(:course => course) }
       let(:enrollment) { course.enroll_student(@user, enrollment_state: 'active') }
 
-      before :each do
+      before do
         user_factory
         enrollment
         course.offer
@@ -104,7 +104,7 @@ describe GradeSummaryPresenter do
       end
 
       describe 'courses for an observer across shards' do
-        before :each do
+        before do
           course_with_student(:active_all => true)
           @observer = user_factory(:active_all => true)
           @course.observer_enrollments.create!(:user_id => @observer, :associated_user_id => @student)
@@ -170,7 +170,7 @@ describe GradeSummaryPresenter do
   end
 
   describe '#assignment_stats' do
-    before(:each) do
+    before do
       teacher_in_course
     end
 
@@ -312,9 +312,9 @@ describe GradeSummaryPresenter do
     end
 
     it "doesn't return submissions for deleted assignments" do
-      a1, a2 = 2.times.map {
+      a1, a2 = Array.new(2) do
         @course.assignments.create! points_possible: 10
-      }
+      end
       a1.grade_student @student, grade: 10, grader: @teacher
       a2.grade_student @student, grade: 10, grader: @teacher
 

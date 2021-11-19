@@ -409,7 +409,7 @@ class InitCanvasDb < ActiveRecord::Migration[4.2]
       # generic info
       t.integer  :assignment_id, :limit => 8
       t.integer  :assignment_version
-      t.string   :set_type, :null => :false, limit: 255
+      t.string   :set_type, :null => true, limit: 255
       t.integer  :set_id, :limit => 8
       t.string   :title, :null => false, limit: 255
       t.string   :workflow_state, :null => false, limit: 255
@@ -1275,7 +1275,6 @@ class InitCanvasDb < ActiveRecord::Migration[4.2]
     add_index :discussion_topics, :old_assignment_id, where: "old_assignment_id IS NOT NULL"
     add_index :discussion_topics, :external_feed_id, where: "external_feed_id IS NOT NULL"
 
-    # rubocop:disable Migration/PrimaryKey
     create_table :discussion_topic_materialized_views, :id => false do |t|
       t.integer :discussion_topic_id, :limit => 8, :null => false
       t.text :json_structure, :limit => 10.megabytes
@@ -2920,7 +2919,7 @@ class InitCanvasDb < ActiveRecord::Migration[4.2]
     add_index :submissions, :group_id, where: "group_id IS NOT NULL"
     add_index :submissions, :quiz_submission_id, where: "quiz_submission_id IS NOT NULL"
     add_index :submissions, [:assignment_id, :user_id]
-    add_index :submissions, :assignment_id, where: <<-SQL
+    add_index :submissions, :assignment_id, where: <<~SQL.squish
       submission_type IS NOT NULL
       AND (workflow_state = 'pending_review'
         OR (workflow_state = 'submitted'
@@ -3608,3 +3607,4 @@ class InitCanvasDb < ActiveRecord::Migration[4.2]
     raise ActiveRecord::IrreversibleMigration
   end
 end
+# rubocop:enable Migration/PrimaryKey

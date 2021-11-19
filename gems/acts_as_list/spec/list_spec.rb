@@ -40,12 +40,12 @@ class UnscopedListMixin < Mixin
 end
 
 describe "ListTest" do
-  after :each do
+  after do
     teardown_db
   end
 
   describe do
-    before :each do
+    before do
       setup_db
       (1..4).each { |counter| ListMixin.create! :pos => counter, :parent_id => 5 }
     end
@@ -154,7 +154,7 @@ describe "ListTest" do
     it 'nil scope' do
       new1, new2, new3 = UnscopedListMixin.create, UnscopedListMixin.create, UnscopedListMixin.create
       new2.move_to_top
-      expect(UnscopedListMixin.where('parent_id IS NULL').order('pos').to_a).to eq [new2, new1, new3]
+      expect(UnscopedListMixin.where(parent_id: nil).order('pos').to_a).to eq [new2, new1, new3]
     end
 
     it 'remove_from_list should then fail in_list?' do
@@ -189,7 +189,7 @@ describe "ListTest" do
   end
 
   describe 'SubTest' do
-    before :each do
+    before do
       setup_db
       (1..4).each { |i| (i.odd? ? ListMixinSub1 : ListMixinSub2).create! :pos => i, :parent_id => 5000 }
     end

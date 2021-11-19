@@ -96,17 +96,15 @@ module Outcomes
     def parse_batch(headers, batch)
       Account.transaction do
         results = batch.map do |row, line|
-          begin
-            utf8_row = row.map(&method(:check_encoding))
-            import_row(headers, utf8_row) unless utf8_row.all?(&:blank?)
-            []
-          rescue ParseError, InvalidDataError => e
-            [[line, e.message]]
-          rescue ActiveRecord::RecordInvalid => e
-            errors = e.record.errors
-            errors.set_reporter(:array, :human)
-            errors.to_a.map { |err| [line, err] }
-          end
+          utf8_row = row.map(&method(:check_encoding))
+          import_row(headers, utf8_row) unless utf8_row.all?(&:blank?)
+          []
+        rescue ParseError, InvalidDataError => e
+          [[line, e.message]]
+        rescue ActiveRecord::RecordInvalid => e
+          errors = e.record.errors
+          errors.set_reporter(:array, :human)
+          errors.to_a.map { |err| [line, err] }
         end
 
         results.flatten(1)
@@ -141,7 +139,7 @@ module Outcomes
       main_columns_end = row.find_index('ratings') || row.length
       headers = row.slice(0, main_columns_end).map(&:to_sym)
 
-      after_ratings = row[(main_columns_end + 1)..-1] || []
+      after_ratings = row[(main_columns_end + 1)..] || []
       after_ratings = after_ratings.select(&:present?).map(&:to_s)
       raise ParseError, I18n.t("Invalid fields after ratings: %{fields}", fields: after_ratings.inspect) unless after_ratings.empty?
 
@@ -156,7 +154,7 @@ module Outcomes
 
     def import_row(headers, row)
       simple = headers.zip(row).to_h
-      ratings = row[headers.length..-1]
+      ratings = row[headers.length..]
 
       object = simple.to_h
       object[:ratings] = parse_ratings(ratings)

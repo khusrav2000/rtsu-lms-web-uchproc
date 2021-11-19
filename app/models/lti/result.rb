@@ -25,7 +25,7 @@ class Lti::Result < ApplicationRecord
   ACCEPT_GIVEN_SCORE_TYPES = %w[FullyGraded PendingManual].freeze
   ACTIVITY_PROGRESS_TYPES = %w[Initialized Started InProgress Submitted Completed].freeze
 
-  AGS_EXT_SUBMISSION = 'https://canvas.instructure.com/lti/submission'.freeze
+  AGS_EXT_SUBMISSION = 'https://canvas.instructure.com/lti/submission'
 
   self.record_timestamps = false
 
@@ -89,7 +89,7 @@ class Lti::Result < ApplicationRecord
   # Updates score for submission safely (does not allow maximum score to be null, but
   # if it's not already set, it will set it to assignment's points_possible)
   def self.update_score_for_submission(submission, score)
-    update_query = <<~SQL
+    update_query = <<~SQL.squish
       UPDATE #{Lti::Result.quoted_table_name} SET
         result_score = #{connection.quote(score)},
         result_maximum = COALESCE(

@@ -68,7 +68,7 @@ class DueDateCacher
     self.executing_users.last
   end
 
-  INFER_SUBMISSION_WORKFLOW_STATE_SQL = <<~SQL_FRAGMENT.freeze
+  INFER_SUBMISSION_WORKFLOW_STATE_SQL = <<~SQL_FRAGMENT
     CASE
     WHEN grade IS NOT NULL OR excused IS TRUE THEN
       'graded'
@@ -385,7 +385,7 @@ class DueDateCacher
 
   def perform_submission_upsert(batch_values)
     # Construct upsert statement to update existing Submissions or create them if needed.
-    query = <<~SQL
+    query = <<~SQL.squish
       UPDATE #{Submission.quoted_table_name}
         SET
           cached_due_date = vals.due_date::timestamptz,

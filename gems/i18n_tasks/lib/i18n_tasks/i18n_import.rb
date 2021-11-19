@@ -41,12 +41,11 @@ module I18nTasks
       ].each do |keys, description|
         if keys.present?
           case (action = yield(keys.sort, description))
-          when :abort then
+          when :abort
             throw(:abort)
-          when :discard then
+          when :discard,
+               :accept
             :ok # <-discard and accept are the same in this case
-          when :accept then
-            :ok # <-/
           else
             raise "don't know how to handle #{action}"
           end
@@ -129,27 +128,27 @@ module I18nTasks
       end
     end
 
-    LIST_ITEM_PATTERN = /^ {0,3}(\d+\.|\*|\+|\-)\s/
+    LIST_ITEM_PATTERN = /^ {0,3}(\d+\.|\*|\+|-)\s/.freeze
 
     def markdown_and_wrappers(str)
       # Since underscores can be wrappers, and underscores can also be inside
       # placeholders (as placeholder names) we need to be unambiguous about
       # underscores in placeholders:
-      dashed_str = str.gsub(/%\{([^\}]+)\}/) { |x| x.gsub("_", "-") }
+      dashed_str = str.gsub(/%\{([^}]+)\}/) { |x| x.tr("_", "-") }
       # some stuff this doesn't check (though we don't use):
       #   blockquotes, e.g. "> some text"
       #   reference links, e.g. "[an example][id]"
       #   indented code
-      matches = scan_and_report(dashed_str, /\\[\\`\*_\{\}\[\]\(\)#\+\-\.!]/) # escaped special char
+      matches = scan_and_report(dashed_str, /\\[\\`*_{}\[\]()#+\-.!]/) # escaped special char
                 .concat(wrappers(dashed_str))
-                .concat(scan_and_report(dashed_str, /(!?\[)[^\]]+\]\(([^\)"']+).*?\)/).map { |m| "link:#{m.last}" }) # links
+                .concat(scan_and_report(dashed_str, /(!?\[)[^\]]+\]\(([^)"']+).*?\)/).map { |m| "link:#{m.last}" }) # links
 
       # only do fancy markdown checks on multi-line strings
-      if dashed_str =~ /\n/
+      if dashed_str.include?("\n")
         matches.concat(scan_and_report(dashed_str, /^(\#{1,6})\s+[^#]*#*$/).map { |m| "h#{m.first.size}" }) # headings
                .concat(scan_and_report(dashed_str, /^[^=\-\n]+\n^(=+|-+)$/).map { |m| m.first[0] == '=' ? 'h1' : 'h2' }) # moar headings
                .concat(scan_and_report(dashed_str, /^((\s*\*\s*){3,}|(\s*-\s*){3,}|(\s*_\s*){3,})$/).map { "hr" })
-               .concat(scan_and_report(dashed_str, LIST_ITEM_PATTERN).map { |m| m.first =~ /\d/ ? "1." : "*" })
+               .concat(scan_and_report(dashed_str, LIST_ITEM_PATTERN).map { |m| /\d/.match?(m.first) ? "1." : "*" })
       end
       matches.uniq.sort
     end
@@ -163,7 +162,7 @@ module I18nTasks
       stack = []
       result = []
       parts.each do |part|
-        next if part !~ pattern
+        next unless part&.match?(pattern)
 
         if stack.last == part
           result << "#{part}-wrap"
@@ -176,7 +175,7 @@ module I18nTasks
     end
 
     def placeholders(str)
-      str.scan(/%h?\{[^\}]+\}/).sort
+      str.scan(/%h?\{[^}]+\}/).sort
     rescue ArgumentError => e
       puts "Unable to scan string: #{str.inspect}"
       raise e
@@ -192,7 +191,7 @@ module I18nTasks
     private
 
     def init_source(translations)
-      raise "Source does not have any English strings" unless translations.keys.include?('en')
+      raise "Source does not have any English strings" unless translations.key?('en')
 
       translations['en'].flatten_keys
     end

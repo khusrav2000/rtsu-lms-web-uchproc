@@ -306,8 +306,8 @@ describe OutcomesController do
   end
 
   describe "POST 'create'" do
-    before :once do
-      OUTCOME_PARAMS = {
+    let(:outcome_params) do
+      {
         :description => "A long description",
         :short_description => "A short description"
       }
@@ -322,21 +322,21 @@ describe OutcomesController do
     it "does not let a student create a outcome" do
       user_session(@student)
       post 'create', params: { :course_id => @course.id,
-                               :learning_outcome => { :short_description => TEST_STRING } }
+                               :learning_outcome => { :short_description => "a" } }
       assert_unauthorized
     end
 
     it "allows creating a new outcome with the root group" do
       user_session(@teacher)
-      post 'create', params: { :course_id => @course.id, :learning_outcome => OUTCOME_PARAMS }
+      post 'create', params: { :course_id => @course.id, :learning_outcome => outcome_params }
       expect(response).to be_redirect
       expect(assigns[:outcome]).not_to be_nil
       expect(assigns[:outcome][:description]).to eql("A long description")
       expect(assigns[:outcome][:short_description]).to eql("A short description")
-      expect(@course.learning_outcome_links.map { |n| n.content }.include?(assigns[:outcome])).to be_truthy
+      expect(@course.learning_outcome_links.map(&:content).include?(assigns[:outcome])).to be_truthy
 
       @course.learning_outcome_groups.each do |group|
-        if group.child_outcome_links.map { |n| n.content }.include?(assigns[:outcome])
+        if group.child_outcome_links.map(&:content).include?(assigns[:outcome])
           expect(group).to eql(@course.root_outcome_group)
         end
       end
@@ -354,15 +354,15 @@ describe OutcomesController do
       expect(outcome_group).not_to be_nil
 
       post 'create', params: { :course_id => @course.id, :learning_outcome_group_id => outcome_group.id,
-                               :learning_outcome => OUTCOME_PARAMS }
+                               :learning_outcome => outcome_params }
       expect(response).to be_redirect
       expect(assigns[:outcome]).not_to be_nil
       expect(assigns[:outcome][:description]).to eql("A long description")
       expect(assigns[:outcome][:short_description]).to eql("A short description")
-      expect(@course.learning_outcome_links.map { |n| n.content }.include?(assigns[:outcome])).to be_truthy
+      expect(@course.learning_outcome_links.map(&:content).include?(assigns[:outcome])).to be_truthy
 
       @course.learning_outcome_groups.each do |group|
-        if group.child_outcome_links.map { |n| n.content }.include?(assigns[:outcome])
+        if group.child_outcome_links.map(&:content).include?(assigns[:outcome])
           expect(group).to eql(outcome_group)
         end
       end
@@ -370,36 +370,36 @@ describe OutcomesController do
   end
 
   describe "PUT 'update'" do
-    TEST_STRING = "Some test String"
+    let(:test_string) { "Some test string" }
 
-    before :each do
+    before do
       course_outcome
     end
 
     it "requires authorization" do
       put 'update', params: { :course_id => @course.id, :id => @outcome.id,
-                              :learning_outcome => { :short_description => TEST_STRING } }
+                              :learning_outcome => { :short_description => test_string } }
       assert_unauthorized
     end
 
     it "does not let a student update the outcome" do
       user_session(@student)
       put 'update', params: { :course_id => @course.id, :id => @outcome.id,
-                              :learning_outcome => { :short_description => TEST_STRING } }
+                              :learning_outcome => { :short_description => test_string } }
       assert_unauthorized
     end
 
     it "allows updating the outcome" do
       user_session(@teacher)
       put 'update', params: { :course_id => @course.id, :id => @outcome.id,
-                              :learning_outcome => { :short_description => TEST_STRING } }
+                              :learning_outcome => { :short_description => test_string } }
       @outcome.reload
-      expect(@outcome[:short_description]).to eql TEST_STRING
+      expect(@outcome[:short_description]).to eql test_string
     end
   end
 
   describe "DELETE 'destroy'" do
-    before :each do
+    before do
       course_outcome
     end
 
@@ -423,12 +423,12 @@ describe OutcomesController do
   end
 
   describe "GET 'outcome_result" do
-    before :each do
+    before do
       course_outcome
     end
 
     context "with a quiz result" do
-      before :each do
+      before do
         assessment_question_bank_with_questions
         @outcome.align(@bank, @bank.context, :mastery_score => 0.7)
 

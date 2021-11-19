@@ -20,12 +20,12 @@
 require_relative '../common'
 
 module AdminSettingsCommon
-  SIS_SYNC_ID = "#account_settings_sis_syncing_value".freeze
-  SIS_IMPORT_ID = "#account_allow_sis_import".freeze
-  DUE_DATE_REQUIRED_CHECKBOX_ID = "#account_settings_sis_require_assignment_due_date_value".freeze
-  NAME_LENGTH_ID = "#account_settings_sis_assignment_name_length_value".freeze
-  NAME_LENGTH_VALUE_ID = "#account_settings_sis_assignment_name_length_input_value".freeze
-  DEFAULT_SIS = "#account_settings_sis_default_grade_export_value".freeze
+  SIS_SYNC_ID = "#account_settings_sis_syncing_value"
+  SIS_IMPORT_ID = "#account_allow_sis_import"
+  DUE_DATE_REQUIRED_CHECKBOX_ID = "#account_settings_sis_require_assignment_due_date_value"
+  NAME_LENGTH_ID = "#account_settings_sis_assignment_name_length_value"
+  NAME_LENGTH_VALUE_ID = "#account_settings_sis_assignment_name_length_input_value"
+  DEFAULT_SIS = "#account_settings_sis_default_grade_export_value"
 
   def turn_on_sis_settings(account)
     account.set_feature_flag! 'post_grades', 'on'
@@ -73,7 +73,7 @@ module AdminSettingsCommon
   end
 
   def name_length_sis(length = 255)
-    label_val = NAME_LENGTH_VALUE_ID[1..-1]
+    label_val = NAME_LENGTH_VALUE_ID[1..]
     label = f("label[for=\"#{label_val}\"]")
     set_value(label, length)
     f("#account_settings button[type=submit]").click
@@ -82,7 +82,7 @@ module AdminSettingsCommon
   def set_checkbox_via_label(id, checked)
     # Use this method for checkboxes that are hidden by their label (ic-Checkbox)
     checkbox = f(id)
-    label = f("label[for=\"#{id[1..-1]}\"]")
+    label = f("label[for=\"#{id[1..]}\"]")
     label.click if is_checked(checkbox) != checked
     f("#account_settings button[type=submit]").click
   end

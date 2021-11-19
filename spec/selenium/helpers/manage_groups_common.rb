@@ -40,7 +40,7 @@ module ManageGroupsCommon
         replace_content form.find_element(:css, "#category_create_group_count"), opts[:group_count].to_s
       else
         form.find_element(:css, "#category_split_groups").click
-        replace_content form.find_element(:css, "#category_split_group_count"), (opts[:group_count].to_s)
+        replace_content form.find_element(:css, "#category_split_group_count"), opts[:group_count].to_s
       end
     elsif enable_self_signup.attribute('checked')
       form.find_element(:css, "#category_create_group_count").clear
@@ -99,17 +99,17 @@ module ManageGroupsCommon
   def simulate_group_drag(user_id, from_group_id, to_group_id)
     from_group = (from_group_id == "blank" ? ".group_blank:visible" : "#group_#{from_group_id}")
     to_group = (to_group_id == "blank" ? ".group_blank:visible" : "#group_#{to_group_id}")
-    driver.execute_script(<<-SCRIPT)
-        window.contextGroups.moveToGroup(
-          $('#{from_group} .user_id_#{user_id}'),
-          $('#{to_group}'))
-    SCRIPT
+    driver.execute_script(<<~JS)
+      window.contextGroups.moveToGroup(
+        $('#{from_group} .user_id_#{user_id}'),
+        $('#{to_group}'))
+    JS
     sleep 1
   end
 
   def expand_group(group_id)
     group_selector = (group_id == "unassigned" ? ".unassigned-students" : ".group[data-id=\"#{group_id}\"]")
-    return if group_selector == ".unassigned-students" || f(group_selector).attribute(:class) =~ /group-expanded/
+    return if group_selector == ".unassigned-students" || f(group_selector).attribute(:class).include?('group-expanded')
 
     fj("#{group_selector} .toggle-group").click
     wait_for_ajax_requests

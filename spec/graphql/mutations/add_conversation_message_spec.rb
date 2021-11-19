@@ -29,7 +29,7 @@ RSpec.describe Mutations::AddConversationMessage do
   def conversation(opts = {})
     num_other_users = opts[:num_other_users] || 1
     course = opts[:course] || @course
-    user_data = num_other_users.times.map { { name: 'User' } }
+    user_data = Array.new(num_other_users) { { name: 'User' } }
     users = opts[:users] || create_users_in_course(course, user_data, account_associations: true, return_type: :record)
     @conversation = @user.initiate_conversation(users)
     @conversation.add_message(opts[:message] || 'test')
@@ -37,7 +37,6 @@ RSpec.describe Mutations::AddConversationMessage do
     @conversation
   end
 
-  # rubocop:disable Metrics/ParameterLists
   def mutation_str(
     conversation_id: nil,
     body: nil,
@@ -85,7 +84,6 @@ RSpec.describe Mutations::AddConversationMessage do
       }
     GQL
   end
-  # rubocop:enable Metrics/ParameterLists
 
   def run_mutation(opts = {}, current_user = @student)
     result = CanvasSchema.execute(
@@ -126,9 +124,7 @@ RSpec.describe Mutations::AddConversationMessage do
   end
 
   it 'queues a job if needed' do
-    # rubocop:disable RSpec/AnyInstance
     allow_any_instance_of(ConversationParticipant).to receive(:should_process_immediately?).and_return(false)
-    # rubocop:enable RSpec/AnyInstance
     conversation
     result = run_mutation(conversation_id: @conversation.conversation_id, body: 'This should be delayed', recipients: [@teacher.id.to_s])
 

@@ -106,5 +106,9 @@ module AccountReports
     def self.eportfolio_report_csv(account_report)
       EportfolioReports.new(account_report).eportfolio_report
     end
+
+    def self.uchproc_sync(account_report)
+      UchprocSync.new(account_report).start_sync
+    end
   end
 end

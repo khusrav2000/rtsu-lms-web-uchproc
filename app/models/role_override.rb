@@ -285,14 +285,14 @@ class RoleOverride < ActiveRecord::Base
         :available_to => %w(AccountAdmin AccountMembership),
       },
       :view_feature_flags => {
-        :label => lambda { t("View feature settings at an account level") },
-        :label_v2 => lambda { t("Feature Previews - view") },
+        :label => lambda { t("View feature options at an account level") },
+        :label_v2 => lambda { t("Feature Options - view") },
         :true_for => %w(AccountAdmin),
         :available_to => %w(AccountAdmin AccountMembership)
       },
       :manage_feature_flags => {
         :label => lambda { t('permissions.manage_feature_flags', "Enable or disable features at an account level") },
-        :label_v2 => lambda { t("Feature Previews - enable / disable") },
+        :label_v2 => lambda { t("Feature Options - enable / disable") },
         :true_for => %w(AccountAdmin),
         :available_to => %w(AccountAdmin AccountMembership)
       },
@@ -571,7 +571,6 @@ class RoleOverride < ActiveRecord::Base
         :true_for => %w(TeacherEnrollment TaEnrollment DesignerEnrollment AccountAdmin),
         :available_to => %w(TeacherEnrollment TaEnrollment DesignerEnrollment AccountAdmin AccountMembership)
       },
-
       manage_admin_users: {
         label: lambda { t("permissions.manage_admin_users", "Add/remove other teachers, course designers or TAs to the course") },
         label_v2: lambda { t("Users - add / remove teachers, course designers, or TAs in courses") },
@@ -588,7 +587,6 @@ class RoleOverride < ActiveRecord::Base
         ],
         account_allows: lambda { |a| !a.root_account.feature_enabled?(:granular_permissions_manage_users) }
       },
-
       allow_course_admin_actions: {
         label: lambda { t("Allow administrative actions in courses") },
         label_v2: lambda { t("Users - allow administrative actions in courses") },
@@ -605,7 +603,6 @@ class RoleOverride < ActiveRecord::Base
         ],
         account_allows: lambda { |a| a.root_account.feature_enabled?(:granular_permissions_manage_users) }
       },
-
       add_teacher_to_course: {
         label: lambda { t("Add Teachers to courses") },
         label_v2: lambda { t("Teachers - add") },
@@ -754,7 +751,6 @@ class RoleOverride < ActiveRecord::Base
         group_label: lambda { t("Users - Designers") },
         account_allows: lambda { |a| a.root_account.feature_enabled?(:granular_permissions_manage_users) }
       },
-
       :manage_assignments => {
         label: -> { t('permissions.manage_assignments', "Manage (add / edit / delete) assignments and quizzes") },
         label_v2: -> { t("Assignments and Quizzes - add / edit / delete") },
@@ -1154,6 +1150,234 @@ class RoleOverride < ActiveRecord::Base
           DesignerEnrollment
         ],
         true_for: %w[AccountAdmin TeacherEnrollment DesignerEnrollment]
+      },
+      point_journal_view:  {
+        label: -> { t('permissions.point_journal_view', 'View point journal') },
+        label_v2: ->  { t("Point journal - view") },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_edit:  {
+        label: -> { t('permissions.point_journal_edit', 'Edit point journal') },
+        label_v2: ->  { t("Point journal - edit") },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_1:  {
+        label: -> { t('Week', 'Week') + ' - 01' },
+        label_v2: ->  { t("Week") + ' - 01' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_2:  {
+        label: -> { t('Week', 'Week') + ' - 02' },
+        label_v2: ->  { t("Week") + ' - 02' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_3:  {
+        label: -> { t('Week', 'Week') + ' - 03' },
+        label_v2: ->  { t("Week") + ' - 03' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_4:  {
+        label: -> { t('Week', 'Week') + ' - 04' },
+        label_v2: ->  { t("Week") + ' - 04' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_5:  {
+        label: -> { t('Week', 'Week') + ' - 05' },
+        label_v2: ->  { t("Week") + ' - 05' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_6:  {
+        label: -> { t('Week', 'Week') + ' - 06' },
+        label_v2: ->  { t("Week") + ' - 06' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_7:  {
+        label: -> { t('Week', 'Week') + ' - 07' },
+        label_v2: ->  { t("Week") + ' - 07' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_8:  {
+        label: -> { t('Week', 'Week') + ' - 08' },
+        label_v2: ->  { t("Week") + ' - 08' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_9:  {
+        label: -> { t('Week', 'Week') + ' - 09' },
+        label_v2: ->  { t("Week") + ' - 09' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_10:  {
+        label: -> { t('Week', 'Week') + ' 10' },
+        label_v2: ->  { t("Week") + ' 10' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_11:  {
+        label: -> { t('Week', 'Week') + ' 11' },
+        label_v2: ->  { t("Week") + ' 11' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_12:  {
+        label: -> { t('Week', 'Week') + ' 12' },
+        label_v2: ->  { t("Week") + ' 12' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_13:  {
+        label: -> { t('Week', 'Week') + ' 13' },
+        label_v2: ->  { t("Week") + ' 13' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_14:  {
+        label: -> { t('Week', 'Week') + ' 14' },
+        label_v2: ->  { t("Week") + ' 14' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_15:  {
+        label: -> { t('Week', 'Week') + ' 15' },
+        label_v2: ->  { t("Week") + ' 15' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_16:  {
+        label: -> { t('Week', 'Week') + ' 16' },
+        label_v2: ->  { t("Week") + ' 16' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_17:  {
+        label: -> { t('Week', 'Week') + ' 17' },
+        label_v2: ->  { t("Week") + ' 17' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      point_journal_week_18:  {
+        label: -> { t('Week', 'Week') + ' 18' },
+        label_v2: ->  { t("Week") + ' 18' },
+        group: "point_journal",
+        group_label: lambda { t("Point journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      attendance_journal_view:  {
+        label: -> { t('permissions.attendance_journal_view', 'View attendance journal') },
+        label_v2: ->  { t("Attendance journal - view") },
+        group: "attendance_journal",
+        group_label: lambda { t("Attendance journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      attendance_journal_edit:  {
+        label: -> { t('permissions.attendance_journal_edit', 'Edit attendance journal') },
+        label_v2: ->  { t("Attendance journal - edit") },
+        group: "attendance_journal",
+        group_label: lambda { t("Attendance journal") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      topic_add: {
+        label: -> { t('permissions.topic_add', 'Add topic') },
+        label_v2: -> { t("Topic - add") },
+        group: "uchproc_topic",
+        group_label: lambda { t("Topic") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      topic_edit: {
+        label: -> { t('permissions.topic_edit', 'Edit topic') },
+        label_v2: -> { t("Topic - edit") },
+        group: "uchproc_topic",
+        group_label: lambda { t("Topic") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
+      :student_points => {
+        :label => lambda { t("Student points") },
+        :label_v2 => lambda { t("Student points") },
+        :available_to => %w(StudentEnrollment),
+        :true_for => %w(StudentEnrollment)
+      },
+      :student_attendance => {
+        :label => lambda { t("Student attendance") },
+        :label_v2 => lambda { t("Student attendance") },
+        :available_to => %w(StudentEnrollment),
+        :true_for => %w(StudentEnrollment)
       },
       :manage_students => {
         :label => lambda {
@@ -1586,7 +1810,7 @@ class RoleOverride < ActiveRecord::Base
     }
   )
 
-  ACCESS_TOKEN_SCOPE_PREFIX = 'https://api.instructure.com/auth/canvas'.freeze
+  ACCESS_TOKEN_SCOPE_PREFIX = 'https://api.instructure.com/auth/canvas'
 
   def self.permissions
     Permissions.retrieve
@@ -1822,9 +2046,10 @@ class RoleOverride < ActiveRecord::Base
       # override.enabled.nil? is no longer possible, but is important for the migration that removes nils
       if override.new_record? || override.enabled.nil?
         if last_override
-          if generated_permission[:enabled] == [:descendants]
+          case generated_permission[:enabled]
+          when [:descendants]
             generated_permission[:enabled] = [:self, :descendants]
-          elsif generated_permission[:enabled] == [:self]
+          when [:self]
             generated_permission[:enabled] = nil
           end
         end

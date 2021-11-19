@@ -68,7 +68,7 @@ describe SubmissionVersion do
     it "creates a new record for each version" do
       n = 5
 
-      submissions = n.times.map { unversioned_submission }
+      submissions = Array.new(n) { unversioned_submission }
       versions = submissions.map { |submission| Version.create(:versionable => submission, :yaml => submission.attributes.to_yaml) }
 
       expect {
@@ -123,7 +123,7 @@ describe SubmissionVersion do
 
     Version.preload_version_number([sub1, sub2])
 
-    [sub1, sub2].each { |s| expect(s).to receive(:versions).never }
+    [sub1, sub2].each { |s| expect(s).not_to receive(:versions) }
 
     expect(sub1.version_number).to eq 3
     expect(sub2.version_number).to eq 2

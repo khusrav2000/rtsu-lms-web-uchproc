@@ -163,7 +163,7 @@ module Lti
 
       not_found
     rescue InvalidDomain => e
-      return render json: { errors: { invalid_launch_url: { message: e.message } } }, status: 400
+      render json: { errors: { invalid_launch_url: { message: e.message } } }, status: 400
     end
 
     def lti2_basic_launch(message_handler, lti_link = nil)
@@ -220,7 +220,6 @@ module Lti
 
     def module_sequence(tag)
       env_hash = {}
-      tag = @context.context_module_tags.not_deleted.find(params[:module_item_id])
       @lti_launch.launch_type = 'window' if tag.new_tab
       tag.context_module_action(@current_user, :read)
       sequence_asset = tag.try(:content)
@@ -262,7 +261,7 @@ module Lti
 
     def prep_tool_settings(parameters, tool_proxy, resource_link_id)
       params = %w(LtiLink.custom.url ToolProxyBinding.custom.url ToolProxy.custom.url)
-      if parameters && (parameters.map { |p| p['variable'] }.compact & params).any?
+      if parameters && (parameters.filter_map { |p| p['variable'] } & params).any?
         link = ToolSetting.where(
           tool_proxy_id: tool_proxy.id,
           context_id: @context.id,

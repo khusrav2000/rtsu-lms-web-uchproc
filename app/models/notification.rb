@@ -139,7 +139,7 @@ class Notification < Switchman::UnshardedRecord
 
   scope :to_show_in_feed, -> { where("messages.category='TestImmediately' OR messages.notification_name IN (?)", TYPES_TO_SHOW_IN_FEED) }
 
-  validates_uniqueness_of :name
+  validates :name, uniqueness: true
 
   after_create { self.class.reset_cache! }
 
@@ -282,7 +282,7 @@ class Notification < Switchman::UnshardedRecord
   end
 
   def category_slug
-    (self.category || "").gsub(/ /, "_").gsub(/[^\w]/, "").downcase
+    (self.category || "").tr(' ', "_").gsub(/[^\w]/, "").downcase
   end
 
   # if user is given, categories that aren't relevant to that user will be
@@ -305,10 +305,10 @@ class Notification < Switchman::UnshardedRecord
       {
         name: :send_scores_in_emails,
         value: user.preferences[:send_scores_in_emails],
-        label: t(<<-EOS),
+        label: t(<<~TEXT),
           Include scores when alerting about grades.
           If your email is not an institution email this means sensitive content will be sent outside of the institution.
-        EOS
+        TEXT
         id: "cat_#{self.id}_option",
       }
     end
@@ -317,84 +317,49 @@ class Notification < Switchman::UnshardedRecord
   def default_frequency(user = nil)
     return FREQ_NEVER if user&.default_notifications_disabled?
 
-    # rubocop:disable Lint/DuplicateBranch
     case category
-    when 'All Submissions'
+    when 'All Submissions',
+         'Announcement Created By You',
+         'Announcement Reply',
+         'Calendar',
+         'Course Content',
+         'Conversation Created',
+         'Discussion',
+         'Files',
+         'Student Appointment Signups',
+         'TestNever'
       FREQ_NEVER
-    when 'Announcement'
+    when 'Account Notification',
+         'Added To Conversation',
+         'Announcement',
+         'Appointment Availability',
+         'Appointment Signups',
+         'Appointment Cancelations',
+         'Conversation Message',
+         'Grading',
+         'Invitation',
+         'DiscussionMention',
+         'Migration',
+         'Recording Ready',
+         'Registration',
+         'ReportedReply',
+         'TestImmediately'
       FREQ_IMMEDIATELY
-    when 'Announcement Created By You'
-      FREQ_NEVER
-    when 'Calendar'
-      FREQ_NEVER
-    when 'Student Appointment Signups'
-      FREQ_NEVER
-    when 'Appointment Availability'
-      FREQ_IMMEDIATELY
-    when 'Appointment Signups'
-      FREQ_IMMEDIATELY
-    when 'Appointment Cancelations'
-      FREQ_IMMEDIATELY
-    when 'Course Content'
-      FREQ_NEVER
-    when 'Files'
-      FREQ_NEVER
-    when 'Discussion'
-      FREQ_NEVER
-    when 'DiscussionEntry'
-      FREQ_DAILY
-    when 'DiscussionMention'
-      FREQ_IMMEDIATELY
-    when 'ReportedReply'
-      FREQ_IMMEDIATELY
-    when 'Announcement Reply'
-      FREQ_NEVER
-    when 'Due Date'
+    when 'Due Date',
+         'Grading Policies',
+         'TestWeekly'
       FREQ_WEEKLY
-    when 'Grading'
-      FREQ_IMMEDIATELY
-    when 'Grading Policies'
-      FREQ_WEEKLY
-    when 'Invitation'
-      FREQ_IMMEDIATELY
-    when 'Late Grading'
-      FREQ_DAILY
-    when 'Membership Update'
-      FREQ_DAILY
-    when 'Other'
-      FREQ_DAILY
-    when 'Registration'
-      FREQ_IMMEDIATELY
-    when 'Migration'
-      FREQ_IMMEDIATELY
-    when 'Submission Comment'
-      FREQ_DAILY
-    when 'Reminder'
-      FREQ_DAILY
-    when 'TestImmediately'
-      FREQ_IMMEDIATELY
-    when 'TestDaily'
-      FREQ_DAILY
-    when 'TestWeekly'
-      FREQ_WEEKLY
-    when 'TestNever'
-      FREQ_NEVER
-    when 'Conversation Message'
-      FREQ_IMMEDIATELY
-    when 'Added To Conversation'
-      FREQ_IMMEDIATELY
-    when 'Conversation Created'
-      FREQ_NEVER
-    when 'Recording Ready'
-      FREQ_IMMEDIATELY
-    when 'Content Link Error'
-      FREQ_DAILY
-    when 'Account Notification'
-      FREQ_IMMEDIATELY
     else
+      # 'Content Link Error',
+      # 'DiscussionEntry',
+      # 'Late Grading',
+      # 'Membership Update',
+      # 'Other',
+      # 'Reminder',
+      # 'Submission Comment',
+      # 'TestDaily'
       FREQ_DAILY
     end
-    # rubocop:enable Lint/DuplicateBranch
   end
 
   # TODO i18n: show the localized notification name in the dashboard (or
@@ -590,18 +555,18 @@ class Notification < Switchman::UnshardedRecord
     when 'Announcement'
       t(:announcement_description, 'New Announcement in your course')
     when 'Announcement Created By You'
-      mt(:announcement_created_by_you_description, <<~EOS)
+      mt(:announcement_created_by_you_description, <<~MD)
         * Announcements created by you
         * Replies to announcements you've created
-      EOS
+      MD
     when 'Course Content'
-      mt(:course_content_description, <<~EOS)
+      mt(:course_content_description, <<~MD)
         Change to course content:
 
         * Page content
         * Quiz content
         * Assignment content
-      EOS
+      MD
     when 'Files'
       t(:files_description, 'New file added to your course')
     when 'Discussion'
@@ -615,39 +580,39 @@ class Notification < Switchman::UnshardedRecord
     when 'Due Date'
       t(:due_date_description, 'Assignment due date change')
     when 'Grading'
-      mt(:grading_description, <<~EOS)
+      mt(:grading_description, <<~MD)
         Includes:
 
         * Assignment/submission grade entered/changed
         * Grade weight changed
-      EOS
+      MD
     when 'Late Grading'
-      mt(:late_grading_description, <<~EOS)
+      mt(:late_grading_description, <<~MD)
         *Instructor and Admin only:*
 
         Late assignment submission
-      EOS
+      MD
     when 'All Submissions'
-      mt(:all_submissions_description, <<~EOS)
+      mt(:all_submissions_description, <<~MD)
         *Instructor and Admin only:*
 
         Assignment (except quizzes) submission/resubmission
-      EOS
+      MD
     when 'Submission Comment'
       t(:submission_comment_description, "Assignment submission comment")
     when 'Grading Policies'
       t(:grading_policies_description, 'Course grading policy change')
     when 'Invitation'
-      mt(:invitation_description, <<~EOS)
+      mt(:invitation_description, <<~MD)
         Invitation for:
 
         * Web conference
         * Group
         * Collaboration
         * Peer Review & reminder
-      EOS
+      MD
     when 'Other'
-      mt(:other_description, <<~EOS)
+      mt(:other_description, <<~MD)
         *Instructor and Admin only:*
 
         * Course enrollment
@@ -656,15 +621,15 @@ class Notification < Switchman::UnshardedRecord
         * Migration report
         * New account user
         * New student group
-      EOS
+      MD
     when 'Calendar'
       t(:calendar_description, 'New and changed items on your course calendar')
     when 'Student Appointment Signups'
-      mt(:student_appointment_description, <<~EOS)
+      mt(:student_appointment_description, <<~MD)
         *Instructor and Admin only:*
 
         Student appointment sign-up
-      EOS
+      MD
     when 'Appointment Availability'
       t('New appointment timeslots are available for signup')
     when 'Appointment Signups'
@@ -680,28 +645,28 @@ class Notification < Switchman::UnshardedRecord
     when 'Recording Ready'
       t(:web_conference_recording_ready, 'A conference recording is ready')
     when 'Membership Update'
-      mt(:membership_update_description, <<~EOS)
+      mt(:membership_update_description, <<~MD)
         *Admin only: pending enrollment activated*
 
         * Group enrollment
         * accepted/rejected
-      EOS
+      MD
     when 'Blueprint'
-      mt(:blueprint_description, <<~BPDESC)
+      mt(:blueprint_description, <<~MD)
         *Instructor and Admin only:*
 
         Content was synced from a blueprint course to associated courses
-      BPDESC
+      MD
     when 'Content Link Error'
-      mt(:content_link_error_description, <<~CONTLINK)
+      mt(:content_link_error_description, <<~MD)
         *Instructor and Admin only:*
 
         Location and content of a failed link that a student has interacted with
-      CONTLINK
+      MD
     when 'Account Notification'
-      mt(:account_notification_description, <<~EOS)
+      mt(:account_notification_description, <<~MD)
         Institution-wide announcements (also displayed on Dashboard pages)
-      EOS
+      MD
     else
       t(:missing_description_description, "For %{category} notifications", :category => category)
     end
@@ -718,7 +683,7 @@ class Notification < Switchman::UnshardedRecord
   end
 
   def type_name
-    return category
+    category
   end
 
   def relevant_to_user?(user)

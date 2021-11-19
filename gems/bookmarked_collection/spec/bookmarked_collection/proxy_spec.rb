@@ -22,7 +22,7 @@ require 'spec_helper'
 
 describe BookmarkedCollection::Proxy do
   describe '#paginate' do
-    before :each do
+    before do
       example_class = Class.new(ActiveRecord::Base) do
         self.table_name = 'examples'
       end
@@ -127,7 +127,7 @@ describe BookmarkedCollection::Proxy do
 
       it "transforms the items" do
         pager = @proxy.paginate(per_page: 3)
-        expect(pager).to eql(3.times.map { |_| 'transformed' })
+        expect(pager).to eql(['transformed'] * 3)
         expect(pager.next_bookmark).to be_nil
       end
 

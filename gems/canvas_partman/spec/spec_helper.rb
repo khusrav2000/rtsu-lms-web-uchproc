@@ -63,7 +63,7 @@ RSpec.configure do |config|
   end
 
   def count_records(table_name)
-    pg_result = ActiveRecord::Base.connection.select_value <<-SQL
+    pg_result = ActiveRecord::Base.connection.select_value <<~SQL.squish
       SELECT  COUNT(*)
         FROM  #{table_name}
     SQL
@@ -79,13 +79,11 @@ RSpec.configure do |config|
     [Animal, Trail, Zoo, WeekEvent].each(&:drop_schema)
   end
 
-  config.after :each do
+  config.after do
     connection.tables.grep(/^partman_(?:animals|trails)_/).each do |partition_table_name|
-      begin
-        SchemaHelper.drop_table(partition_table_name)
-      rescue StandardError => e
-        puts "[WARN] Partition table dropping failed: #{e.message}"
-      end
+      SchemaHelper.drop_table(partition_table_name)
+    rescue StandardError => e
+      puts "[WARN] Partition table dropping failed: #{e.message}"
     end
   end
 end

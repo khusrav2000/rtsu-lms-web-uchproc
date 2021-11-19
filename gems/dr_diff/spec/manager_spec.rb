@@ -29,7 +29,7 @@ spec/dr_diff_spec.rb}
 
       let(:file_list) { git_files_output.split("\n") }
 
-      before :each do
+      before do
         allow(File).to receive(:exist?).and_return(true)
       end
 
@@ -79,7 +79,7 @@ spec/dr_diff_spec.rb}
         ]
       end
 
-      before :each do
+      before do
         expect(DiffParser).to receive(:new).with(git.diff, raw: true, campsite: true).and_return(diff_parser)
         expect(CommandCapture).to receive(:run).with(format, command).and_return(command_capture_comments)
         allow(diff_parser).to receive(:relevant?).and_return(true)
@@ -102,7 +102,7 @@ spec/dr_diff_spec.rb}
 
         it "removes git_dir from path when determining if relevant" do
           comment = command_capture_comments.first
-          path_without_git_dir = comment[:path][git_dir.length..-1]
+          path_without_git_dir = comment[:path][git_dir.length..]
           expect(diff_parser).to receive(:relevant?).with(path_without_git_dir,
                                                           comment[:position],
                                                           severe: false)
@@ -120,7 +120,7 @@ spec/dr_diff_spec.rb}
         context "include_git_dir_in_output is false" do
           it "does not include the git_dir in the output" do
             full_comment_path = command_capture_comments.first[:path]
-            comment_path_without_git_dir = full_comment_path[git_dir.length..-1]
+            comment_path_without_git_dir = full_comment_path[git_dir.length..]
             result = subject.comments(format: format, command: command)
             expect(result.first[:path]).to eq(comment_path_without_git_dir)
           end

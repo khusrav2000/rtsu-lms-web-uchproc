@@ -2560,10 +2560,10 @@ describe AssignmentsApiController, type: :request do
     context "adhoc overrides" do
       def adhoc_override_api_call(rest_method, endpoint, action, opts = {})
         overrides = [{
-                         'student_ids' => opts[:student_ids] || [],
-                         'title' => opts[:title] || 'adhoc override',
-                         'due_at' => opts[:adhoc_due_at] || 5.days.from_now.iso8601
-                     }]
+          'student_ids' => opts[:student_ids] || [],
+          'title' => opts[:title] || 'adhoc override',
+          'due_at' => opts[:adhoc_due_at] || 5.days.from_now.iso8601
+        }]
 
         overrides.concat(opts[:additional_overrides]) if opts[:additional_overrides]
         overrides_hash = Hash[(0...overrides.size).zip overrides]

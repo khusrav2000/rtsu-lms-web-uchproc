@@ -31,6 +31,7 @@ module AccountReports
       require 'account_reports/report_helper'
       require 'account_reports/sis_exporter'
       require 'account_reports/student_reports'
+      require 'account_reports/uchproc_synchronization'
 
       AccountReports.configure_account_report 'Default', {
         'eportfolio_report_csv' => {
@@ -386,6 +387,41 @@ module AccountReports
             :include_deleted => {
               :required => false,
               :description => 'Include deleted objects'
+            }
+          }
+        },
+        'uchproc_sync' => {
+          :title => proc { I18n.t(:uchproc_sync_title, 'Uchproc synchronization') },
+          :parameters_partial => true,
+          :description_partial => true,
+          :parameters => {
+            :enrollment_term_id => {
+              :required => false,
+              :description => 'The canvas id of the term of courses to report on'
+            },
+            :faculty => {
+              :description => 'faculty synchronization'
+            },
+            :specialty => {
+              :description => 'specialty'
+            },
+            :kurs => {
+              :description => 'kurs'
+            },
+            :groups => {
+              :description => 'groups'
+            },
+            :students => {
+              :description => 'students'
+            },
+            :teachers => {
+              :description => 'teachers'
+            },
+            :terms => {
+              :description => 'terms'
+            },
+            :courses => {
+              :description => 'courses'
             }
           }
         }

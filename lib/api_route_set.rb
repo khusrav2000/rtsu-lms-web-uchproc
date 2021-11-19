@@ -98,9 +98,9 @@ class ApiRouteSet
     only, except = opts.delete(:only), opts.delete(:except)
     maybe_action = ->(action) { (!only || Array(only).include?(action)) && (!except || !Array(except).include?(action)) }
 
-    get("#{path}", opts.merge(:action => :index, :as => "#{name_prefix}#{resource_name}")) if maybe_action[:index]
+    get(path.to_s, opts.merge(:action => :index, :as => "#{name_prefix}#{resource_name}")) if maybe_action[:index]
     get("#{path}/:#{resource_name.singularize}_id", opts.merge(:action => :show, :as => "#{name_prefix}#{resource_name.singularize}")) if maybe_action[:show]
-    post("#{path}", opts.merge(:action => :create, :as => (maybe_action[:index] ? nil : "#{name_prefix}#{resource_name}"))) if maybe_action[:create]
+    post(path.to_s, opts.merge(:action => :create, :as => (maybe_action[:index] ? nil : "#{name_prefix}#{resource_name}"))) if maybe_action[:create]
     put("#{path}/:#{resource_name.singularize}_id", opts.merge(:action => :update)) if maybe_action[:update]
     delete("#{path}/:#{resource_name.singularize}_id", opts.merge(:action => :destroy)) if maybe_action[:destroy]
   end
@@ -125,8 +125,8 @@ class ApiRouteSet
     # unfortunately, this means that api v1 can't match a sis id that ends with
     # .json -- but see the api docs for info on sending hex-encoded sis ids,
     # which allows any string.
-    ID_REGEX = %r{(?:[^/?.]|\.(?!json(?:\z|[/?])))+}
-    ID_PARAM = %r{^:(id|[\w]+_id)$}
+    ID_REGEX = %r{(?:[^/?.]|\.(?!json(?:\z|[/?])))+}.freeze
+    ID_PARAM = %r{^:(id|[\w]+_id)$}.freeze
 
     def self.prefix
       "/api/v1"
@@ -138,7 +138,7 @@ class ApiRouteSet
 
     def route(method, path, opts)
       opts[:constraints] ||= {}
-      path.split('/').each { |segment| opts[:constraints][segment[1..-1].to_sym] = ID_REGEX if segment.match(ID_PARAM) }
+      path.split('/').each { |segment| opts[:constraints][segment[1..].to_sym] = ID_REGEX if segment.match(ID_PARAM) }
       super(method, path, opts)
     end
   end

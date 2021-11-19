@@ -73,7 +73,10 @@ describe StreamItem do
   describe "destroy_stream_items_using_setting" do
     it "has a default ttl" do
       StreamItem.create!(asset_type: 'Message', data: { notification_id: nil })
-      si2 = StreamItem.create! { |si| si.asset_type = 'Message'; si.data = { notification_id: nil } }
+      si2 = StreamItem.create! { |si|
+        si.asset_type = 'Message'
+        si.data = { notification_id: nil }
+      }
       StreamItem.where(:id => si2).update_all(:updated_at => 1.year.ago)
       # stub this out so that the vacuum is skipped (can't run in specs in a transaction)
       allow(Shard.current.database_server).to receive(:unguard)
@@ -201,9 +204,10 @@ describe StreamItem do
       let(:submission) { assignment.submission_for_student(student) }
 
       context "when the submission is not posted" do
-        before(:each) do
+        before do
           assignment.post_policy.update!(post_manually: true)
         end
+
         let(:generated_instances) do
           stream_items = StreamItem.generate_all(submission, [student.id, teacher.id])
           stream_items.first.stream_item_instances

@@ -18,9 +18,16 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
+# rubocop:disable Lint/ConstantDefinitionInBlock
+# we define some modules and classes inside of blocks like RSpec.configure
+# in this file, but we fully expect them to be globally accessible
+# moving them outside of the block where they're defined would distance them
+# from their use, making things harder to find
+
 begin
   require 'byebug'
 rescue LoadError
+  nil
 end
 
 require 'securerandom'
@@ -71,15 +78,13 @@ module SpecTransactionWrapper
   def self.wrap_block_in_transaction(block)
     exception = nil
     ActiveRecord::Base.transaction(joinable: false, requires_new: true) do
-      begin
-        block.call
-      rescue ActiveRecord::StatementInvalid
-        # these need to properly roll back the transaction
-        raise
-      rescue
-        # anything else, the transaction needs to commit, but we need to re-raise outside the transaction
-        exception = $!
-      end
+      block.call
+    rescue ActiveRecord::StatementInvalid
+      # these need to properly roll back the transaction
+      raise
+    rescue
+      # anything else, the transaction needs to commit, but we need to re-raise outside the transaction
+      exception = $!
     end
     raise exception if exception
   end
@@ -101,11 +106,11 @@ module RSpec::Core::Hooks
       example.instance_exec(example, &block)
     rescue exception_class => e
       # TODO: Come up with a better solution for this.
-      RSpec.configuration.reporter.message <<~EOS
+      RSpec.configuration.reporter.message <<~TEXT
         An error occurred in an `after(:context)` hook.
           #{e.class}: #{e.message}
           occurred at #{e.backtrace.join("\n")}
-      EOS
+      TEXT
     end
   end
 end
@@ -130,7 +135,7 @@ module ActionView::TestCase::Behavior
       # the original implementation. we can't call super because
       # we replaced the whole original method
       return Hash[_user_defined_ivars.map do |ivar|
-        [ivar[1..-1].to_sym, instance_variable_get(ivar)]
+        [ivar[1..].to_sym, instance_variable_get(ivar)]
       end]
     end
     {}
@@ -175,6 +180,49 @@ module RSpec::Rails
   end
 end
 
+module ReadOnlySecondaryStub
+  def self.reset
+    ActiveRecord::Base.connection.execute("RESET ROLE")
+    Thread.current[:stubbed_guard_rail_env] = nil
+  end
+
+  def switch_role!(env)
+    ActiveRecord::Base.connection.execute(env == :secondary ? "SET ROLE canvas_readonly_user" : "RESET ROLE")
+  end
+
+  def environment
+    Thread.current[:stubbed_guard_rail_env] || super
+  end
+
+  def activate(env)
+    return super if environment == :deploy
+    return super unless [:primary, :secondary].include?(env)
+
+    previous_stub = Thread.current[:stubbed_guard_rail_env]
+    previous_env = previous_stub || :primary
+    return yield if previous_env == env
+
+    begin
+      switch_role!(env)
+      Thread.current[:stubbed_guard_rail_env] = env
+      yield
+    ensure
+      switch_role!(previous_env)
+      Thread.current[:stubbed_guard_rail_env] = previous_stub
+    end
+  end
+end
+GuardRail.singleton_class.prepend ReadOnlySecondaryStub
+
+module ForceTransactionCommitCallbacksToPrimary
+  def commit_records
+    GuardRail.activate(:primary) do
+      super
+    end
+  end
+end
+ActiveRecord::ConnectionAdapters::Transaction.prepend ForceTransactionCommitCallbacksToPrimary
+
 module RenderWithHelpers
   def assign(key, value)
     @assigned_variables ||= {}
@@ -198,10 +246,10 @@ module RenderWithHelpers
       attr_accessor :real_controller
 
       controller_class._helper_methods.each do |helper|
-        class_eval <<-RUBY, __FILE__, __LINE__ + 1
-            def #{helper}(*args, &block)
-              real_controller.send(:#{helper}, *args, &block)
-            end
+        class_eval <<~RUBY, __FILE__, __LINE__ + 1
+          def #{helper}(*args, &block)
+            real_controller.send(:#{helper}, *args, &block)
+          end
         RUBY
       end
     end
@@ -218,7 +266,7 @@ module RenderWithHelpers
     @controller.real_controller = real_controller
 
     # just calling "render 'path/to/view'" by default looks for a partial
-    if args.first && args.first.is_a?(String)
+    if args.first.is_a?(String)
       file = args.shift
       args = [{ :template => file }] + args
     end
@@ -324,12 +372,12 @@ RSpec.configure do |config|
   end
 
   if ENV['RAILS_LOAD_ALL_LOCALES'] && RSpec.configuration.filter.rules[:i18n]
-    config.around :each do |example|
+    config.around do |example|
       SpecMultipleLocales.run(example)
     end
   end
 
-  config.around(:each) do |example|
+  config.around do |example|
     Rails.logger.info "STARTING SPEC #{example.full_description}"
     SpecTimeLimit.enforce(example) do
       example.run
@@ -337,6 +385,7 @@ RSpec.configure do |config|
   end
 
   def reset_all_the_things!
+    ReadOnlySecondaryStub.reset
     I18n.locale = :en
     Time.zone = 'UTC'
     LoadAccount.force_special_account_reload = true
@@ -348,7 +397,7 @@ RSpec.configure do |config|
     Notification.reset_cache!
     ActiveRecord::Base.reset_any_instantiation!
     Folder.reset_path_lookups!
-    Rails::logger.try(:info, "Running #{self.class.description} #{@method_name}")
+    Rails.logger.try(:info, "Running #{self.class.description} #{@method_name}")
     Attachment.current_root_account = nil
     Canvas::DynamicSettings.reset_cache!
     ActiveRecord::Migration.verbose = false
@@ -378,7 +427,7 @@ RSpec.configure do |config|
     end
   end
 
-  config.before :each do
+  config.before do
     raise "all specs need to use transactions" unless using_transactions_properly?
 
     reset_all_the_things!
@@ -426,7 +475,7 @@ RSpec.configure do |config|
   Canvas::Redis.singleton_class.prepend(TrackRedisUsage)
   Canvas::Redis.redis_used = true
 
-  config.before :each do
+  config.before do
     if Canvas::Redis.redis_enabled? && Canvas::Redis.redis_used
       # yes, we really mean to run this dangerous redis command
       GuardRail.activate(:deploy) { Canvas::Redis.redis.flushdb }
@@ -543,7 +592,7 @@ RSpec.configure do |config|
   end
 
   def specs_require_cache(new_cache = :memory_store)
-    before :each do
+    before do
       set_cache(new_cache)
     end
   end
@@ -583,18 +632,18 @@ RSpec.configure do |config|
 
   def stub_kaltura
     # trick kaltura into being activated
-    allow(CanvasKaltura::plugin_settings).to receive(:settings).and_return({
-                                                                             'domain' => 'kaltura.example.com',
-                                                                             'resource_domain' => 'cdn.kaltura.example.com',
-                                                                             'rtmp_domain' => 'rtmp.kaltura.example.com',
-                                                                             'partner_id' => '100',
-                                                                             'subpartner_id' => '10000',
-                                                                             'secret_key' => 'fenwl1n23k4123lk4hl321jh4kl321j4kl32j14kl321',
-                                                                             'user_secret_key' => '1234821hrj3k21hjk4j3kl21j4kl321j4kl3j21kl4j3k2l1',
-                                                                             'player_ui_conf' => '1',
-                                                                             'kcw_ui_conf' => '1',
-                                                                             'upload_ui_conf' => '1'
-                                                                           })
+    allow(CanvasKaltura.plugin_settings).to receive(:settings).and_return({
+                                                                            'domain' => 'kaltura.example.com',
+                                                                            'resource_domain' => 'cdn.kaltura.example.com',
+                                                                            'rtmp_domain' => 'rtmp.kaltura.example.com',
+                                                                            'partner_id' => '100',
+                                                                            'subpartner_id' => '10000',
+                                                                            'secret_key' => 'fenwl1n23k4123lk4hl321jh4kl321j4kl32j14kl321',
+                                                                            'user_secret_key' => '1234821hrj3k21hjk4j3kl21j4kl321j4kl3j21kl4j3k2l1',
+                                                                            'player_ui_conf' => '1',
+                                                                            'kcw_ui_conf' => '1',
+                                                                            'upload_ui_conf' => '1'
+                                                                          })
   end
 
   def override_dynamic_settings(data)
@@ -641,18 +690,18 @@ RSpec.configure do |config|
         # overridden by Attachment anyway; don't re-overwrite it
         next if base.instance_method(method).owner == base
 
-        if method.to_s[-1..-1] == '='
-          base.class_eval <<-CODE, __FILE__, __LINE__ + 1
-          def #{method}(arg)
-            self.as(self.class.current_backend).#{method} arg
-          end
-          CODE
+        if method.to_s[-1..] == '='
+          base.class_eval <<~RUBY, __FILE__, __LINE__ + 1
+            def #{method}(arg)
+              self.as(self.class.current_backend).#{method} arg
+            end
+          RUBY
         else
-          base.class_eval <<-CODE, __FILE__, __LINE__ + 1
-          def #{method}(*args, &block)
-            self.as(self.class.current_backend).#{method}(*args, &block)
-          end
-          CODE
+          base.class_eval <<~RUBY, __FILE__, __LINE__ + 1
+            def #{method}(*args, &block)
+              self.as(self.class.current_backend).#{method}(*args, &block)
+            end
+          RUBY
         end
       end
     end
@@ -785,9 +834,13 @@ RSpec.configure do |config|
       @settings = settings
     end
 
-    def valid_settings?; true; end
+    def valid_settings?
+      true
+    end
 
-    def enabled?; true; end
+    def enabled?
+      true
+    end
 
     def base; end
 
@@ -881,3 +934,5 @@ end
 def enable_default_developer_key!
   enable_developer_key_account_binding!(DeveloperKey.default)
 end
+
+# rubocop:enable Lint/ConstantDefinitionInBlock

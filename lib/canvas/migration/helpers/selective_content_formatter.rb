@@ -37,7 +37,7 @@ module Canvas::Migration::Helpers
       ['groups', -> { I18n.t('lib.canvas.migration.groups', 'Student Groups') }],
       ['learning_outcomes', -> { I18n.t('lib.canvas.migration.learning_outcomes', 'Learning Outcomes') }],
       ['attachments', -> { I18n.t('lib.canvas.migration.attachments', 'Files') }],
-    ]
+    ].freeze
 
     def initialize(migration = nil, base_url = nil, global_identifiers:)
       @migration = migration
@@ -81,10 +81,8 @@ module Canvas::Migration::Helpers
         data["learning_outcomes"] ||= data["outcomes"]
 
         # skip auto generated quiz question banks for canvas imports
-        if data['assessment_question_banks']
-          data['assessment_question_banks'].select! do |item|
-            !(item['for_quiz'] && @migration && (@migration.for_course_copy? || (@migration.migration_type == 'canvas_cartridge_importer')))
-          end
+        data['assessment_question_banks']&.select! do |item|
+          !(item['for_quiz'] && @migration && (@migration.for_course_copy? || (@migration.migration_type == 'canvas_cartridge_importer')))
         end
 
         att.close
@@ -127,12 +125,12 @@ module Canvas::Migration::Helpers
         if course_data['pace_plans']
           content_list << { type: 'pace_plans', property: "#{property_prefix}[all_pace_plans]", title: PACE_PLAN_TYPE.call }
         end
-        SELECTIVE_CONTENT_TYPES.each do |type, title|
-          if course_data[type] && course_data[type].count > 0
-            hash = { type: type, property: "#{property_prefix}[all_#{type}]", title: title.call, count: course_data[type].count }
-            add_url!(hash, type, selectable_outcomes)
-            content_list << hash
-          end
+        SELECTIVE_CONTENT_TYPES.each do |type2, title|
+          next unless course_data[type2] && course_data[type2].count > 0
+
+          hash = { type: type2, property: "#{property_prefix}[all_#{type2}]", title: title.call, count: course_data[type2].count }
+          add_url!(hash, type2, selectable_outcomes)
+          content_list << hash
         end
       end
 
@@ -167,19 +165,17 @@ module Canvas::Migration::Helpers
     # Returns all the assignments in their assignment groups
     def assignment_data(content_list, course_data)
       added_asmnts = []
-      if course_data['assignment_groups']
-        course_data['assignment_groups'].each do |group|
-          item = item_hash('assignment_groups', group)
-          sub_items = []
-          course_data['assignments'].select { |a| a['assignment_group_migration_id'] == group['migration_id'] }.each do |asmnt|
-            sub_items << item_hash('assignments', asmnt)
-            added_asmnts << asmnt['migration_id']
-          end
-          if sub_items.any?
-            item['sub_items'] = sub_items
-          end
-          content_list << item
+      course_data['assignment_groups']&.each do |group|
+        item = item_hash('assignment_groups', group)
+        sub_items = []
+        course_data['assignments'].select { |a| a['assignment_group_migration_id'] == group['migration_id'] }.each do |asmnt|
+          sub_items << item_hash('assignments', asmnt)
+          added_asmnts << asmnt['migration_id']
         end
+        if sub_items.any?
+          item['sub_items'] = sub_items
+        end
+        content_list << item
       end
       course_data['assignments'].each do |asmnt|
         next if added_asmnts.member? asmnt['migration_id']
@@ -192,9 +188,13 @@ module Canvas::Migration::Helpers
       return [] unless course_data['attachments'] && course_data['attachments'].length > 0
 
       remove_name_regex = %r{/[^/]*\z}
-      course_data['attachments'].each { |a| next unless a['path_name']; a['path_name'].gsub!(remove_name_regex, '') }
+      course_data['attachments'].each { |a|
+        next unless a['path_name']
+
+        a['path_name'].gsub!(remove_name_regex, '')
+      }
       folder_groups = course_data['attachments'].group_by { |a| a['path_name'] }
-      sorted = folder_groups.sort_by { |i| i.first }
+      sorted = folder_groups.sort_by(&:first)
       sorted.each do |folder_name, atts|
         if atts.length == 1 && atts[0]['file_name'] == folder_name
           content_list << item_hash('attachments', atts[0])
@@ -237,8 +237,7 @@ module Canvas::Migration::Helpers
           add_url!(hash, "submodules_#{CGI.escape(item['migration_id'])}")
         end
       end
-      hash = add_linked_resource(type, item, hash)
-      hash
+      add_linked_resource(type, item, hash)
     end
 
     def add_linked_resource(type, item, hash)
@@ -301,11 +300,11 @@ module Canvas::Migration::Helpers
 
               scope = scope.select(:assignment_id) if type == 'quizzes'
 
-              if type == 'context_modules' || type == 'context_external_tools' || type == 'groups'
-                scope = scope.select(:name)
-              else
-                scope = scope.select(:title)
-              end
+              scope = if type == 'context_modules' || type == 'context_external_tools' || type == 'groups'
+                        scope.select(:name)
+                      else
+                        scope.select(:title)
+                      end
 
               if scope.klass.respond_to?(:not_deleted)
                 scope = scope.not_deleted
@@ -326,18 +325,18 @@ module Canvas::Migration::Helpers
           content_list << { type: 'syllabus_body', property: "#{property_prefix}[all_syllabus_body]", title: COURSE_SYLLABUS_TYPE.call }
           content_list << { type: 'pace_plans', property: "#{property_prefix}[all_pace_plans]", title: PACE_PLAN_TYPE.call } if source.pace_plans.primary.not_deleted.any?
 
-          SELECTIVE_CONTENT_TYPES.each do |type, title|
-            next if type == 'groups'
+          SELECTIVE_CONTENT_TYPES.each do |type2, title|
+            next if type2 == 'groups'
 
             count = 0
-            if type == 'discussion_topics'
+            if type2 == 'discussion_topics'
               count = source.discussion_topics.active.only_discussion_topics.count
-            elsif type == 'learning_outcomes'
+            elsif type2 == 'learning_outcomes'
               count = source.linked_learning_outcomes.count
-            elsif type == 'tool_profiles'
+            elsif type2 == 'tool_profiles'
               count = source.tool_proxies.active.count
-            elsif source.respond_to?(type) && source.send(type).respond_to?(:count)
-              scope = source.send(type).except(:preload)
+            elsif source.respond_to?(type2) && source.send(type2).respond_to?(:count)
+              scope = source.send(type2).except(:preload)
               if scope.klass.respond_to?(:not_deleted)
                 scope = scope.not_deleted
               elsif scope.klass.respond_to?(:active)
@@ -348,8 +347,8 @@ module Canvas::Migration::Helpers
 
             next if count == 0
 
-            hash = { type: type, property: "#{property_prefix}[all_#{type}]", title: title.call, count: count }
-            add_url!(hash, type, selectable_outcomes)
+            hash = { type: type2, property: "#{property_prefix}[all_#{type2}]", title: title.call, count: count }
+            add_url!(hash, type2, selectable_outcomes)
             content_list << hash
           end
         end
@@ -455,8 +454,8 @@ module Canvas::Migration::Helpers
       if (mod = modules.detect { |m| m['migration_id'] == parent_mig_id })
         mod['submodules']
       else
-        modules.each do |mod|
-          if mod['submodules'] && (sm_data = submodule_data(mod['submodules'], parent_mig_id))
+        modules.each do |m|
+          if m['submodules'] && (sm_data = submodule_data(m['submodules'], parent_mig_id))
             return sm_data
           end
         end

@@ -191,7 +191,7 @@ describe GroupsController do
         group_with_user(:group_context => @course, :user => @student, :active_all => true)
       end
 
-      before :each do
+      before do
         user_session(@student)
       end
 
@@ -605,7 +605,7 @@ describe GroupsController do
       data = json_parse
       expect(data).not_to be_nil
       expect(data['users'].map { |u| u['user_id'] }.sort)
-        .to eq [u1, u2, u3].map { |u| u.id }.sort
+        .to eq [u1, u2, u3].map(&:id).sort
     end
 
     it "includes only users not in a group in the category otherwise" do
@@ -632,14 +632,14 @@ describe GroupsController do
       data = json_parse
       expect(data).not_to be_nil
       expect(data['users'].map { |u| u['user_id'] }.sort)
-        .to eq [u2, u3].map { |u| u.id }.sort
+        .to eq [u2, u3].map(&:id).sort
 
       get 'unassigned_members', params: { :course_id => @course.id, :category_id => group2.group_category.id }
       expect(response).to be_successful
       data = json_parse
       expect(data).not_to be_nil
       expect(data['users'].map { |u| u['user_id'] }.sort)
-        .to eq [u1, u3].map { |u| u.id }.sort
+        .to eq [u1, u3].map(&:id).sort
 
       get 'unassigned_members', params: { :course_id => @course.id, :category_id => group3.group_category.id }
       expect(response).to be_successful
@@ -746,7 +746,7 @@ describe GroupsController do
       @membership = @group.add_user(@user, 'invited', false)
     end
 
-    before :each do
+    before do
       user_session(@user)
     end
 
@@ -766,7 +766,7 @@ describe GroupsController do
   end
 
   describe "GET users" do
-    before :each do
+    before do
       category = @course.group_categories.create(:name => "Study Groups")
       @group = @course.groups.create(:name => "some group", :group_category => category)
       @group.add_user(@student)
@@ -844,7 +844,7 @@ describe GroupsController do
     end
     let(:progress) { Progress.last }
 
-    before(:each) do
+    before do
       user_session(teacher)
     end
 

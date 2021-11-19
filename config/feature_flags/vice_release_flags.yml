@@ -32,16 +32,23 @@ react_discussions_post:
 
 draft_discussions:
   state: hidden
-  beta: false
+  beta: true
   display_name: Draft Discussion Entries
   description: |-
     Will allow for saving drafts as students type their replies to a discussion topic
     in the discussions redesign
   applies_to: SiteAdmin
 
+discussions_inline_grading:
+  state: hidden
+  display_name: Discussion Inline Grading
+  description: |-
+    Allows a grader to grade discussions as they read
+  applies_to: SiteAdmin
+
 discussions_reporting:
   state: hidden
-  beta: false
+  beta: true
   display_name: Discussions Redesign - Reporting
   description: |-
     This feature flag enables Discussions Reporting inside the new
@@ -50,7 +57,6 @@ discussions_reporting:
 
 isolated_view:
   state: hidden
-  beta: true
   display_name: Discussions Redesign - Isolated View
   description: |-
     This feature flag enables Isolated View inside the new

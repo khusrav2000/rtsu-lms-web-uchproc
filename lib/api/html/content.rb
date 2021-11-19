@@ -42,6 +42,21 @@ module Api
 
       attr_reader :html
 
+      class << self
+        def apply_mathml(node)
+          equation = node['data-equation-content'] || node['alt']
+          mathml = UserContent.latex_to_mathml(equation)
+          return if mathml.blank?
+
+          # NOTE: we use "x-canvaslms-safe-mathml" instead of just "data-mathml"
+          # because canvas_sanitize will strip it out on the way in but it won't
+          # strip out data-mathml. This means we can gaurentee that there is never
+          # user input in x-canvaslms-safe-mathml and we can safely pass it to
+          # $el.html() in translateMathmlForScreenreaders in the js in the frontend
+          node['x-canvaslms-safe-mathml'] = mathml
+        end
+      end
+
       def initialize(html_string, account = nil, include_mobile: false, rewrite_api_urls: true, host: nil, port: nil)
         @account = account
         @html = html_string
@@ -71,7 +86,7 @@ module Api
           node.replace(tag.as_anchor_node)
         end
 
-        return parsed_html.to_s
+        parsed_html.to_s
       end
 
       # a hash of allowed html attributes that represent urls, like { 'a' => ['href'], 'img' => ['src'] }
@@ -118,7 +133,7 @@ module Api
 
       def add_css_and_js_overrides
         return parsed_html unless @include_mobile
-        return parsed_html unless @account && @account.effective_brand_config
+        return parsed_html unless @account&.effective_brand_config
 
         overrides = @account.effective_brand_config.css_and_js_overrides
         self.class.add_overrides_to_html(parsed_html, overrides)
@@ -171,19 +186,6 @@ module Api
 
       def apply_mathml(node)
         self.class.apply_mathml(node)
-      end
-
-      def self.apply_mathml(node)
-        equation = node['data-equation-content'] || node['alt']
-        mathml = UserContent.latex_to_mathml(equation)
-        return if mathml.blank?
-
-        # NOTE: we use "x-canvaslms-safe-mathml" instead of just "data-mathml"
-        # because canvas_sanitize will strip it out on the way in but it won't
-        # strip out data-mathml. This means we can gaurentee that there is never
-        # user input in x-canvaslms-safe-mathml and we can safely pass it to
-        # $el.html() in translateMathmlForScreenreaders in the js in the frontend
-        node['x-canvaslms-safe-mathml'] = mathml
       end
     end
   end

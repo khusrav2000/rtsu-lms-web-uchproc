@@ -22,7 +22,7 @@ require_relative 'course_copy_helper'
 
 describe ContentMigration do
   context "course copy with native conditional release data" do
-    include_examples "course copy"
+    include_context "course copy"
 
     before :once do
       setup_course_with_native_conditional_release(course: @copy_from)
@@ -41,7 +41,7 @@ describe ContentMigration do
       expect(rule_to.scoring_ranges.count).to eq 3
       expect(rule_to.scoring_ranges.map(&:upper_bound)).to eq [1.0, 0.7, 0.4]
       expect(rule_to.scoring_ranges.map(&:lower_bound)).to eq [0.7, 0.4, 0.0]
-      set1, set2, set3a, set3b = rule_to.scoring_ranges.map { |r| r.assignment_sets }.flatten
+      set1, set2, set3a, set3b = rule_to.scoring_ranges.map(&:assignment_sets).flatten
       expect(set1.assignment_set_associations.map(&:assignment)).to eq migrated_assignments(@set1_assmt1)
       expect(set2.assignment_set_associations.map(&:assignment)).to eq migrated_assignments(@set2_assmt1, @set2_assmt2)
       expect(set3a.assignment_set_associations.map(&:assignment)).to eq migrated_assignments(@set3a_assmt)

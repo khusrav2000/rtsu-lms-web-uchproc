@@ -22,13 +22,13 @@ require_relative '../../../spec_helper'
 require_relative '../../views_helper'
 
 describe "/quizzes/quizzes/_quiz_submission" do
-  before(:each) do
+  before do
     course_with_student
     view_context
   end
 
   context "quiz results are visible to the student" do
-    before(:each) do
+    before do
       quiz = @course.quizzes.create!
       submission = quiz.generate_submission(@user)
       assign(:quiz, quiz)
@@ -43,7 +43,7 @@ describe "/quizzes/quizzes/_quiz_submission" do
 
     it "sets the IS_SURVEY value in the js env" do
       render :partial => "quizzes/quizzes/quiz_submission"
-      expect(controller.js_env.key?(:IS_SURVEY)).to eq(true)
+      expect(controller.js_env).to have_key(:IS_SURVEY)
     end
   end
 

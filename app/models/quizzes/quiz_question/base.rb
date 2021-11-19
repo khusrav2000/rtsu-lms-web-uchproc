@@ -34,6 +34,8 @@ class Quizzes::QuizQuestion::Base
     type_name = klass.question_type
     raise("question type #{type_name} already exists") if question_types.key?(type_name)
 
+    super
+
     # because this is where subclass registration happens, we need this to be populated
     # before we start trying to load any question data.
     # This is taken care of by the Quizzes::Preloader
@@ -49,11 +51,11 @@ class Quizzes::QuizQuestion::Base
     # currently all the attributes are synthesized from @question_data
     # since questions are stored in this format anyway, it prevents us from
     # having to do a bunch of translation to some other format
-    unless question_data.is_a? Quizzes::QuizQuestion::QuestionData
-      @question_data = Quizzes::QuizQuestion::QuestionData.new(question_data)
-    else
-      @question_data = question_data
-    end
+    @question_data = unless question_data.is_a? Quizzes::QuizQuestion::QuestionData
+                       Quizzes::QuizQuestion::QuestionData.new(question_data)
+                     else
+                       question_data
+                     end
   end
 
   def question_id

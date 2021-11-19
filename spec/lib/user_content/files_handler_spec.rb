@@ -78,7 +78,7 @@ describe UserContent::FilesHandler do
         let(:match_part) { 'preview' }
 
         it 'is a preview url' do
-          expect(processed_url).to match(%r{files\/(\d)+\/preview})
+          expect(processed_url).to match(%r{files/(\d)+/preview})
         end
 
         it 'does not include wrap param' do
@@ -91,7 +91,7 @@ describe UserContent::FilesHandler do
         let(:match_part) { '?download_frd=1' }
 
         it 'includes /download in the url' do
-          expect(processed_url).to match(%r{files\/(\d)+\/download})
+          expect(processed_url).to match(%r{files/(\d)+/download})
         end
       end
 
@@ -99,7 +99,7 @@ describe UserContent::FilesHandler do
         let(:match_part) { '?wrap=1' }
 
         it 'omits /download in the url' do
-          expect(processed_url).to match(%r{files\/(\d)+(\?|$)})
+          expect(processed_url).to match(%r{files/(\d)+(\?|$)})
         end
       end
 
@@ -183,7 +183,7 @@ describe UserContent::FilesHandler do
         )
       end
 
-      before(:each) { allow(subject).to receive(:user_can_access_attachment?).and_return false }
+      before { allow(subject).to receive(:user_can_access_attachment?).and_return false }
 
       context 'url contains invalid uri' do
         # single quotes will make it valid uri, so keep this in double quotes

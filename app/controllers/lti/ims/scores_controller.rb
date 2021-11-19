@@ -78,7 +78,7 @@ module Lti::IMS
       :verify_attempts_for_online_upload,
     )
 
-    MIME_TYPE = 'application/vnd.ims.lis.v1.score+json'.freeze
+    MIME_TYPE = 'application/vnd.ims.lis.v1.score+json'
 
     # @API Create a Score
     #
@@ -219,7 +219,7 @@ module Lti::IMS
       content_items: %i[type url title]
     ].freeze
     SCORE_SUBMISSION_TYPES = %w[none basic_lti_launch online_text_entry online_url external_tool online_upload].freeze
-    DEFAULT_SUBMISSION_TYPE = 'external_tool'.freeze
+    DEFAULT_SUBMISSION_TYPE = 'external_tool'
 
     def scopes_matcher
       self.class.all_of(TokenScopes::LTI_AGS_SCORE_SCOPE)
@@ -260,7 +260,7 @@ module Lti::IMS
 
     def verify_valid_submitted_at
       submitted_at = params.dig(Lti::Result::AGS_EXT_SUBMISSION, :submitted_at)
-      submitted_at_date = submitted_at.present? ? (Time.zone.parse(submitted_at) rescue nil) : nil
+      submitted_at_date = submitted_at.present? ? (Time.zone.iso8601(submitted_at) rescue nil) : nil
       future_buffer = Setting.get('ags_submitted_at_future_buffer', 1.minute.to_s).to_i.seconds
 
       if submitted_at.present? && submitted_at_date.nil?
@@ -398,7 +398,7 @@ module Lti::IMS
     def line_item_score_maximum_scale
       res_max = scores_params[:result_maximum].to_f
       # if this doesn't make sense, just don't scale
-      return 1.0 if res_max.nan? || res_max == 0.0
+      return 1.0 if res_max.nan? || res_max.abs < Float::EPSILON
 
       line_item.score_maximum / scores_params[:result_maximum].to_f
     end
@@ -412,7 +412,7 @@ module Lti::IMS
     end
 
     def timestamp
-      @_timestamp = Time.zone.parse(params[:timestamp]) rescue nil
+      @_timestamp = Time.zone.iso8601(params[:timestamp]) rescue nil
     end
 
     def result_url
@@ -439,7 +439,7 @@ module Lti::IMS
 
     def submitted_at
       submitted_at = scores_params.dig(:extensions, Lti::Result::AGS_EXT_SUBMISSION, :submitted_at)
-      submitted_at.present? ? (Time.zone.parse(submitted_at) rescue nil) : nil
+      submitted_at.present? ? (Time.zone.iso8601(submitted_at) rescue nil) : nil
     end
 
     def file_content_items

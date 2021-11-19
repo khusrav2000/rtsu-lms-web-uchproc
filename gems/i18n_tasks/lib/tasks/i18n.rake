@@ -167,7 +167,8 @@ namespace :i18n do
   task :generate_lolz => [:generate, :environment] do
     strings_processed = 0
     process_lolz = Proc.new do |val|
-      if val.is_a?(Hash)
+      case val
+      when Hash
         processed = strings_processed
 
         hash = Hash.new
@@ -175,9 +176,9 @@ namespace :i18n do
 
         print '.' if strings_processed > processed
         hash
-      elsif val.is_a?(Array)
+      when Array
         val.each.map { |v| process_lolz.call(v) }
-      elsif val.is_a?(String)
+      when String
         strings_processed += 1
         I18n.let_there_be_lols(val)
       else
@@ -233,12 +234,12 @@ namespace :i18n do
       end
 
       last_export = nil
-      begin
+      loop do
         puts "Enter path or hash of previous export base (omit to export all):"
         arg = $stdin.gets.strip
         if arg.blank?
           last_export = { :type => :none }
-        elsif arg =~ /\A[a-f0-9]{7,}\z/
+        elsif /\A[a-f0-9]{7,}\z/.match?(arg)
           puts "Fetching previous export..."
           ret = `git show --name-only --oneline #{arg}`
           if $?.exitstatus == 0
@@ -268,12 +269,14 @@ namespace :i18n do
             $stderr.puts "Invalid path"
           end
         end
-      end until last_export
+        break if last_export
+      end
 
-      begin
+      loop do
         puts "Enter local branch containing current en translations (default master):"
         current_branch = $stdin.gets.strip
-      end until current_branch.blank? || current_branch !~ /[^a-z0-9_\.\-]/
+        break if current_branch.blank? || current_branch !~ /[^a-z0-9_.\-]/
+      end
       current_branch = nil if current_branch.blank?
 
       puts "Extracting current en translations..."
@@ -291,10 +294,12 @@ namespace :i18n do
       File.open(export_filename, "w") { |f| f.write new_strings.expand_keys.to_yaml(line_width: -1) }
 
       push = 'n'
-      begin
+      y_n = %w[y n]
+      loop do
         puts "Commit and push current translations? (Y/N)"
         push = $stdin.gets.strip.downcase[0, 1]
-      end until ["y", "n"].include?(push)
+        break if y_n.include?(push)
+      end
       if push == 'y'
         `git add #{base_filename}`
         if `git status -s | grep -v '^\?\?' | wc -l`.strip == '0'
@@ -325,39 +330,39 @@ namespace :i18n do
     if args[:source_file]
       source_translations = YAML.safe_load(open(args[:source_file]))
     else
-      begin
+      loop do
         puts "Enter path to original en.yml file:"
         arg = $stdin.gets.strip
-        source_translations = File.exist?(arg) && YAML.safe_load(File.read(arg)) rescue nil
-      end until source_translations
+        break if (source_translations = File.exist?(arg) && YAML.safe_load(File.read(arg)) rescue nil)
+      end
     end
 
     if args[:translated_file]
       new_translations = YAML.safe_load(open(args[:translated_file]))
     else
-      begin
+      loop do
         puts "Enter path to translated file:"
         arg = $stdin.gets.strip
-        new_translations = File.exist?(arg) && YAML.safe_load(File.read(arg)) rescue nil
-      end until new_translations
+        break if (new_translations = File.exist?(arg) && YAML.safe_load(File.read(arg)) rescue nil)
+      end
     end
 
     import = I18nTasks::I18nImport.new(source_translations, new_translations)
 
     complete_translations = import.compile_complete_translations do |error_items, description|
-      begin
+      loop do
         puts "Warning: #{error_items.size} #{description}. What would you like to do?"
         puts " [C] continue anyway"
         puts " [V] view #{description}"
         puts " [D] debug"
         puts " [Q] quit"
-        case (command = $stdin.gets.upcase.strip)
-        when 'Q' then return :abort
+        case $stdin.gets.upcase.strip
+        when 'C' then break :accept
+        when 'Q' then break :abort
         when 'D' then debugger # rubocop:disable Lint/Debugger
         when 'V' then puts error_items.join("\n")
         end
-      end while command != 'C'
-      :accept
+      end
     end
 
     next if complete_translations.nil?
@@ -371,11 +376,11 @@ namespace :i18n do
   task :autoimport, [:translated_file, :source_file] => :environment do |_t, args|
     require 'open-uri'
 
-    if args[:source_file].present?
-      source_translations = YAML.safe_load(open(args[:source_file]))
-    else
-      source_translations = YAML.safe_load(open("config/locales/generated/en.yml"))
-    end
+    source_translations = if args[:source_file].present?
+                            YAML.safe_load(open(args[:source_file]))
+                          else
+                            YAML.safe_load(open("config/locales/generated/en.yml"))
+                          end
     new_translations = YAML.safe_load(open(args[:translated_file]))
     autoimport(source_translations, new_translations)
   end
@@ -410,7 +415,7 @@ namespace :i18n do
     import = I18nTasks::I18nImport.new(source_translations, new_translations)
 
     complete_translations = import.compile_complete_translations do |error_items, description|
-      if description =~ /mismatches/
+      if description.include?('mismatches')
         # Output malformed stuff and don't import them
         errors.concat error_items
         :discard
@@ -422,10 +427,10 @@ namespace :i18n do
     raise "got no translations" if complete_translations.nil?
 
     File.open("config/locales/#{import.language}.yml", "w") { |f|
-      f.write <<~HEADER
+      f.write <<~YAML
         # This YAML file is auto-generated from a Transifex import.
         # Do not edit it by hand, your changes will be overwritten.
-      HEADER
+      YAML
       f.write({ import.language => complete_translations }.to_yaml(line_width: -1))
     }
 
@@ -530,7 +535,7 @@ namespace :i18n do
       puts opts
       exit
     end
-    args = opts.order!(ARGV) {}
+    args = opts.order!(ARGV) { nil }
     opts.parse!(args)
     options[:keys] = ARGV
 

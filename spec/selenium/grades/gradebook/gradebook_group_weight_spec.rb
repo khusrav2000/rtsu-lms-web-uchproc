@@ -24,7 +24,7 @@ describe "Gradebook - group weights" do
   include_context "in-process server selenium tests"
   include GradebookCommon
 
-  def student_totals()
+  def student_totals
     totals = ff('.total-cell')
     points = []
     for i in totals do
@@ -41,7 +41,7 @@ describe "Gradebook - group weights" do
     wait_for_ajax_requests
   end
 
-  before(:each) do
+  before do
     course_with_teacher_logged_in
     student_in_course
     @course.update(group_weighting_scheme: 'percent')
@@ -91,7 +91,7 @@ describe "Gradebook - group weights" do
   end
 
   context "warning message" do
-    before(:each) do
+    before do
       course_with_teacher_logged_in
       student_in_course
       @course.update(group_weighting_scheme: 'percent')

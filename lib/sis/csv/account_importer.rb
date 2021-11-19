@@ -32,17 +32,14 @@ module SIS
       # expected columns
       # account_id,parent_account_id
       def process(csv, index = nil, count = nil)
-        count = SIS::AccountImporter.new(@root_account, importer_opts).process do |importer|
+        SIS::AccountImporter.new(@root_account, importer_opts).process do |importer|
           csv_rows(csv, index, count) do |row|
-            begin
-              importer.add_account(row['account_id'], row['parent_account_id'],
-                                   row['status'], row['name'], row['integration_id'])
-            rescue ImportError => e
-              SisBatch.add_error(csv, e.to_s, sis_batch: @batch, row: row['lineno'], row_info: row)
-            end
+            importer.add_account(row['account_id'], row['parent_account_id'],
+                                 row['status'], row['name'], row['integration_id'])
+          rescue ImportError => e
+            SisBatch.add_error(csv, e.to_s, sis_batch: @batch, row: row['lineno'], row_info: row)
           end
         end
-        count
       end
     end
   end

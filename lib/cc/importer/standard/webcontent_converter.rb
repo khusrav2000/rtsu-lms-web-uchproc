@@ -28,7 +28,7 @@ module CC::Importer::Standard
       resources_by_type(WEBCONTENT, "associatedcontent").each do |res|
         if res[:intended_use] || @convert_html_to_pages
           path = get_full_path(res[:href])
-          if path && File.exist?(path) && Attachment.mimetype(path) =~ /html/
+          if path && File.exist?(path) && Attachment.mimetype(path).include?('html')
             case res[:intended_use]
             when "assignment"
               new_assignments << { :migration_id => res[:migration_id], :description => File.read(path) }
@@ -100,11 +100,11 @@ module CC::Importer::Standard
 
           file_path = @package_root.item_path(val[:path_name])
           if File.exist?(file_path)
-            zipfile.add(val[:path_name], file_path) if !File.directory?(file_path)
+            zipfile.add(val[:path_name], file_path) unless File.directory?(file_path)
           else
             web_file_path = @package_root.item_path(WEB_RESOURCES_FOLDER, val[:path_name])
             if File.exist?(web_file_path)
-              zipfile.add(val[:path_name], web_file_path) if !File.directory?(web_file_path)
+              zipfile.add(val[:path_name], web_file_path) unless File.directory?(web_file_path)
             else
               val[:errored] = true
             end

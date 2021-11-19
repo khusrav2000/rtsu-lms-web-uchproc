@@ -40,7 +40,7 @@ class PageView < ActiveRecord::Base
   # if we ever do either of the above, we'll need to remove this, and figure out
   # where such page views should belong (currently page views end up on the user's
   # shard)
-  validates_presence_of :user_id
+  validates :user_id, presence: true
 
   def self.generate(request, attributes = {})
     self.new(attributes).tap do |p|
@@ -101,7 +101,7 @@ class PageView < ActiveRecord::Base
   end
 
   # the list of columns we display to users, export to csv, etc
-  EXPORTED_COLUMNS = %w(request_id user_id url context_id context_type asset_id asset_type controller action interaction_seconds created_at user_request render_time user_agent participated account_id real_user_id http_method remote_ip)
+  EXPORTED_COLUMNS = %w(request_id user_id url context_id context_type asset_id asset_type controller action interaction_seconds created_at user_request render_time user_agent participated account_id real_user_id http_method remote_ip).freeze
 
   def self.page_views_enabled?
     !!page_view_method
@@ -203,17 +203,19 @@ class PageView < ActiveRecord::Base
   end
 
   def self.from_attributes(attrs, new_record = false)
-    @blank_template ||= columns.inject({}) { |h, c| h[c.name] = nil; h }
+    @blank_template ||= columns.inject({}) { |h, c|
+      h[c.name] = nil
+      h
+    }
     attrs = attrs.slice(*@blank_template.keys)
     shard = PageView.global_storage_namespace? ? Shard.birth : Shard.current
-    page_view = shard.activate do
+    shard.activate do
       if new_record
         new { |pv| pv.assign_attributes(attrs) }
       else
         instantiate(@blank_template.merge(attrs))
       end
     end
-    page_view
   end
 
   def self.updates_enabled?
@@ -286,7 +288,7 @@ class PageView < ActiveRecord::Base
     changes_applied
   end
 
-  scope :for_context, proc { |ctx| where(:context_type => ctx.class.name, :context_id => ctx) }
+  scope :for_context, ->(ctx) { where(context_type: ctx.class.name, context_id: ctx) }
   scope :for_users, lambda { |users| where(:user_id => users) }
 
   def self.pv4_client
@@ -407,14 +409,13 @@ class PageView < ActiveRecord::Base
     # if you interrupt and re-start the migrator, start_at cannot be changed,
     # since it's saved in cassandra to persist the migration state
     def initialize(skip_deleted_accounts = true, start_at = nil)
-      self.start_at = start_at || 52.weeks.ago
-      self.logger = Rails.logger
+      super(start_at || 52.weeks.ago, Rails.logger)
 
-      if skip_deleted_accounts
-        account_ids = Set.new(Account.root_accounts.active.pluck(:id))
-      else
-        account_ids = Set.new(Account.root_accounts.pluck(:id))
-      end
+      account_ids = if skip_deleted_accounts
+                      Set.new(Account.root_accounts.active.pluck(:id))
+                    else
+                      Set.new(Account.root_accounts.pluck(:id))
+                    end
 
       load_migration_data(account_ids)
     end
@@ -425,7 +426,7 @@ class PageView < ActiveRecord::Base
         data = self.migration_data[account_id] = {}
         data.merge!(cassandra.execute("SELECT last_created_at FROM page_views_migration_metadata_per_account WHERE shard_id = ? AND account_id = ?", Shard.current.id.to_s, account_id).fetch.try(:to_hash) || {})
 
-        if !(data['last_created_at'])
+        unless data['last_created_at']
           data['last_created_at'] = self.start_at
         end
         # cassandra returns Time not TimeWithZone objects
@@ -458,32 +459,30 @@ class PageView < ActiveRecord::Base
       return false if rows.empty?
 
       inserted = rows.count do |attrs|
-        begin
-          created_at = attrs['created_at']
-          created_at = Time.zone.parse(created_at) unless created_at.is_a?(Time)
-          # if the created_at is the same as the last_created_at,
-          # we may have already inserted this page view
-          # use to_i here to avoid sub-second precision problems
-          if created_at.to_i == last_created_at.to_i
-            exists = !!cassandra.select_value("SELECT request_id FROM page_views WHERE request_id = ?", attrs['request_id'])
-          end
-
-          # now instantiate the AR object here, as a brand new record, so
-          # it's saved to cassandra as if it was just created (though
-          # created_at comes from the queried db attributes)
-          # we're bypassing the redis queue here, just saving directly to cassandra
-          if exists
-            false
-          else
-            # assumes PageView.cassandra? is true at this point
-            page_view = PageView.from_attributes(attrs, true)
-            page_view.save!
-            true
-          end
-        rescue
-          logger.error "failed migrating request id to cassandra: #{attrs['request_id']} : #{$!}"
-          false
+        created_at = attrs['created_at']
+        created_at = Time.zone.parse(created_at) unless created_at.is_a?(Time)
+        # if the created_at is the same as the last_created_at,
+        # we may have already inserted this page view
+        # use to_i here to avoid sub-second precision problems
+        if created_at.to_i == last_created_at.to_i
+          exists = !!cassandra.select_value("SELECT request_id FROM page_views WHERE request_id = ?", attrs['request_id'])
         end
+
+        # now instantiate the AR object here, as a brand new record, so
+        # it's saved to cassandra as if it was just created (though
+        # created_at comes from the queried db attributes)
+        # we're bypassing the redis queue here, just saving directly to cassandra
+        if exists
+          false
+        else
+          # assumes PageView.cassandra? is true at this point
+          page_view = PageView.from_attributes(attrs, true)
+          page_view.save!
+          true
+        end
+      rescue
+        logger.error "failed migrating request id to cassandra: #{attrs['request_id']} : #{$!}"
+        false
       end
 
       logger.info "account #{Shard.current.id}~#{account_id}: added #{inserted} page views starting at #{last_created_at}"
@@ -492,7 +491,7 @@ class PageView < ActiveRecord::Base
       last_created_at = Time.zone.parse(last_created_at) unless last_created_at.is_a?(Time)
       cassandra.execute("UPDATE page_views_migration_metadata_per_account SET last_created_at = ? WHERE shard_id = ? AND account_id = ?", last_created_at, Shard.current.id.to_s, account_id)
       data['last_created_at'] = last_created_at
-      return inserted > 0
+      inserted > 0
     end
 
     def cassandra

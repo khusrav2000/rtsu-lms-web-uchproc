@@ -31,6 +31,7 @@ class ArgumentView < HashView
   DEFAULT_DESC = "no description"
 
   def initialize(line, http_verb = "get", path_variables = [], deprecated: false)
+    super()
     @deprecated = deprecated
     @deprecated_date_key = :NOTICE
     @effective_date_key = :EFFECTIVE
@@ -60,7 +61,7 @@ class ArgumentView < HashView
     # This regex is impossible to read, basically we're splitting the string up
     # into the first [bracketed] section, which might contain internal brackets,
     # and then the rest of the string.
-    md = str.strip.match(%r{\A(\[[\w ,\[\]\|"]+\])?\s*(.+)?}m)
+    md = str.strip.match(%r{\A(\[[\w ,\[\]|"]+\])?\s*(.+)?}m)
     [md[1] || DEFAULT_TYPE, md[2] || DEFAULT_DESC]
   end
 
@@ -79,7 +80,7 @@ class ArgumentView < HashView
 
   def metadata_parts
     remove_outer_square_brackets(@type)
-      .split(/\s*[,\|]\s*/).map { |t| t.force_encoding('UTF-8') }
+      .split(/\s*[,|]\s*/).map { |t| t.force_encoding('UTF-8') }
   end
 
   def enum_and_types
@@ -87,7 +88,7 @@ class ArgumentView < HashView
   end
 
   def enums
-    enum_and_types.first.map { |e| e.gsub('"', '') }
+    enum_and_types.first.map { |e| e.delete('"') }
   end
 
   def types
@@ -111,14 +112,14 @@ class ArgumentView < HashView
 
   def swagger_type
     type = (types.first || 'string')
-    type = "number" if type.downcase == "float"
+    type = "number" if type.casecmp?("float")
     builtin?(type) ? type.downcase : type
   end
 
   def swagger_format
     type = (types.first || 'string')
     return "int64" if swagger_type == "integer"
-    return "float" if type.downcase == "float"
+    return "float" if type.casecmp?("float")
   end
 
   def optional?
@@ -126,14 +127,8 @@ class ArgumentView < HashView
   end
 
   def required?
-    types = enum_and_types.last.map { |t| t.downcase }
-    if swagger_param_type == 'path'
-      true
-    elsif types.include?('required')
-      true
-    else
-      false
-    end
+    types = enum_and_types.last.map(&:downcase)
+    swagger_param_type == 'path' || types.include?('required')
   end
 
   def array?

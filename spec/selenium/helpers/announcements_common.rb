@@ -43,7 +43,7 @@ module AnnouncementsCommon
     replace_content(f('input[name=title]'), "First Announcement")
 
     type_in_tiny('textarea[name=message]', 'Hi, this is my first announcement')
-    f(css_checkbox).click if !css_checkbox.nil?
+    f(css_checkbox).click unless css_checkbox.nil?
   end
 
   def reply_to_announcement(announcement_id, text)
@@ -96,7 +96,7 @@ module AnnouncementsCommon
     # Checks that new page is loaded when the indexed announcement is clicked to verify it actually loads the topic
     expect_new_page_load { ff('.ic-announcement-row')[index].click }
     # Checks that the announcement is there by verifying the title is present and correct
-    expect(f('.discussion-title')).to include_text("#{@announcement.title}")
+    expect(f('.discussion-title')).to include_text(@announcement.title)
   end
 
   # Clicks edit button on Announcement show page

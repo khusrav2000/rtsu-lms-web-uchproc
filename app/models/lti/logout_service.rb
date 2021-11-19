@@ -69,11 +69,9 @@ module Lti
     class Runner < Struct.new(:callbacks)
       def perform
         callbacks.each_value do |callback|
-          begin
-            CanvasHttp.get(URI.parse(callback).to_s)
-          rescue => e
-            Rails.logger.error("Failed to call logout callback '#{callback}': #{e.inspect}")
-          end
+          CanvasHttp.get(URI.parse(callback).to_s)
+        rescue => e
+          Rails.logger.error("Failed to call logout callback '#{callback}': #{e.inspect}")
         end
       end
     end
@@ -83,17 +81,17 @@ module Lti
     end
 
     def self.register_logout_callback(token, callback)
-      return unless token.pseudonym && token.pseudonym.id && callback.present?
+      return unless token.pseudonym&.id && callback.present?
 
       callbacks = get_logout_callbacks(token.pseudonym)
-      raise BasicLTI::BasicOutcomes::Unauthorized, 'Logout service token has already been used' if callbacks.has_key?(token.nonce)
+      raise BasicLTI::BasicOutcomes::Unauthorized, 'Logout service token has already been used' if callbacks.key?(token.nonce)
 
       callbacks[token.nonce] = callback
       Rails.cache.write(cache_key(token.pseudonym), callbacks, :expires_in => 1.day)
     end
 
     def self.queue_callbacks(pseudonym)
-      return unless pseudonym && pseudonym.id
+      return unless pseudonym&.id
 
       callbacks = get_logout_callbacks(pseudonym)
       return unless callbacks.any?

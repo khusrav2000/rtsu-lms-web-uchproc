@@ -23,7 +23,7 @@ require_relative "../graphql_spec_helper"
 
 describe Types::MutationLogType do
   before do
-    if !AuditLogFieldExtension.enabled?
+    unless AuditLogFieldExtension.enabled?
       skip("AuditLog needs to be enabled by configuring dynamodb.yml")
     end
   end
@@ -47,13 +47,13 @@ describe Types::MutationLogType do
       current_user: @teacher,
     }.merge(ctx)
 
-    CanvasSchema.execute(<<~MUTATION, context: ctx)
+    CanvasSchema.execute(<<~GQL, context: ctx)
       mutation {
         updateAssignment(input: {id: "#{@assignment.id}"}) {
           assignment { name }
         }
       }
-    MUTATION
+    GQL
   end
 
   def audit_log_query(variables, ctx = {})

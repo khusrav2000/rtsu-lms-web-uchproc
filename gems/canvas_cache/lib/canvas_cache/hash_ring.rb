@@ -62,7 +62,7 @@ module CanvasCache
       # and therefore the top bit is set
       digest_length = result.values.sum.to_s(2).length
       max = 1 << digest_length
-      result[ring[sorted_keys.last]] + max - last
+      result[ring[sorted_keys.last]] = max - last
       result.map { |k, v| [k, v.to_f / max] }.sort_by(&:last).to_h
     end
 
@@ -96,7 +96,7 @@ module CanvasCache
 
       crc = @digest[key]
       idx = HashRing.binary_search(@sorted_keys, crc)
-      return [@ring[@sorted_keys[idx]], idx]
+      [@ring[@sorted_keys[idx]], idx]
     end
 
     def iter_nodes(key)
@@ -130,7 +130,7 @@ module CanvasCache
       if upper < 0
         upper = ary.size - 1
       end
-      return upper
+      upper
     end
 
     private

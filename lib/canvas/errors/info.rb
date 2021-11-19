@@ -91,7 +91,7 @@ module Canvas
         }
 
         # if we have an oauth1 header lets get the appropriate info from it
-        if req.authorization && req.authorization.match(/^OAuth/)
+        if req.authorization&.match(/^OAuth/)
           headers.merge!(::OAuth::Helper.parse_header(req.authorization))
         end
 
@@ -103,7 +103,7 @@ module Canvas
         {
           # ActionDispatch::Request#remote_ip has proxy smarts
           'REMOTE_ADDR' => req.remote_ip,
-          'QUERY_STRING' => (f.filter_query_string("?" + (query_string || ''))),
+          'QUERY_STRING' => f.filter_query_string("?" + (query_string || '')),
           'REQUEST_URI' => f.filter_uri(req.url),
           'path_parameters' => f.filter_params(req.path_parameters.dup).inspect,
           'query_parameters' => f.filter_params(req.query_parameters.dup).inspect,

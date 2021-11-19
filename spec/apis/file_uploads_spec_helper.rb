@@ -66,15 +66,13 @@ shared_examples_for "file uploads api" do
       'media_entry_id' => attachment.media_entry_id
     }
 
-    if options[:include] && options[:include].include?("enhanced_preview_url") && (attachment.context.is_a?(Course) || attachment.context.is_a?(User) || attachment.context.is_a?(Group))
+    if options[:include]&.include?("enhanced_preview_url") && (attachment.context.is_a?(Course) || attachment.context.is_a?(User) || attachment.context.is_a?(Group))
       json['preview_url'] = context_url(attachment.context, :context_file_file_preview_url, attachment, annotate: 0, verifier: attachment.uuid)
     end
 
     unless options[:no_doc_preview]
-      json.merge!({
-                    'canvadoc_session_url' => nil,
-                    'crocodoc_session_url' => nil
-                  })
+      json['canvadoc_session_url'] = nil
+      json['crocodoc_session_url'] = nil
     end
 
     json
@@ -544,6 +542,7 @@ shared_examples_for "file uploads api without quotas" do
     attachment = Attachment.order(:id).last
     expect(json['upload_url']).to match(/#{attachment.quota_exemption_key}/)
   end
+
   it "ignores context-related quotas in preflight" do
     s3_storage!
     @context.write_attribute(:storage_quota, 0)

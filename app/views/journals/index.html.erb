@@ -1,0 +1,17 @@
+
+<% provide :page_title do %><%= t(:page_title, "Journals") %><% end %>
+<% add_crumb t(:accounts_crumb, "Journals") %>
+
+<% provide :right_side do %>
+<% end %>
+
+<% css_bundle :context_list %>
+
+<%= t(:no_accounts_message, "No Journals") if @journals.empty? %>
+<ul class="context_list">
+  <% @journals.each do |journal| %>
+    <li>
+      <%= link_to t(journal[:name]), url_for(journal[:html_url]) %>
+    </li>
+  <% end %>
+</ul>

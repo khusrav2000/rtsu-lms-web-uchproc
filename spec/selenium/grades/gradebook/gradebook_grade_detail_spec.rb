@@ -37,7 +37,7 @@ describe 'Grade Detail Tray:' do
   end
 
   context "status" do
-    before(:each) do
+    before do
       user_session(@teacher)
       Gradebook.visit(@course)
     end
@@ -87,7 +87,7 @@ describe 'Grade Detail Tray:' do
   end
 
   context 'late status' do
-    before(:each) do
+    before do
       user_session(@teacher)
       Gradebook.visit(@course)
       Gradebook::Cells.open_tray(@course.students.first, @a1)
@@ -127,12 +127,12 @@ describe 'Grade Detail Tray:' do
   end
 
   context 'navigation within tray' do
-    before(:each) do
+    before do
       user_session(@teacher)
     end
 
     context 'with default ordering' do
-      before(:each) do
+      before do
         Gradebook.visit(@course)
       end
 
@@ -153,7 +153,10 @@ describe 'Grade Detail Tray:' do
       it 'assignment right arrow loads the next assignment in the tray', test_id: 3337216, priority: '1' do
         Gradebook::Cells.open_tray(@course.students.first, @a1)
         button = Gradebook::GradeDetailTray.next_assignment_button
-        keep_trying_until { button.click; true } # have to wait for InstUI animations
+        keep_trying_until {
+          button.click
+          true
+        } # have to wait for InstUI animations
 
         expect(Gradebook::GradeDetailTray.assignment_link(@a2.name)).to be_displayed
       end
@@ -187,14 +190,20 @@ describe 'Grade Detail Tray:' do
       it 'student right arrow navigates to next student', test_id: 3337223, priority: '1' do
         Gradebook::Cells.open_tray(@course.students.first, @a1)
         button = Gradebook::GradeDetailTray.next_student_button
-        keep_trying_until { button.click; true } # have to wait for instUI Tray animation
+        keep_trying_until {
+          button.click
+          true
+        }         # have to wait for instUI Tray animation
         expect(Gradebook::GradeDetailTray.student_link(@course.students.second.name)).to be_displayed
       end
 
       it 'student left arrow navigates to previous student', test_id: 3337224, priority: '1' do
         Gradebook::Cells.open_tray(@course.students.second, @a1)
         button = Gradebook::GradeDetailTray.previous_student_button
-        keep_trying_until { button.click; true } # have to wait for instUI Tray animation
+        keep_trying_until {
+          button.click
+          true
+        }         # have to wait for instUI Tray animation
 
         expect(Gradebook::GradeDetailTray.student_link(@course.students.first.name)).to be_displayed
       end
@@ -215,7 +224,7 @@ describe 'Grade Detail Tray:' do
     end
 
     context 'when the rightmost column is an assignment column' do
-      before(:each) do
+      before do
         @teacher.set_preference(:gradebook_column_order, @course.global_id, {
                                   sortType: 'custom',
                                   customOrder: [
@@ -233,7 +242,10 @@ describe 'Grade Detail Tray:' do
       it 'clicking the left arrow loads the previous assignment in the tray', test_id: 3337220, priority: '2' do
         Gradebook::Cells.open_tray(@course.students.first, @a4)
         button = Gradebook::GradeDetailTray.previous_assignment_button
-        keep_trying_until { button.click; true } # have to wait for instUI Tray animation
+        keep_trying_until {
+          button.click
+          true
+        }         # have to wait for instUI Tray animation
 
         expect(Gradebook::GradeDetailTray.assignment_link(@a3.name)).to be_displayed
       end
@@ -244,7 +256,7 @@ describe 'Grade Detail Tray:' do
     let(:comment_1) { "You are late1" }
     let(:comment_2) { "You are also late2" }
 
-    before(:each) do
+    before do
       user_session(@teacher)
 
       submission_comment_model({ author: @teacher,

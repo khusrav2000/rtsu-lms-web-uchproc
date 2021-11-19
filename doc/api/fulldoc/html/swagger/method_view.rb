@@ -27,6 +27,7 @@ require 'deprecated_method_view'
 
 class MethodView < HashView
   def initialize(method)
+    super()
     @method = method
   end
 
@@ -103,7 +104,7 @@ class MethodView < HashView
       RouteView.new(raw_route, self)
     end.select do |route|
       route.api_path !~ /json$/
-    end.uniq { |route| route.swagger_path }
+    end.uniq(&:swagger_path)
   end
 
   def swagger_type
@@ -115,7 +116,7 @@ class MethodView < HashView
       "name" => name,
       "summary" => summary,
       "desc" => desc,
-      "arguments" => arguments.map { |a| a.to_hash },
+      "arguments" => arguments.map(&:to_hash),
       "returns" => returns.to_hash,
       "route" => route.to_hash,
     }

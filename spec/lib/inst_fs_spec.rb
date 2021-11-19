@@ -26,6 +26,7 @@ describe InstFS do
     let(:secrets) { [secret, rotating_secret] }
     let(:encoded_secrets) { secrets.map { |sec| Base64.encode64(sec) }.join(" ") }
     let(:settings_hash) { { 'app-host' => app_host, 'secret' => encoded_secrets } }
+
     before do
       allow(InstFS).to receive(:enabled?).and_return(true)
       allow(Canvas::DynamicSettings).to receive(:find).with(any_args).and_call_original
@@ -60,7 +61,7 @@ describe InstFS do
     end
 
     context "authenticated_url" do
-      before :each do
+      before do
         @attachment = attachment_with_context(user_model)
         @attachment.instfs_uuid = 1
         @attachment.filename = "test.txt"
@@ -118,7 +119,7 @@ describe InstFS do
       it "includes a properly signed token" do
         url = InstFS.authenticated_url(@attachment, {})
         expect(url).to match(/token=/)
-        token = url.split(/token=/).last
+        token = url.split("token=").last
         expect(-> {
           Canvas::Security.decode_jwt(token, [secret])
         }).not_to raise_error
@@ -126,7 +127,7 @@ describe InstFS do
 
       it "includes an expiration on the token" do
         url = InstFS.authenticated_url(@attachment, expires_in: 1.hour)
-        token = url.split(/token=/).last
+        token = url.split("token=").last
         Timecop.freeze(2.hours.from_now) do
           expect(-> {
             Canvas::Security.decode_jwt(token, [secret])
@@ -137,7 +138,7 @@ describe InstFS do
       describe "jwt claims" do
         def claims_for(options = {})
           url = InstFS.authenticated_url(@attachment, options)
-          token = url.split(/token=/).last
+          token = url.split("token=").last
           Canvas::Security.decode_jwt(token, [secret])
         end
 
@@ -178,21 +179,21 @@ describe InstFS do
 
         it "includes a jti in the token" do
           url = InstFS.authenticated_url(@attachment, expires_in: 1.hour)
-          token = url.split(/token=/).last
+          token = url.split("token=").last
           expect(Canvas::Security.decode_jwt(token, [secret])).to have_key(:jti)
         end
 
         it "includes the original_url claim with the redirect and no_cache param" do
           original_url = "https://example.test/preview"
           url = InstFS.authenticated_url(@attachment, original_url: original_url)
-          token = url.split(/token=/).last
+          token = url.split("token=").last
           expect(Canvas::Security.decode_jwt(token, [secret])[:original_url]).to eq(original_url + "?no_cache=true&redirect=true")
         end
 
         it "doesn't include the original_url claim if already redirected" do
           original_url = "https://example.test/preview?redirect=true"
           url = InstFS.authenticated_url(@attachment, original_url: original_url)
-          token = url.split(/token=/).last
+          token = url.split("token=").last
           expect(Canvas::Security.decode_jwt(token, [secret])).not_to have_key(:original_url)
         end
 
@@ -233,7 +234,7 @@ describe InstFS do
     end
 
     context "authenticated_thumbnail_url" do
-      before :each do
+      before do
         @attachment = attachment_with_context(user_model)
         @attachment.instfs_uuid = 1
         @attachment.filename = "test.txt"
@@ -252,7 +253,7 @@ describe InstFS do
       it "includes a properly signed token" do
         url = InstFS.authenticated_thumbnail_url(@attachment)
         expect(url).to match(/token=/)
-        token = url.split(/token=/).last
+        token = url.split("token=").last
         expect(-> {
           Canvas::Security.decode_jwt(token, [secret])
         }).not_to raise_error
@@ -260,7 +261,7 @@ describe InstFS do
 
       it "includes an expiration on the token" do
         url = InstFS.authenticated_thumbnail_url(@attachment, expires_in: 1.hour)
-        token = url.split(/token=/).last
+        token = url.split("token=").last
         Timecop.freeze(2.hours.from_now) do
           expect(-> {
             Canvas::Security.decode_jwt(token, [secret])
@@ -270,7 +271,7 @@ describe InstFS do
 
       it "includes a jti in the token" do
         url = InstFS.authenticated_thumbnail_url(@attachment, expires_in: 1.hour)
-        token = url.split(/token=/).last
+        token = url.split("token=").last
         expect(Canvas::Security.decode_jwt(token, [secret])).to have_key(:jti)
       end
     end

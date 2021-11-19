@@ -252,6 +252,20 @@ describe AssignmentsController do
       expect(assigns[:js_env][:FLAGS][:new_quizzes_modules_support]).to eq(false)
     end
 
+    it "sets FLAGS/new_quizzes_skip_to_build_module_button in js_env as true if enabled" do
+      user_session(@teacher)
+      Account.site_admin.enable_feature!(:new_quizzes_skip_to_build_module_button)
+      get 'index', params: { :course_id => @course.id }
+      expect(assigns[:js_env][:FLAGS][:new_quizzes_skip_to_build_module_button]).to eq(true)
+    end
+
+    it "sets FLAGS/new_quizzes_skip_to_build_module_button in js_env as false if disabled" do
+      user_session(@teacher)
+      Account.site_admin.disable_feature!(:new_quizzes_skip_to_build_module_button)
+      get 'index', params: { :course_id => @course.id }
+      expect(assigns[:js_env][:FLAGS][:new_quizzes_skip_to_build_module_button]).to eq(false)
+    end
+
     it "js_env MAX_NAME_LENGTH_REQUIRED_FOR_ACCOUNT is true when AssignmentUtil.name_length_required_for_account? == true" do
       user_session(@teacher)
       allow(AssignmentUtil).to receive(:name_length_required_for_account?).and_return(true)
@@ -296,7 +310,7 @@ describe AssignmentsController do
     describe "per-assignment permissions" do
       let(:assignment_permissions) { assigns[:js_env][:PERMISSIONS][:by_assignment_id] }
 
-      before(:each) do
+      before do
         @course.enable_feature!(:moderated_grading)
 
         @assignment = @course.assignments.create!(
@@ -330,7 +344,7 @@ describe AssignmentsController do
   end
 
   describe "GET 'show_moderate'" do
-    before(:each) do
+    before do
       user_session(@teacher)
       course_with_user('TeacherEnrollment', { active_all: true, course: @course })
       @other_teacher = @user
@@ -402,7 +416,7 @@ describe AssignmentsController do
         @assignment.grade_student(@student, grader: grader_2, provisional: true, score: 5)
       end
 
-      before :each do
+      before do
         @assignment.update(
           moderated_grading: true,
           final_grader: @other_teacher,
@@ -469,7 +483,7 @@ describe AssignmentsController do
         end
 
         context "when the user cannot see other grader identities" do
-          before :each do
+          before do
             @assignment.update(grader_names_visible_to_final_grader: false)
           end
 
@@ -499,7 +513,7 @@ describe AssignmentsController do
         end
 
         context "when the current user cannot see other grader identities" do
-          before :each do
+          before do
             @assignment.update(grader_names_visible_to_final_grader: false)
           end
 
@@ -881,7 +895,7 @@ describe AssignmentsController do
           observer
         end
 
-        before(:each) do
+        before do
           user_session(observer)
         end
 
@@ -891,7 +905,7 @@ describe AssignmentsController do
         end
 
         context "when the assignments_2_observer_view setting is on" do
-          before(:each) { Setting.set("assignments_2_observer_view", "true") }
+          before { Setting.set("assignments_2_observer_view", "true") }
 
           it "shows data for the first observed student, by sortable name" do
             allow(CanvasSchema).to receive(:id_from_object) { |submission| submission.user_id.to_s }
@@ -1044,7 +1058,7 @@ describe AssignmentsController do
     end
 
     describe "js_env" do
-      before :each do
+      before do
         user_session @teacher
       end
 
@@ -1248,7 +1262,7 @@ describe AssignmentsController do
         let(:assignment) { @assignment }
         let(:student) { @student }
 
-        before(:each) do
+        before do
           course.enable_feature!(:assignments_2_student)
           assignment.update!(submission_types: "online_upload")
           user_session(student)
@@ -1264,7 +1278,7 @@ describe AssignmentsController do
             let(:module1) { course.context_modules.create!(name: "a module") }
             let(:module1_assignment_item) { module1.content_tags.find_by!(content_type: "Assignment", content_id: assignment.id) }
 
-            before(:each) do
+            before do
               module1.add_item(id: assignment.id, type: "assignment")
               module1.completion_requirements = [{ id: module1_assignment_item.id, type: "must_mark_done" }]
               module1.save!
@@ -1390,7 +1404,7 @@ describe AssignmentsController do
           end
 
           describe "COMMENTS" do
-            before(:each) do
+            before do
               course.account.update!(turnitin_comments: "turnitin comments")
             end
 
@@ -1447,12 +1461,12 @@ describe AssignmentsController do
     end
 
     context "while logged in" do
-      before :each do
+      before do
         user_session(@teacher)
       end
 
       context "with moderated grading on" do
-        before :each do
+        before do
           @assignment.update!(moderated_grading: true, grader_count: 1)
         end
 
@@ -1711,7 +1725,7 @@ describe AssignmentsController do
     end
 
     shared_examples 'course feature flags for Anonymous Moderated Marking' do
-      before(:each) do
+      before do
         user_session(@teacher)
       end
 
@@ -1944,7 +1958,7 @@ describe AssignmentsController do
     end
 
     describe 'js_env ANONYMOUS_INSTRUCTOR_ANNOTATIONS_ENABLED' do
-      before(:each) do
+      before do
         user_session(@teacher)
       end
 
@@ -2092,7 +2106,7 @@ describe AssignmentsController do
         @assignment.update!(annotatable_attachment: @attachment)
       end
 
-      before(:each) do
+      before do
         @assignment.update!(annotatable_attachment: @attachment)
         user_session(@teacher)
       end
@@ -2238,7 +2252,7 @@ describe AssignmentsController do
     let(:connection) { double() }
     let(:params) { { course_id: @course.id, id: @assignment.id } }
 
-    before(:each) do
+    before do
       user_session(@teacher)
       allow(controller).to receive(:google_drive_connection).and_return(connection)
       allow_any_instance_of(Assignment).to receive(:allow_google_docs_submission?).and_return(true)

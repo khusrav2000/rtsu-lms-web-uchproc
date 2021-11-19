@@ -177,22 +177,22 @@ describe ConversationsController, type: :request do
 
       expect(json.size).to eql 3
       links = response.headers['Link'].split(",")
-      expect(links.all? { |l| l =~ /api\/v1\/conversations/ }).to be_truthy
+      expect(links.all? { |l| l.include?('api/v1/conversations') }).to be_truthy
       expect(links.all? { |l| l.scan(/scope=default/).size == 1 }).to be_truthy
-      expect(links.find { |l| l.match(/rel="next"/) }).to match(/page=2&per_page=3>/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1&per_page=3>/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3&per_page=3>/)
+      expect(links.find { |l| l.include?('rel="next"') }).to match(/page=2&per_page=3>/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1&per_page=3>/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3&per_page=3>/)
 
       # get the last page
       json = api_call(:get, "/api/v1/conversations.json?scope=default&page=3&per_page=3",
                       { :controller => 'conversations', :action => 'index', :format => 'json', :scope => 'default', :page => '3', :per_page => '3' })
       expect(json.size).to eql 1
       links = response.headers['Link'].split(",")
-      expect(links.all? { |l| l =~ /api\/v1\/conversations/ }).to be_truthy
+      expect(links.all? { |l| l.include?('api/v1/conversations') }).to be_truthy
       expect(links.all? { |l| l.scan(/scope=default/).size == 1 }).to be_truthy
-      expect(links.find { |l| l.match(/rel="prev"/) }).to match(/page=2&per_page=3>/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1&per_page=3>/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=3&per_page=3>/)
+      expect(links.find { |l| l.include?('rel="prev"') }).to match(/page=2&per_page=3>/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1&per_page=3>/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=3&per_page=3>/)
     end
 
     it "filters conversations by scope" do
@@ -481,7 +481,7 @@ describe ConversationsController, type: :request do
       json = api_call(:get, "/api/v1/conversations.json?scope=starred",
                       { :controller => 'conversations', :action => 'index', :format => 'json', :scope => 'starred' })
       expect(json.size).to eq 3
-      expect(json.map { |c| c["id"] }.sort).to eq [@c1, @c2, @c3].map { |c| c.conversation_id }.sort
+      expect(json.map { |c| c["id"] }.sort).to eq [@c1, @c2, @c3].map(&:conversation_id).sort
     end
 
     it "does not include unstarred conversations in starred scope regardless of if read or archived" do
@@ -1804,7 +1804,7 @@ describe ConversationsController, type: :request do
       real_conversation.context = @course
       real_conversation.save!
 
-      @joe.enrollments.each { |e| e.destroy }
+      @joe.enrollments.each(&:destroy)
       @user = @billy
       api_call(:post, "/api/v1/conversations/#{real_conversation.id}/add_message",
                { :controller => 'conversations', :action => 'add_message', :id => real_conversation.id.to_s, :format => 'json' },
@@ -2440,10 +2440,10 @@ describe ConversationsController, type: :request do
                  :user_id => @bob.id })
 
       links = response.headers['Link'].split(",")
-      expect(links.all? { |l| l =~ /api\/v1\/conversations\/deleted/ }).to be_truthy
-      expect(links.find { |l| l.match(/rel="current"/) }).to match(/page=1&per_page=10>/)
-      expect(links.find { |l| l.match(/rel="first"/) }).to match(/page=1&per_page=10>/)
-      expect(links.find { |l| l.match(/rel="last"/) }).to match(/page=1&per_page=10>/)
+      expect(links.all? { |l| l.include?('api/v1/conversations/deleted') }).to be_truthy
+      expect(links.find { |l| l.include?('rel="current"') }).to match(/page=1&per_page=10>/)
+      expect(links.find { |l| l.include?('rel="first"') }).to match(/page=1&per_page=10>/)
+      expect(links.find { |l| l.include?('rel="last"') }).to match(/page=1&per_page=10>/)
     end
 
     it 'can respond with multiple users data' do
@@ -2493,7 +2493,7 @@ describe ConversationsController, type: :request do
       account_admin_user(:account => Account.site_admin)
     end
 
-    before :each do
+    before do
       @c1.remove_messages(:all)
       @c1.message_count = 0
       @c1.last_message_at = nil

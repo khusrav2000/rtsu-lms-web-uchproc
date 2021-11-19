@@ -51,6 +51,7 @@ module Lti
       m.oauth_consumer_key = tool.consumer_key
       m
     end
+
     subject { described_class.new(launch_url, message.signed_post_params(tool.shared_secret)) }
 
     it 'creates a message from the signed_params' do
@@ -102,7 +103,7 @@ module Lti
 
       it "returns the same value if called multiple times" do
         enable_cache do
-          expect(2.times.map { |_| subject.valid? }).to eq [true, true]
+          expect(Array.new(2) { subject.valid? }).to eq [true, true]
         end
       end
 

@@ -817,11 +817,11 @@ class AssignmentsApiController < ApplicationController
       when 'name'
         scope = scope.reorder(Arel.sql("#{Assignment.best_unicode_collation_key('assignments.title')}, assignment_groups.position, assignments.position, assignments.id"))
       when 'due_at'
-        if @context.grants_right?(user, :read_as_admin)
-          scope = scope.with_latest_due_date.reorder(Arel.sql("latest_due_date, #{Assignment.best_unicode_collation_key('assignments.title')}, assignment_groups.position, assignments.position, assignments.id"))
-        else
-          scope = scope.with_user_due_date(user).reorder(Arel.sql("user_due_date, #{Assignment.best_unicode_collation_key('assignments.title')}, assignment_groups.position, assignments.position, assignments.id"))
-        end
+        scope = if @context.grants_right?(user, :read_as_admin)
+                  scope.with_latest_due_date.reorder(Arel.sql("latest_due_date, #{Assignment.best_unicode_collation_key('assignments.title')}, assignment_groups.position, assignments.position, assignments.id"))
+                else
+                  scope.with_user_due_date(user).reorder(Arel.sql("user_due_date, #{Assignment.best_unicode_collation_key('assignments.title')}, assignment_groups.position, assignments.position, assignments.id"))
+                end
       end
 
       assignments = if params[:assignment_group_id].present?
@@ -877,6 +877,8 @@ class AssignmentsApiController < ApplicationController
         ActiveRecord::Associations::Preloader.new.preload(assignments, :score_statistic)
       end
 
+      mc_status = setup_master_course_restrictions(assignments, context)
+
       assignments.map do |assignment|
         visibility_array = assignment_visibilities[assignment.id] if assignment_visibilities
         submission = submissions[assignment.id]
@@ -894,7 +896,8 @@ class AssignmentsApiController < ApplicationController
                         include_overrides: include_override_objects,
                         preloaded_user_content_attachments: preloaded_attachments,
                         include_can_edit: include_params.include?('can_edit'),
-                        include_score_statistics: include_params.include?('score_statistics'))
+                        include_score_statistics: include_params.include?('score_statistics'),
+                        master_course_status: mc_status)
       end
     end
   end
@@ -1433,7 +1436,7 @@ class AssignmentsApiController < ApplicationController
   def invalid_bucket_error
     err_msg = t("bucket name must be one of the following: %{bucket_names}", bucket_names: SortsAssignments::VALID_BUCKETS.join(", "))
     @context.errors.add('bucket', err_msg, :att_name => 'bucket')
-    return render :json => @context.errors, :status => :bad_request
+    render :json => @context.errors, :status => :bad_request
   end
 
   def require_user_visibility
@@ -1478,12 +1481,10 @@ class AssignmentsApiController < ApplicationController
   # in a failure retry, we place a new assignment next to the failed assignments
   # in an initial dup request, a new assignment will be placed next to old_assignment
   def target_assignment_for_duplicate
-    @_target_assignment_for_duplicate ||= begin
-      target_assignment_id = params[:target_assignment_id]
-      return old_assignment_for_duplicate if target_assignment_id.blank?
+    target_assignment_id = params[:target_assignment_id]
+    return old_assignment_for_duplicate if target_assignment_id.blank?
 
-      target_course_for_duplicate.active_assignments.find_by(id: target_assignment_id)
-    end
+    @target_assignment_for_duplicate ||= target_course_for_duplicate.active_assignments.find_by(id: target_assignment_id)
   end
 
   # target course is:
@@ -1491,12 +1492,10 @@ class AssignmentsApiController < ApplicationController
   #   - different from @context, in case of "Retry" in course copy
   #   - the same @course for assignment copy
   def target_course_for_duplicate
-    @_target_course_for_duplicate ||= begin
-      target_course_id = params[:target_course_id]
-      return @context if target_course_id.blank?
+    target_course_id = params[:target_course_id]
+    return @context if target_course_id.blank?
 
-      Course.find_by(id: target_course_id)
-    end
+    @target_course_for_duplicate ||= Course.find_by(id: target_course_id)
   end
 
   def failure_retry?

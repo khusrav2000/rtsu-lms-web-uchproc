@@ -84,7 +84,7 @@ module Workflow
     end
   end
 
-  class TransitionHalted < Exception
+  class TransitionHalted < RuntimeError
     attr_reader :halted_because
 
     def initialize(msg = nil)
@@ -93,7 +93,7 @@ module Workflow
     end
   end
 
-  class NoTransitionAllowed < Exception; end
+  class NoTransitionAllowed < RuntimeError; end
 
   class State
     attr_accessor :name, :events, :on_entry, :on_exit
@@ -103,7 +103,7 @@ module Workflow
     end
 
     def to_s
-      "#{name}"
+      name.to_s
     end
 
     def to_sym
@@ -146,7 +146,7 @@ module Workflow
               process_event!(event_name, *args)
             end
             # INSTRUCTURE:
-            define_method "#{event_name}".to_sym do |*args|
+            define_method event_name.to_sym do |*args|
               process_event(event_name, *args)
             end
           end
@@ -252,7 +252,7 @@ module Workflow
     end
 
     def run_on_exit(state, new_state, triggering_event, *args)
-      instance_exec(new_state.name, triggering_event, *args, &state.on_exit) if state and state.on_exit
+      instance_exec(new_state.name, triggering_event, *args, &state.on_exit) if state&.on_exit
     end
 
     # load_workflow_state and persist_workflow_state

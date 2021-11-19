@@ -40,16 +40,16 @@ module StickySisFields
     def stuck_sis_fields
       self.class.sis_stickiness_options ||= {}
       if self.class.sis_stickiness_options[:override_sis_stickiness]
-        return [].to_set
+        [].to_set
       else
-        return calculate_currently_stuck_sis_fields
+        calculate_currently_stuck_sis_fields
       end
     end
 
     def stuck_sis_fields=(fields)
       fields = [fields] if fields.is_a? String
-      clear_sis_stickiness(*(stuck_sis_fields.to_a))
-      add_sis_stickiness(*(fields.map(&:to_sym).to_set))
+      clear_sis_stickiness(*stuck_sis_fields.to_a)
+      add_sis_stickiness(*fields.map(&:to_sym))
     end
 
     # clear stickiness on a set of fields
@@ -87,7 +87,7 @@ module StickySisFields
       @sis_fields_to_stick ||= [].to_set
       @sis_fields_to_unstick ||= [].to_set
       changed_sis_fields = self.class.sticky_sis_fields & (self.changed.map(&:to_sym).to_set | @sis_fields_to_stick)
-      return (load_stuck_sis_fields_cache | changed_sis_fields) - @sis_fields_to_unstick
+      (load_stuck_sis_fields_cache | changed_sis_fields) - @sis_fields_to_unstick
     end
   end
 

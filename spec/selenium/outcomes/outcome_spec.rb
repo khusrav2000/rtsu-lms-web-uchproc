@@ -29,7 +29,7 @@ describe "outcomes" do
   let(:outcome_url) { "/courses/#{@course.id}/outcomes" }
 
   describe "course outcomes" do
-    before(:each) do
+    before do
       course_with_teacher_logged_in
     end
 
@@ -39,7 +39,7 @@ describe "outcomes" do
       f('.submit_button').click
       wait_for_ajaximations
       expect(f('.title').text).to include(title)
-      expect((f('#calculation_int').text).to_i).to eq(value)
+      expect(f('#calculation_int').text.to_i).to eq(value)
     end
 
     context "create/edit/delete outcomes" do
@@ -173,7 +173,7 @@ describe "outcomes" do
     context "actions" do
       it "does not render an HTML-escaped title in outcome directory while editing", priority: "2", test_id: 250554 do
         title = 'escape & me <<->> if you dare'
-        who_to_login == 'teacher' ? @context = @course : @context = account
+        @context = who_to_login == 'teacher' ? @course : account
         outcome_model
         get outcome_url
         wait_for_ajaximations
@@ -213,7 +213,7 @@ describe "outcomes" do
     end
 
     describe 'with improved_outcome_management enabled' do
-      before(:each) do
+      before do
         enable_improved_outcomes_management(Account.default)
       end
 

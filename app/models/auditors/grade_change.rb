@@ -223,10 +223,9 @@ class Auditors::GradeChange
 
     # If we *are* specifically searching for override grades, swap out the
     # placeholder ID for a real NULL check.
-    scope.unscope(where: :assignment_id).where("assignment_id IS NULL")
+    scope.unscope(where: :assignment_id).where(assignment_id: nil)
   end
 
-  # rubocop:disable Metrics/BlockLength
   Stream = Audits.stream do
     grades_ar_type = Auditors::ActiveRecord::GradeChangeRecord
     backend_strategy -> { Audits.backend_strategy }
@@ -355,8 +354,6 @@ class Auditors::GradeChange
       }
     end
   end
-  # rubocop:enable Metrics/BlockLength
-
   def self.record(skip_insert: false, submission: nil, override_grade_change: nil, event_type: nil)
     if (submission.blank? && override_grade_change.blank?) || (submission.present? && override_grade_change.present?)
       raise ArgumentError, "Must specify exactly one of submission or override_grade_change"
@@ -450,7 +447,7 @@ class Auditors::GradeChange
 
   def self.for_scope_conditions(conditions, options)
     scope = Auditors::GradeChange.filter_by_assignment(Auditors::ActiveRecord::GradeChangeRecord.where(conditions))
-    EventStream::IndexStrategy::ActiveRecord::for_ar_scope(Auditors::ActiveRecord::GradeChangeRecord, scope, options)
+    EventStream::IndexStrategy::ActiveRecord.for_ar_scope(Auditors::ActiveRecord::GradeChangeRecord, scope, options)
   end
 
   def self.return_override_grades?

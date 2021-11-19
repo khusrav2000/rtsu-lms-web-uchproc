@@ -154,8 +154,8 @@ module Lti
         return resource_link_request.generate_post_payload
       end
 
-      if resource_type&.to_sym == :module_index_menu &&
-         !@context.root_account.feature_enabled?(:lti_deep_linking_module_index_menu)
+      if resource_type&.to_sym == :module_index_menu_modal &&
+         !@context.root_account.feature_enabled?(:lti_deep_linking_module_index_menu_modal)
         return resource_link_request.generate_post_payload
       end
 
@@ -207,16 +207,14 @@ module Lti
     end
 
     def resource_link_request
-      @_resource_link_request ||= begin
-        Lti::Messages::ResourceLinkRequest.new(
-          tool: @tool,
-          context: @context,
-          user: @user,
-          expander: @expander,
-          return_url: @return_url,
-          opts: @opts.merge(option_overrides)
-        )
-      end
+      @_resource_link_request ||= Lti::Messages::ResourceLinkRequest.new(
+        tool: @tool,
+        context: @context,
+        user: @user,
+        expander: @expander,
+        return_url: @return_url,
+        opts: @opts.merge(option_overrides)
+      )
     end
 
     def option_overrides

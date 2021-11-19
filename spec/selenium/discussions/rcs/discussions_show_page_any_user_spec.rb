@@ -25,7 +25,7 @@ describe "discussions" do
   include_context "in-process server selenium tests"
   include DiscussionsCommon
 
-  let(:course) { course_model.tap { |course| course.offer! } }
+  let(:course) { course_model.tap(&:offer!) }
   let(:student) { student_in_course(course: course, name: 'student', active_all: true).user }
   let(:teacher) { teacher_in_course(course: course, name: 'teacher', active_all: true).user }
   let(:somebody) { student_in_course(course: course, name: 'somebody', active_all: true).user }
@@ -45,7 +45,7 @@ describe "discussions" do
       let(:topic) { somebody_topic }
       let(:topic_participant) { topic.discussion_topic_participants.find_by(user: somebody) }
 
-      before(:each) do
+      before do
         user_session(somebody)
         stub_rcs_config
       end

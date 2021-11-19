@@ -35,7 +35,7 @@ module Importers
       params = migration.migration_settings[:migration_ids_to_import]
       valid_paths = []
       (data['file_map'] || {}).each_value do |file|
-        path = file['path_name'].starts_with?('/') ? file['path_name'][1..-1] : file['path_name']
+        path = file['path_name'].starts_with?('/') ? file['path_name'][1..] : file['path_name']
         migration.add_attachment_path(path, file['migration_id'])
         if migration.import_object?("attachments", file['migration_id']) || migration.import_object?("files", file['migration_id'])
           if file['errored']
@@ -79,7 +79,7 @@ module Importers
     end
 
     def self.import_media_objects(mo_attachments, migration)
-      wait_for_completion = migration && migration.canvas_import?
+      wait_for_completion = migration&.canvas_import?
       unless mo_attachments.blank?
         MediaObject.add_media_files(mo_attachments, wait_for_completion)
       end
@@ -103,14 +103,15 @@ module Importers
         end
         ActiveRecord::Base.skip_touch_context
 
-        if !migration.for_course_copy?
+        unless migration.for_course_copy?
           Importers::ContextModuleImporter.select_all_linked_module_items(data, migration)
           Importers::GradingStandardImporter.select_course_grading_standard(data, migration)
           # These only need to be processed once
           Attachment.skip_media_object_creation do
             process_migration_files(data, migration)
             migration.update_import_progress(18)
-            Importers::AttachmentImporter.process_migration(data, migration); migration.update_import_progress(20)
+            Importers::AttachmentImporter.process_migration(data, migration)
+            migration.update_import_progress(20)
             mo_attachments = migration.imported_migration_items_by_class(Attachment).find_all { |i| i.media_entry_id.present? }
             begin
               self.import_media_objects(mo_attachments, migration)
@@ -128,29 +129,42 @@ module Importers
 
         migration.update_import_progress(35)
         unless migration.quizzes_next_banks_migration?
-          question_data = Importers::AssessmentQuestionImporter.process_migration(data, migration); migration.update_import_progress(45)
+          question_data = Importers::AssessmentQuestionImporter.process_migration(data, migration)
+          migration.update_import_progress(45)
         end
-        Importers::GroupImporter.process_migration(data, migration); migration.update_import_progress(48)
-        Importers::LearningOutcomeImporter.process_migration(data, migration); migration.update_import_progress(50)
-        Importers::RubricImporter.process_migration(data, migration); migration.update_import_progress(52)
+        Importers::GroupImporter.process_migration(data, migration)
+        migration.update_import_progress(48)
+        Importers::LearningOutcomeImporter.process_migration(data, migration)
+        migration.update_import_progress(50)
+        Importers::RubricImporter.process_migration(data, migration)
+        migration.update_import_progress(52)
         course.assignment_group_no_drop_assignments = {}
-        Importers::AssignmentGroupImporter.process_migration(data, migration); migration.update_import_progress(54)
-        Importers::ExternalFeedImporter.process_migration(data, migration); migration.update_import_progress(56)
-        Importers::GradingStandardImporter.process_migration(data, migration); migration.update_import_progress(58)
-        Importers::ContextExternalToolImporter.process_migration(data, migration); migration.update_import_progress(60)
-        Importers::ToolProfileImporter.process_migration(data, migration); migration.update_import_progress(61)
+        Importers::AssignmentGroupImporter.process_migration(data, migration)
+        migration.update_import_progress(54)
+        Importers::ExternalFeedImporter.process_migration(data, migration)
+        migration.update_import_progress(56)
+        Importers::GradingStandardImporter.process_migration(data, migration)
+        migration.update_import_progress(58)
+        Importers::ContextExternalToolImporter.process_migration(data, migration)
+        migration.update_import_progress(60)
+        Importers::ToolProfileImporter.process_migration(data, migration)
+        migration.update_import_progress(61)
 
         Assignment.suspend_due_date_caching do
-          Importers::QuizImporter.process_migration(data, migration, question_data); migration.update_import_progress(65)
+          Importers::QuizImporter.process_migration(data, migration, question_data)
+          migration.update_import_progress(65)
         end
 
         Assignment.suspend_due_date_caching do
-          Importers::DiscussionTopicImporter.process_migration(data, migration); migration.update_import_progress(70)
+          Importers::DiscussionTopicImporter.process_migration(data, migration)
+          migration.update_import_progress(70)
         end
-        Importers::WikiPageImporter.process_migration(data, migration); migration.update_import_progress(75)
+        Importers::WikiPageImporter.process_migration(data, migration)
+        migration.update_import_progress(75)
 
         Assignment.suspend_due_date_caching do
-          Importers::AssignmentImporter.process_migration(data, migration); migration.update_import_progress(80)
+          Importers::AssignmentImporter.process_migration(data, migration)
+          migration.update_import_progress(80)
         end
 
         module_id = migration.migration_settings[:insert_into_module_id].presence
@@ -276,104 +290,102 @@ module Importers
     end
 
     def self.adjust_dates(course, migration)
-      begin
-        # Adjust dates
-        if (shift_options = migration.date_shift_options)
-          shift_options = self.shift_date_options(course, shift_options)
+      # Adjust dates
+      if (shift_options = migration.date_shift_options)
+        shift_options = self.shift_date_options(course, shift_options)
 
-          Assignment.suspend_due_date_caching do
-            migration.imported_migration_items_by_class(Assignment).each do |event|
-              event.reload # just in case
-              event.due_at = shift_date(event.due_at, shift_options)
-              event.lock_at = shift_date(event.lock_at, shift_options)
-              event.unlock_at = shift_date(event.unlock_at, shift_options)
-              event.peer_reviews_due_at = shift_date(event.peer_reviews_due_at, shift_options)
-              event.needs_update_cached_due_dates = true if event.update_cached_due_dates?
-              event.save_without_broadcasting
-              if event.errors.any?
-                migration.add_warning(t("Couldn't adjust dates on assignment %{name} (ID %{id})", name: event.name, id: event.id.to_s))
-              end
-            end
-          end
-
-          migration.imported_migration_items_by_class(Attachment).each do |event|
+        Assignment.suspend_due_date_caching do
+          migration.imported_migration_items_by_class(Assignment).each do |event|
+            event.reload # just in case
+            event.due_at = shift_date(event.due_at, shift_options)
             event.lock_at = shift_date(event.lock_at, shift_options)
             event.unlock_at = shift_date(event.unlock_at, shift_options)
+            event.peer_reviews_due_at = shift_date(event.peer_reviews_due_at, shift_options)
+            event.needs_update_cached_due_dates = true if event.update_cached_due_dates?
             event.save_without_broadcasting
-          end
-
-          migration.imported_migration_items_by_class(Folder).each do |event|
-            event.lock_at = shift_date(event.lock_at, shift_options)
-            event.unlock_at = shift_date(event.unlock_at, shift_options)
-            event.save
-          end
-
-          (migration.imported_migration_items_by_class(Announcement) +
-            migration.imported_migration_items_by_class(DiscussionTopic)).each do |event|
-            event.reload
-            event.saved_by = :after_migration
-            event.delayed_post_at = shift_date(event.delayed_post_at, shift_options)
-            event.lock_at = shift_date(event.lock_at, shift_options)
-            event.todo_date = shift_date(event.todo_date, shift_options)
-            event.save_without_broadcasting
-          end
-
-          migration.imported_migration_items_by_class(CalendarEvent).each do |event|
-            event.reload
-            event.start_at = shift_date(event.start_at, shift_options)
-            event.end_at = shift_date(event.end_at, shift_options)
-            if event.all_day_date
-              ad_time = event.all_day_date.in_time_zone(shift_options[:time_zone] || Time.zone)
-              event.all_day_date = shift_date(ad_time, shift_options).try(:to_date)
+            if event.errors.any?
+              migration.add_warning(t("Couldn't adjust dates on assignment %{name} (ID %{id})", name: event.name, id: event.id.to_s))
             end
-            event.save_without_broadcasting
-          end
-
-          Assignment.suspend_due_date_caching do
-            migration.imported_migration_items_by_class(Quizzes::Quiz).each do |event|
-              event.reload # have to reload the quiz_data to keep link resolution - the others are just in case
-              event.due_at = shift_date(event.due_at, shift_options)
-              event.lock_at = shift_date(event.lock_at, shift_options)
-              event.unlock_at = shift_date(event.unlock_at, shift_options)
-              event.show_correct_answers_at = shift_date(event.show_correct_answers_at, shift_options)
-              event.hide_correct_answers_at = shift_date(event.hide_correct_answers_at, shift_options)
-              event.saved_by = :migration
-              event.save
-            end
-
-            migration.imported_migration_items_by_class(AssignmentOverride).each do |event|
-              AssignmentOverride.overridden_dates.each do |field|
-                date = event.send(field)
-                next unless date
-
-                event.send("#{field}=", shift_date(date, shift_options))
-              end
-              event.save_without_broadcasting
-            end
-          end
-
-          migration.imported_migration_items_by_class(ContextModule).each do |event|
-            event.unlock_at = shift_date(event.unlock_at, shift_options)
-            event.save
-          end
-
-          migration.imported_migration_items_by_class(WikiPage).each do |event|
-            event.reload
-            event.todo_date = shift_date(event.todo_date, shift_options)
-            event.save_without_broadcasting
-          end
-
-          course.set_course_dates_if_blank(shift_options)
-        else
-          (migration.imported_migration_items_by_class(Announcement) +
-            migration.imported_migration_items_by_class(DiscussionTopic)).each do |event|
-            event.saved_by = :after_migration
-            event.schedule_delayed_transitions
           end
         end
-      rescue
-        migration.add_warning(t(:due_dates_warning, "Couldn't adjust the due dates."), $!)
+
+        migration.imported_migration_items_by_class(Attachment).each do |event|
+          event.lock_at = shift_date(event.lock_at, shift_options)
+          event.unlock_at = shift_date(event.unlock_at, shift_options)
+          event.save_without_broadcasting
+        end
+
+        migration.imported_migration_items_by_class(Folder).each do |event|
+          event.lock_at = shift_date(event.lock_at, shift_options)
+          event.unlock_at = shift_date(event.unlock_at, shift_options)
+          event.save
+        end
+
+        (migration.imported_migration_items_by_class(Announcement) +
+          migration.imported_migration_items_by_class(DiscussionTopic)).each do |event|
+          event.reload
+          event.saved_by = :after_migration
+          event.delayed_post_at = shift_date(event.delayed_post_at, shift_options)
+          event.lock_at = shift_date(event.lock_at, shift_options)
+          event.todo_date = shift_date(event.todo_date, shift_options)
+          event.save_without_broadcasting
+        end
+
+        migration.imported_migration_items_by_class(CalendarEvent).each do |event|
+          event.reload
+          event.start_at = shift_date(event.start_at, shift_options)
+          event.end_at = shift_date(event.end_at, shift_options)
+          if event.all_day_date
+            ad_time = event.all_day_date.in_time_zone(shift_options[:time_zone] || Time.zone)
+            event.all_day_date = shift_date(ad_time, shift_options).try(:to_date)
+          end
+          event.save_without_broadcasting
+        end
+
+        Assignment.suspend_due_date_caching do
+          migration.imported_migration_items_by_class(Quizzes::Quiz).each do |event|
+            event.reload # have to reload the quiz_data to keep link resolution - the others are just in case
+            event.due_at = shift_date(event.due_at, shift_options)
+            event.lock_at = shift_date(event.lock_at, shift_options)
+            event.unlock_at = shift_date(event.unlock_at, shift_options)
+            event.show_correct_answers_at = shift_date(event.show_correct_answers_at, shift_options)
+            event.hide_correct_answers_at = shift_date(event.hide_correct_answers_at, shift_options)
+            event.saved_by = :migration
+            event.save
+          end
+
+          migration.imported_migration_items_by_class(AssignmentOverride).each do |event|
+            AssignmentOverride.overridden_dates.each do |field|
+              date = event.send(field)
+              next unless date
+
+              event.send("#{field}=", shift_date(date, shift_options))
+            end
+            event.save_without_broadcasting
+          end
+        end
+
+        migration.imported_migration_items_by_class(ContextModule).each do |event|
+          event.unlock_at = shift_date(event.unlock_at, shift_options)
+          event.save
+        end
+
+        migration.imported_migration_items_by_class(WikiPage).each do |event|
+          event.reload
+          event.todo_date = shift_date(event.todo_date, shift_options)
+          event.save_without_broadcasting
+        end
+
+        course.set_course_dates_if_blank(shift_options)
+      else
+        (migration.imported_migration_items_by_class(Announcement) +
+          migration.imported_migration_items_by_class(DiscussionTopic)).each do |event|
+          event.saved_by = :after_migration
+          event.schedule_delayed_transitions
+        end
       end
+    rescue
+      migration.add_warning(t(:due_dates_warning, "Couldn't adjust the due dates."), $!)
     end
 
     def self.clear_assignment_and_quiz_caches(migration)
@@ -401,7 +413,7 @@ module Importers
       return unless data[:course]
 
       settings = data[:course]
-      if settings[:tab_configuration] && settings[:tab_configuration].is_a?(Array)
+      if settings[:tab_configuration].is_a?(Array)
         tab_config = []
         all_tools = nil
         settings[:tab_configuration].each do |tab|
@@ -441,19 +453,19 @@ module Importers
         end
       end
 
-      if settings.has_key?('overridden_course_visibility')
+      if settings.key?('overridden_course_visibility')
         course.apply_overridden_course_visibility(settings.delete('overridden_course_visibility'))
       end
 
       if migration.for_master_course_import?
-        course.start_at    = Canvas::Migration::MigratorHelper.get_utc_time_from_timestamp(settings['start_at']) if settings.has_key?('start_at')
-        course.conclude_at = Canvas::Migration::MigratorHelper.get_utc_time_from_timestamp(settings['conclude_at']) if settings.has_key?('conclude_at')
+        course.start_at    = Canvas::Migration::MigratorHelper.get_utc_time_from_timestamp(settings['start_at']) if settings.key?('start_at')
+        course.conclude_at = Canvas::Migration::MigratorHelper.get_utc_time_from_timestamp(settings['conclude_at']) if settings.key?('conclude_at')
       end
 
       settings.slice(*atts.map(&:to_s)).each do |key, val|
         course.send("#{key}=", val)
       end
-      if settings.has_key?(:grading_standard_enabled)
+      if settings.key?(:grading_standard_enabled)
         if settings[:grading_standard_enabled]
           course.grading_standard_enabled = true
           if settings[:grading_standard_identifier_ref]

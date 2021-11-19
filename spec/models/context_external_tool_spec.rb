@@ -134,8 +134,8 @@ describe ContextExternalTool do
       ContextExternalTool.global_navigation_granted_permissions(root_account: @root_account,
                                                                 user: global_nav_user, context: global_nav_context, session: nil)
     }
-    let(:global_nav_user) {}
-    let(:global_nav_context) {}
+    let(:global_nav_user) { nil }
+    let(:global_nav_context) { nil }
     let(:required_permission) { 'some-permission' }
 
     let!(:permission_required_tool) do
@@ -269,7 +269,7 @@ describe ContextExternalTool do
     end
 
     it 'sends only 255 chars' do
-      allow(Lti::Asset).to receive(:opaque_identifier_for).and_return(256.times.map { 'a' }.join)
+      allow(Lti::Asset).to receive(:opaque_identifier_for).and_return("a" * 256)
       expect(tool.deployment_id.size).to eq 255
     end
   end
@@ -1155,7 +1155,7 @@ describe ContextExternalTool do
 
         expect(hash["custom_a"]).to eq "1"
         expect(hash["custom_b"]).to eq "2"
-        expect(hash.has_key?("custom_c")).to eq false
+        expect(hash).not_to have_key("custom_c")
       end
     end
   end
@@ -1272,13 +1272,13 @@ describe ContextExternalTool do
 
         tool.homework_submission = { enabled: true }
         expect(tool.settings[:homework_submission]).to include({ enabled: true, selection_height: 300 })
-        expect(tool.settings.key?(:inactive_placements)).to be_falsey
+        expect(tool.settings).not_to have_key(:inactive_placements)
       end
 
       it 'moves placement data to inactive placements when disabled' do
         tool.homework_submission = { enabled: false }
         expect(tool.settings[:inactive_placements][:homework_submission]).to include({ enabled: false, selection_height: 300 })
-        expect(tool.settings.key?(:homework_submission)).to be_falsey
+        expect(tool.settings).not_to have_key(:homework_submission)
       end
 
       it 'keeps already inactive placement data when disabled again' do
@@ -1639,7 +1639,7 @@ describe ContextExternalTool do
         it 'accepts `nil` and removes visibility' do
           set_visibility('members')
           set_visibility(nil)
-          expect(tool.file_menu.key?(:visibility)).to be false
+          expect(tool.file_menu).not_to have_key(:visibility)
         end
       end
     end
@@ -1797,7 +1797,7 @@ describe ContextExternalTool do
   end
 
   describe "default_label" do
-    append_before(:each) do
+    append_before do
       @tool = @root_account.context_external_tools.new(:consumer_key => '12345', :shared_secret => 'secret', :url => "http://example.com", :name => "tool name")
     end
 
@@ -1813,7 +1813,7 @@ describe ContextExternalTool do
   end
 
   describe "label_for" do
-    append_before(:each) do
+    append_before do
       @tool = @root_account.context_external_tools.new(:name => 'tool', :consumer_key => '12345', :shared_secret => 'secret', :url => "http://example.com")
     end
 
@@ -2427,7 +2427,7 @@ describe ContextExternalTool do
       let(:account) { account_model }
 
       shared_examples_for 'finds related assignments' do
-        before :each do
+        before do
           # assignments that should never get returned
           diff_context = assignment_model(context: course_model)
           ContentTag.create!(context: diff_context, content: old_tool)

@@ -22,9 +22,9 @@ class UserService < ActiveRecord::Base
   include Workflow
 
   belongs_to :user
-  attr_accessor :password
+  attr_reader :password
 
-  validates_presence_of :user_id, :service, :service_user_id, :workflow_state
+  validates :user_id, :service, :service_user_id, :workflow_state, presence: true
 
   before_save :infer_defaults
   after_save :assert_relations
@@ -176,8 +176,6 @@ class UserService < ActiveRecord::Base
     case type
     when 'google_drive'
       t '#user_service.descriptions.google_drive', 'Students can use Google Drive to collaborate on group projects.  Google Drive allows for real-time collaborative editing of documents, spreadsheets and presentations.'
-    when 'google_calendar'
-      ''
     when CommunicationChannel::TYPE_TWITTER
       t '#user_service.descriptions.twitter', 'Twitter is a great resource for out-of-class communication.'
     when 'delicious'
@@ -186,7 +184,7 @@ class UserService < ActiveRecord::Base
       t '#user_service.descriptions.diigo', 'Diigo is a collaborative link-sharing tool.  You can tag any page on the Internet for later reference.  You can also link to other users\' Diigo accounts to share links of similar interest.'
     when 'skype'
       t '#user_service.descriptions.skype', 'Skype is a free tool for online voice and video calls.'
-    else
+    else # 'google_calendar'
       ''
     end
   end
@@ -230,16 +228,19 @@ class UserService < ActiveRecord::Base
   end
 
   def self.service_type(type)
-    if type == 'google_docs' || type == 'google_drive'
+    case type
+    when 'google_docs', 'google_drive'
       'DocumentService'
-    elsif type == 'delicious' || type == 'diigo'
+    when 'delicious', 'diigo'
       'BookmarkService'
     else
       'UserService'
     end
   end
 
-  def self.serialization_excludes; [:crypted_password, :password_salt, :token, :secret]; end
+  def self.serialization_excludes
+    [:crypted_password, :password_salt, :token, :secret]
+  end
 
   def self.associated_shards(_service, _service_user_id)
     [Shard.default]

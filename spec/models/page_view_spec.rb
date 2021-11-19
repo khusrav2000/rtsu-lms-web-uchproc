@@ -61,7 +61,7 @@ describe PageView do
 
     it "does not start a db transaction on save" do
       PageView.new { |p| p.assign_attributes({ :user => @user, :url => "http://test.one/", :session_id => "phony", :context => @course, :controller => 'courses', :action => 'show', :user_request => true, :render_time => 0.01, :user_agent => 'None', :account_id => Account.default.id, :request_id => "abcdef", :interaction_seconds => 5 }) }.store
-      expect(PageView.connection).to receive(:transaction).never
+      expect(PageView.connection).not_to receive(:transaction)
       expect(PageView.find("abcdef")).to be_present
     end
 
@@ -400,7 +400,7 @@ describe PageView do
 
       it "returns the existing page view" do
         page_views = Array.new(4) { page_view_model }
-        page_view_ids = page_views.map { |page_view| page_view.request_id }
+        page_view_ids = page_views.map(&:request_id)
 
         expect(PageView.find_all_by_id(page_view_ids)).to match_array page_views
       end
@@ -415,7 +415,7 @@ describe PageView do
 
       it "returns the existing page view" do
         page_views = Array.new(4) { page_view_model }
-        page_view_ids = page_views.map { |page_view| page_view.request_id }
+        page_view_ids = page_views.map(&:request_id)
 
         expect(PageView.find_all_by_id(page_view_ids)).to match_array page_views
       end
@@ -580,7 +580,7 @@ describe PageView do
 
     it "store doesn't do anything" do
       pv = PageView.new
-      expect(pv).to receive(:save).never
+      expect(pv).not_to receive(:save)
       expect(pv).to receive(:store_page_view_to_user_counts)
       pv.user = User.new
       pv.store

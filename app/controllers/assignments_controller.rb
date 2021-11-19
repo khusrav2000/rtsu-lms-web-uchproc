@@ -78,7 +78,8 @@ class AssignmentsController < ApplicationController
           DUE_DATE_REQUIRED_FOR_ACCOUNT: due_date_required_for_account,
           FLAGS: {
             newquizzes_on_quiz_page: @context.root_account.feature_enabled?(:newquizzes_on_quiz_page),
-            new_quizzes_modules_support: Account.site_admin.feature_enabled?(:new_quizzes_modules_support)
+            new_quizzes_modules_support: Account.site_admin.feature_enabled?(:new_quizzes_modules_support),
+            new_quizzes_skip_to_build_module_button: Account.site_admin.feature_enabled?(:new_quizzes_skip_to_build_module_button)
           }
         }
 
@@ -117,9 +118,9 @@ class AssignmentsController < ApplicationController
 
   def render_a2_student_view(student:)
     submission = @assignment.submissions.find_by(user: student)
-    graphql_submisison_id = nil
+    graphql_submission_id = nil
     if submission
-      graphql_submisison_id = CanvasSchema.id_from_object(
+      graphql_submission_id = CanvasSchema.id_from_object(
         submission,
         CanvasSchema.resolve_type(nil, submission, nil),
         nil
@@ -164,7 +165,7 @@ class AssignmentsController < ApplicationController
              CONFETTI_ENABLED: @domain_root_account&.feature_enabled?(:confetti_for_assignments),
              COURSE_ID: @context.id,
              PREREQS: assignment_prereqs,
-             SUBMISSION_ID: graphql_submisison_id
+             SUBMISSION_ID: graphql_submission_id
            })
     css_bundle :assignments_2_student
     js_bundle :assignments_show_student
@@ -172,7 +173,7 @@ class AssignmentsController < ApplicationController
   end
 
   def show
-    if !request.format.html?
+    unless request.format.html?
       return render body: "endpoint does not support #{request.format.symbol}", status: :bad_request
     end
 
@@ -252,7 +253,7 @@ class AssignmentsController < ApplicationController
           # If this is a group assignment and we had previously filtered by a
           # group that isn't part of this assignment's group set, behave as if
           # no group is selected.
-          if selected_group_id.present? && Group.active.exists?(group_category_id: eligible_categories.pluck(:id), id: selected_group_id)
+          if selected_group_id.present? && Group.active.where(group_category_id: eligible_categories.pluck(:id), id: selected_group_id).exists?
             env[:selected_student_group_id] = selected_group_id
           end
         end
@@ -309,11 +310,11 @@ class AssignmentsController < ApplicationController
           @assigned_assessments = @current_user_submission&.assigned_assessments&.select { |request| request.submission.grants_right?(@current_user, session, :read) } || []
         end
 
-        if @assignment.submission_types.include?("online_upload") || @assignment.submission_types.include?("online_url")
-          @external_tools = ContextExternalTool.all_tools_for(@context, :user => @current_user, :placements => :homework_submission)
-        else
-          @external_tools = []
-        end
+        @external_tools = if @assignment.submission_types.include?("online_upload") || @assignment.submission_types.include?("online_url")
+                            ContextExternalTool.all_tools_for(@context, :user => @current_user, :placements => :homework_submission)
+                          else
+                            []
+                          end
 
         context_rights = @context.rights_status(@current_user, session, :read_as_admin, :manage_assignments, :manage_assignments_edit)
         if @context.root_account.feature_enabled?(:granular_permissions_manage_assignments)
@@ -345,7 +346,7 @@ class AssignmentsController < ApplicationController
         @can_grade = @assignment.grants_right?(@current_user, session, :grade)
         if @can_view_grades || @can_grade
           visible_student_ids = @context.apply_enrollment_visibility(@context.all_student_enrollments, @current_user).pluck(:user_id)
-          @current_student_submissions = @assignment.submissions.where("submissions.submission_type IS NOT NULL").where(:user_id => visible_student_ids).to_a
+          @current_student_submissions = @assignment.submissions.where.not(submissions: { submission_type: nil }).where(:user_id => visible_student_ids).to_a
         end
 
         # this will set @user_has_google_drive
@@ -511,7 +512,7 @@ class AssignmentsController < ApplicationController
   def peer_reviews
     @assignment = @context.assignments.active.find(params[:assignment_id])
     if authorized_action(@assignment, @current_user, :grade)
-      if !@assignment.has_peer_reviews?
+      unless @assignment.has_peer_reviews?
         redirect_to named_context_url(@context, :context_assignment_url, @assignment.id)
         return
       end
@@ -573,7 +574,7 @@ class AssignmentsController < ApplicationController
     @assignment.updating_user = @current_user
 
     respond_to do |format|
-      if @assignment && @assignment.send(method)
+      if @assignment&.send(method)
         format.json { render json: @assignment.as_json(methods: :anonymize_students) }
       else
         format.json { render :json => @assignment, :status => :bad_request }

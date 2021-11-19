@@ -155,9 +155,8 @@ module VeriCite
         raise "Unsupported submission type for VeriCite integration: #{submission.submission_type}"
       end
 
-      responses.keys.each do |asset_string|
-        res = responses[asset_string]
-        responses[asset_string] = is_response_success?(res) ? { object_id: res[:returned_object_id] } : response_error_hash(res)
+      responses.transform_values! do |res|
+        is_response_success?(res) ? { object_id: res[:returned_object_id] } : response_error_hash(res)
       end
 
       responses
@@ -219,15 +218,16 @@ module VeriCite
 
         consumer = @account_id
         consumer_secret = @shared_secret
-        if command == :create_assignment
+        case command
+        when :create_assignment
           context_id = course.id
           assignment_id = assignment.id
           assignment_data = VeriCiteClient::AssignmentData.new()
           assignment_data.assignment_title = assignment.title != nil ? assignment.title : assignment_id
           assignment_data.assignment_instructions = assignment.description != nil ? assignment.description : ""
-          assignment_data.assignment_exclude_quotes = args["exclude_quoted"] != nil && args["exclude_quoted"] == '1' ? true : false
-          assignment_data.assignment_exclude_self_plag = args["exclude_self_plag"] != nil && args["exclude_self_plag"] == '1' ? true : false
-          assignment_data.assignment_store_in_index = args["store_in_index"] != nil && args["store_in_index"] == '1' ? true : false
+          assignment_data.assignment_exclude_quotes = args["exclude_quoted"] == '1'
+          assignment_data.assignment_exclude_self_plag = args["exclude_self_plag"] == '1'
+          assignment_data.assignment_store_in_index = args["store_in_index"] == '1'
           assignment_data.assignment_due_date = 0
           if assignment.due_at != nil
             # convert to epoch time in milli
@@ -237,14 +237,14 @@ module VeriCite
           _data, status_code, _headers = vericite_client.assignments_context_id_assignment_id_post(context_id, assignment_id, consumer, consumer_secret, assignment_data)
           # check status code
           response[:return_code] = status_code
-          if !is_response_success?(response)
+          unless is_response_success?(response)
             response[:return_message] = "An error has occurred while creating the VeriCite assignment."
             response[:public_error_message] = response[:return_message]
             fail "Failed to create assignment: #{assignment_id}, site #{context_id}"
           end
           # this is a flag to signal success
           response[:assignment_id] = assignment.id
-        elsif command == :submit_paper
+        when :submit_paper
           context_id = course.id
           assignment_id = assignment.id
           user_id = user.id
@@ -269,7 +269,7 @@ module VeriCite
           data, status_code, _headers = vericite_client.reports_submit_request_context_id_assignment_id_user_id_post(context_id, assignment_id, user_id, consumer, consumer_secret, report_meta_data)
           # check status code
           response[:return_code] = status_code
-          if !is_response_success?(response)
+          unless is_response_success?(response)
             response[:return_message] = "An error has occurred while submitting the paper to VeriCite."
             response[:public_error_message] = response[:return_message]
             fail "Failed to submit paper: #{external_content_data.external_content_id}"
@@ -280,17 +280,17 @@ module VeriCite
           end
           # this is a flag to signal success
           response[:returned_object_id] = external_content_data.external_content_id
-        elsif command == :get_scores
+        when :get_scores
           context_id = course.id
           assignment_id = assignment.id
           user_id = user.id
           user_score_cache_key_prefix = "vericite_scores/#{consumer}/#{context_id}/#{assignment_id}/"
           users_score_map = {}
           # first check if the cache already has the user's score and if we haven't looked up this assignment lately:
-          users_score_map["#{user_id}"] = Rails.cache.read("#{user_score_cache_key_prefix}#{user_id}")
-          if users_score_map["#{user_id}"].nil? && Rails.cache.read(user_score_cache_key_prefix) == nil
+          users_score_map[user_id.to_s] = Rails.cache.read("#{user_score_cache_key_prefix}#{user_id}")
+          if users_score_map[user_id.to_s].nil? && Rails.cache.read(user_score_cache_key_prefix) == nil
             # we already looked up this user in Redis, don't bother again (by setting {})
-            users_score_map["#{user_id}"] ||= {}
+            users_score_map[user_id.to_s] ||= {}
             # we need to look up the user scores in VeriCite for this course
             # @return [Array<ReportScoreReponse>]
             data, status_code, _headers = vericite_client.reports_scores_context_id_get(context_id, consumer, consumer_secret, { :assignment_id => assignment_id })
@@ -298,7 +298,7 @@ module VeriCite
             Rails.cache.write(user_score_cache_key_prefix, true, :expires_in => 5.minutes)
             # check status code
             response[:return_code] = status_code
-            if !is_response_success?(response)
+            unless is_response_success?(response)
               response[:return_message] = "An error has occurred while getting scores from VeriCite."
               response[:public_error_message] = response[:return_message]
               fail "Failed to get scores for site: #{context_id}, assignment: #{assignment_id}, user: #{user_id},  exId: #{args[:oid]}"
@@ -322,14 +322,12 @@ module VeriCite
           end
 
           # the user score map shouldn't be empty now (either grabbed from the cache or VeriCite)
-          unless users_score_map["#{user_id}"].nil?
-            users_score_map["#{user_id}"].each do |key, score|
-              if key ==  args[:oid] && score >= 0
-                response[:similarity_score] = score
-              end
+          users_score_map[user_id.to_s]&.each do |key, score|
+            if key == args[:oid] && score >= 0
+              response[:similarity_score] = score
             end
           end
-        elsif command == :generate_report
+        when :generate_report
           context_id = course.id
           assignment_id_filter = assignment.id
           user_id = user.id
@@ -344,7 +342,7 @@ module VeriCite
           data, status_code, _headers = vericite_client.reports_urls_context_id_get(context_id, assignment_id_filter, consumer, consumer_secret, token_user, token_user_role, { user_id_filter => user_id, external_content_id_filter => args[:oid] })
           # check status code
           response[:return_code] = status_code
-          if !is_response_success?(response)
+          unless is_response_success?(response)
             response[:return_message] = "An error has occurred while getting the report URL from VeriCite."
             response[:public_error_message] = response[:return_message]
             fail "Failed to get the report url for site: #{context_id}, assignment: #{assignment_id}, user: #{user_id},  exId: #{args[:oid]}, token_user: #{token_user}, token_user_role: #{token_user_role}"
@@ -363,7 +361,7 @@ module VeriCite
           # we do not want to return a success code if there was an error
           response[:return_code] = 100
         end
-        if !response.key?(:return_message)
+        unless response.key?(:return_message)
           # we want a generic error message at a minimum
           response[:return_message] = "VeriCite error during #{command} command, error: #{e}"
           response[:public_error_message] = response[:return_message]
@@ -377,13 +375,11 @@ module VeriCite
 
     private
 
-    SUCCESSFUL_RETURN_CODES = (200..299)
+    SUCCESSFUL_RETURN_CODES = (200..299).freeze
     def is_response_success?(response)
-      begin
-        response && response.key?(:return_code) && SUCCESSFUL_RETURN_CODES.cover?(Integer(response[:return_code]))
-      rescue
-        false
-      end
+      response&.key?(:return_code) && SUCCESSFUL_RETURN_CODES.cover?(Integer(response[:return_code]))
+    rescue
+      false
     end
 
     def response_error_hash(response)

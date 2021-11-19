@@ -389,7 +389,7 @@ class SubmissionsApiController < ApplicationController
       # can view observees
       allowed_student_ids = @context.observer_enrollments
                                     .where(:user_id => @current_user.id, :workflow_state => 'active')
-                                    .where("associated_user_id IS NOT NULL")
+                                    .where.not(associated_user_id: nil)
                                     .pluck(:associated_user_id)
 
       # can view self?
@@ -431,11 +431,11 @@ class SubmissionsApiController < ApplicationController
     end
 
     if value_to_boolean(params[:post_to_sis])
-      if student_ids.is_a?(Array)
-        student_ids = enrollments.where(user_id: student_ids).where.not(sis_batch_id: nil).select(:user_id)
-      else
-        student_ids = student_ids.where.not(sis_batch_id: nil)
-      end
+      student_ids = if student_ids.is_a?(Array)
+                      enrollments.where(user_id: student_ids).where.not(sis_batch_id: nil).select(:user_id)
+                    else
+                      student_ids.where.not(sis_batch_id: nil)
+                    end
     end
 
     includes = Array(params[:include])
@@ -472,7 +472,7 @@ class SubmissionsApiController < ApplicationController
     assignments_hash = assignments.index_by(&:id)
 
     if params[:submitted_since].present?
-      if params[:submitted_since] !~ Api::ISO8601_REGEX
+      if !Api::ISO8601_REGEX.match?(params[:submitted_since])
         return render(json: { errors: { submitted_since: t('Invalid datetime for submitted_since') } }, status: 400)
       else
         submitted_since_date = Time.zone.parse(params[:submitted_since])
@@ -480,7 +480,7 @@ class SubmissionsApiController < ApplicationController
     end
 
     if params[:graded_since].present?
-      if params[:graded_since] !~ Api::ISO8601_REGEX
+      if !Api::ISO8601_REGEX.match?(params[:graded_since])
         return render(json: { errors: { graded_since: t('Invalid datetime for graded_since') } }, status: 400)
       else
         graded_since_date = Time.zone.parse(params[:graded_since])
@@ -622,7 +622,7 @@ class SubmissionsApiController < ApplicationController
         )
       else
         @unauthorized_message = t('#application.errors.submission_unauthorized', "You cannot access this submission.")
-        return render_unauthorized_action
+        render_unauthorized_action
       end
     end
   end
@@ -950,13 +950,13 @@ class SubmissionsApiController < ApplicationController
 
       includes.delete("submission_comments")
       Version.preload_version_number(@submissions)
-      json[:all_submissions] = @submissions.map do |submission|
+      json[:all_submissions] = @submissions.map do |s|
         if visiblity_included
-          submission.visible_to_user = users_with_visibility.include?(submission.user_id)
+          s.visible_to_user = users_with_visibility.include?(s.user_id)
         end
 
         submission_json(
-          submission,
+          s,
           @assignment,
           @current_user,
           session,
@@ -1127,8 +1127,8 @@ class SubmissionsApiController < ApplicationController
         json = can_view_student_names ? user_display_json(submission.user, @context) : anonymous_user_display_json(submission.anonymous_id)
         if include_pg
           selection = submission.provisional_grades.find(&:selection)
-          json.merge!(in_moderation_set: selection.present?,
-                      selected_provisional_grade_id: selection&.provisional_grade_id)
+          json[:in_moderation_set] = selection.present?
+          json[:selected_provisional_grade_id] = selection&.provisional_grade_id
           pg_list = submission_provisional_grades_json(
             course: @context,
             assignment: @assignment,
@@ -1137,7 +1137,7 @@ class SubmissionsApiController < ApplicationController
             avatars: service_enabled?(:avatars) && !@assignment.grade_as_group?,
             includes: includes
           )
-          json.merge!({ provisional_grades: pg_list })
+          json[:provisional_grades] = pg_list
         end
         json
       }

@@ -22,8 +22,8 @@ class Csp::Domain < ActiveRecord::Base
 
   belongs_to :account
 
-  validates_presence_of :account_id, :domain
-  validates_length_of :domain, :maximum => maximum_string_length
+  validates :account_id, :domain, presence: true
+  validates :domain, length: { :maximum => maximum_string_length }
 
   validate :validate_domain
 
@@ -33,12 +33,10 @@ class Csp::Domain < ActiveRecord::Base
   after_save :invalidate_domain_list_cache
 
   def validate_domain
-    begin
-      URI.parse(self.domain)
-    rescue
-      self.errors.add(:domain, "Invalid domain")
-      return false
-    end
+    URI.parse(self.domain)
+  rescue
+    self.errors.add(:domain, "Invalid domain")
+    false
   end
 
   def downcase_domain

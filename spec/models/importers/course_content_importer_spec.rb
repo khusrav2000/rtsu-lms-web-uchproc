@@ -288,7 +288,7 @@ describe Course do
       migration = build_migration(@course, params)
       @course.reload # seems to be holding onto saved_changes for some reason
 
-      expect(DueDateCacher).to receive(:recompute_course).never
+      expect(DueDateCacher).not_to receive(:recompute_course)
       setup_import(@course, 'assessments.json', migration)
       expect(migration.workflow_state).to eq('imported')
     end
@@ -540,7 +540,7 @@ describe Course do
 
     it "can insert items from one module to an existing module" do
       migration = @course.content_migrations.build
-      @params["copy"].merge!("context_modules" => { "1864019962002" => true })
+      @params["copy"]["context_modules"] = { "1864019962002" => true }
       migration.migration_settings[:migration_ids_to_import] = @params
       migration.migration_settings[:insert_into_module_id] = @module.id
       migration.save!
