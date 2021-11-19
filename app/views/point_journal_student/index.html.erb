@@ -1,0 +1,56 @@
+<%
+  # Copyright (C) 2020 - present Istiqlolsoft, Inc.
+  #
+  # This file is part of Uchproc canvas.
+  #
+  # Uchproc canvas is free software: you can redistribute it and/or modify it under
+  # the terms of the GNU Affero General Public License as published by the Free
+  # Software Foundation, version 3 of the License.
+  #
+  # Canvas is distributed in the hope that it will be useful, but WITHOUT ANY
+  # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+  # A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+  # details.
+  #
+  # You should have received a copy of the GNU Affero General Public License along
+  # with this program. If not, see <http://www.gnu.org/licenses/>.
+%>
+
+<% provide :page_title do %><%= t('My Point Journal') %><% end %>
+<%
+  add_body_class "full-width no-page-block hide-content-while-scripts-not-loaded"
+  css_bundle :point_journal
+%>
+<div class="point-journal-header-view">
+  <h3><%= t('My Point Journal') %></h3>
+  <div class="point-journal-add-topic-container"></div>
+</div>
+<div class="responsive attendance-journal-student">
+  <table class="table table-bordered box-shadow--6dp">
+    <thead>
+    <tr>
+      <th><%= t('Course Name') %></th>
+      <th><%= t('Teacher name') %></th>
+      <%for i in 1..8%>
+        <th><%= i %></th>
+      <% end %>
+      <th><%= t('R1')%></th>
+      <%for i in 9..16%>
+        <th><%= i %></th>
+      <% end %>
+      <th><%= t('R2')%></th>
+    </tr>
+    </thead>
+    <tbody>
+    <%@student_points.map do |point| %>
+      <tr>
+        <td><%= point['course_name'] %></td>
+        <td><%= point['teachers'] %></td>
+        <%(1..18).each do |i|%>
+          <td class="number-cells"><%= point['points'][i]%></td>
+        <% end %>
+      </tr>
+    <% end %>
+    </tbody>
+  </table>
+</div>

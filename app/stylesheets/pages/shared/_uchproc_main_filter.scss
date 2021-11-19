@@ -1,0 +1,43 @@
+.uchproc-main-filter-grid {
+  width: 100%;
+  height: 100%;
+  display: inline-grid;
+  grid-template-columns: 15% 40% 20% 25%;
+
+  .grid-item {
+    width: 100%;
+    display: inline-block;
+  }
+  th {
+    font-weight: bold;
+    padding-right: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  // Bottom align for column headings
+  thead th {
+    vertical-align: bottom;
+    text-align: center;
+    background-color: $headerBackgroundColor;
+  }
+
+  tbody {
+    display: block;
+    height: $mainFilterBodyHeight;
+    overflow-y: scroll;
+    overflow-x: hidden;
+  }
+  thead, tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;/* even columns width , fix width of table too*/
+  }
+
+  .selected {
+    background-color: $selectedBackgroundColor;
+  }
+}
+
+.uchproc-main-filter-table {
+
+}

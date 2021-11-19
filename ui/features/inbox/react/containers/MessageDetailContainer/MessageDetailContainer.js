@@ -72,8 +72,9 @@ export const MessageDetailContainer = props => {
         onReplyAll={props.onReplyAll}
       />
       {props.conversation.conversationMessagesConnection.nodes.map(message => (
-        <View as="div" borderWidth="small none none none" padding="small" key={message.id}>
+        <View as="div" borderWidth="small none none none" padding="small">
           <MessageDetailItem
+            key={message.id}
             conversationMessage={message}
             context={props.conversation.contextName}
             onReply={() => props.onReply(message)}

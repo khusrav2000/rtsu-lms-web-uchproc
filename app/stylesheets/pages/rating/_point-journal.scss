@@ -1,0 +1,179 @@
+@import "pages/shared/uchproc_main_filter";
+.table-journal-courses {
+  width: 100%;
+  // Cells
+  th,
+  td {
+    padding: 8px;
+    text-align: direction(left);
+    vertical-align: top;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  th {
+    font-weight: bold;
+  }
+  // Bottom align for column headings
+  thead th {
+    text-align: center;
+    background-color: $headerBackgroundColor;
+  }
+
+  tbody {
+    display: block;
+    height: $mainFilterBodyHeight;
+    overflow-y: scroll;
+    overflow-x: hidden;
+  }
+  thead, tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;/* even columns width , fix width of table too*/
+  }
+  thead {
+    width: calc( 100% - 1em )/* scrollbar is average 1em/16px width, remove it from thead width */
+  }
+
+  .date-column {
+    width: 14%;
+  }
+
+  .course-name-column {
+    width: 43%;
+  }
+
+  .teacher-column {
+    width: 43%;
+  }
+
+  .selected {
+    background-color: $selectedBackgroundColor;
+  }
+}
+
+.table-journal-points {
+  width: 100%;
+  th {
+    font-weight: bold;
+  }
+
+  tbody td {
+    text-align: end;
+    white-space: nowrap;
+    padding: 0;
+    vertical-align: center;
+  }
+  thead th {
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: center;
+    //background-color: $headerBackgroundColor;
+    padding: 0 !important;
+    button {
+      margin: 0 !important;
+      width: 100% !important;
+      height: 100%;
+    }
+  }
+  thead th:hover{
+    background-color: white;
+  }
+  .full_name {
+    text-align: start;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .row-number {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .assessment_word {
+    text-align: start;
+    input {
+      text-align: start !important;
+    }
+  }
+  .span-hover-cursor {
+    cursor: pointer;
+    display: inline-block;
+  }
+
+  input {
+    width: 100%;
+    min-width: 50px;
+    height: 100%;
+    padding: 4px;
+    margin: 0;
+    text-align: end;
+  }
+
+}
+
+.table-point-registration {
+  width: 100%;
+  thead th {
+    text-align: center;
+    vertical-align: center;
+  }
+
+  tbody td {
+    white-space: nowrap;
+    text-align: end;
+    vertical-align: center;
+    padding: 0;
+  }
+
+  input {
+    width: 100%;
+    min-width: 50px;
+    height: 100%;
+    padding: 4px;
+    margin: 0;
+    text-align: end;
+  }
+
+  .student-information-align {
+    text-align: start;
+    vertical-align: center;
+    padding: 4px;
+  }
+
+  .active-row-border {
+    border: 1px solid #1054d5 !important;
+    border-radius: inherit;
+  }
+}
+
+.table-component {
+  width: 100%;
+  min-width: 700px;
+  table-layout: fixed;
+}
+
+.component-uchproc-base {
+  width: 40%;
+  height: 178px;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.component-uchproc-courses {
+  width: 60%;
+  height: 178px;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.component-uchproc-journal {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.point-journal-header-view {
+  border-bottom: 1px solid #C7CDD1;
+  min-height: 3.5rem;
+  box-sizing: border-box;
+  margin-bottom: 30px;
+}

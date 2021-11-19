@@ -155,6 +155,19 @@
               </button>
             </li>
           <% end %>
+          <% if @current_user && @current_user.can_access_journals?%>
+            <% #@current_user.current_active_journals %>
+            <li class="menu-item ic-app-header__menu-list-item <%= ' ic-app-header__menu-list-item--active' if active_path?('/journals') %>">
+              <a id="global_nav_journals_link" role="button" href="/journals" class="ic-app-header__menu-list-link">
+                <div class="menu-item-icon-container" aria-hidden="true">
+                  <%= render(partial: "shared/svg/svg_icon_journals.svg") %>
+                </div>
+                <div class="menu-item__text">
+                  <%= t('Journals') %>
+                </div>
+              </a>
+            </li>
+          <% end %>
           <li class="menu-item ic-app-header__menu-list-item <%= ' ic-app-header__menu-list-item--active' if active_path?('/calendar') %>">
             <a id="global_nav_calendar_link" href="/calendar" class="ic-app-header__menu-list-link">
               <div class="menu-item-icon-container" aria-hidden="true">

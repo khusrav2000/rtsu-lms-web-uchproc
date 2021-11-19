@@ -1,0 +1,202 @@
+<%
+# Copyright (C) 2012 - present Instructure, Inc.
+#
+# This file is part of Canvas.
+#
+# Canvas is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, version 3 of the License.
+#
+# Canvas is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/>.
+%>
+
+<%
+  provide :page_title, "Timetable"
+
+  js_bundle :timetable
+  css_bundle :timetable
+  crumbs.clear
+  add_body_class "full-width no-page-block hide-content-while-scripts-not-loaded"
+%>
+
+<div class="timetable-container">
+  <div id="mainfilter-container" class ="mainfilter-container row">
+    <div class="mainfilter-content">
+      <div class="col">
+        <select class="form-control" id="fak"></select>
+      </div>
+      <div class="col">
+        <select class="form-control" id="spec"></select>
+      </div>
+      <div class="col">
+        <select class="form-control" id="cours"></select>
+      </div>
+      <div class="col">
+        <select class="form-control" id="group"></select>
+      </div>
+      <div class="col">
+        <button type="button" id="filter-button" class="btn btn-primary" disabled><%= I18n.t 'Set timetable' %></button>
+      </div> <button type="button" id="btnSave" class="btn btn-success save-button" ><%= I18n.t 'Save' %></button>
+      </div>
+  </div>
+  <div class="main-container">
+    <div class ="times">
+    <div class="times-item ">08:00 08:50</div>
+    <div class="times-item ">09:00 09:50</div>
+    <div class="times-item ">10:00 10:50</div>
+    <div class="times-item ">11:00 11:50</div>
+    <div class="times-item ">12:00 12:50</div>
+    <div class="times-item ">13:00 13:50</div>
+    <div class="times-item ">14:00 14:50</div>
+    <div class="times-item ">15:00 15:50</div>
+    <div class="times-item ">16:00 16:50</div>
+    <div class="times-item ">17:00 17:50</div>
+    </div>
+    <div class="timetable-line"></div>
+    <div class="calendar-container col"> 
+      <div class="calendar"><span class="day-name"><%= I18n.t 'Mon' %></span><span class="day-name"><%= I18n.t "Tue" %></span><span class="day-name"><%= I18n.t 'Wed' %></span><span class="day-name"><%= I18n.t 'Thu' %></span><span class="day-name"><%= I18n.t 'Fri' %></span><span class="day-name"><%= I18n.t 'Sat' %></span><span class="day-name"><%= I18n.t 'Sun' %></span>
+      <div class="day " id="day1">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>   
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+
+    <div class="day " id="day2">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+
+    <div class="day " id="day3">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+
+    <div class="day " id="day4">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+
+    <div class="day " id="day5">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+      
+    <div class="day " id="day6">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+
+    <div class="day " id="day7">
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+      <div class="sortable event-container"></div>
+    </div>
+    </div>
+    </div>
+    <div id='external-events' class="col">
+      <p>
+        <strong><%= I18n.t 'Subjects' %></strong>
+      </p>
+      <div id = "left">
+        <div id = "events" class = "sortable">
+          
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dialog-container" id="dialog" title='<%= I18n.t 'Edit subject' %>'>
+    <div class="row type">
+      <label for="dialog-select"><%= I18n.t 'name' %>:&nbsp</label>
+      <textarea class="form-control inactive" id="dialog-course-name" disabled></textarea>
+    </div>
+    <div class="row type">
+      <label for="dialog-select"><%= I18n.t 'Teacher name' %>:&nbsp</label>
+      <select class="browser-default custom-select " id="dialog-teachers" ></select>
+    </div>
+    <div class="row type">
+      <label for="dialog-select"><%=I18n.t 'Lesson type' %>:&nbsp</label>
+      <select id="dialog-select" class="browser-default custom-select">
+        <option value="0"><%=I18n.t 'Lecture' %></option>
+        <option value="1"><%=I18n.t 'Seminar' %></option>
+        <option value="2"><%=I18n.t 'Practical' %></option>
+        <option value="3"><%=I18n.t 'Laboratory' %></option>
+        <option value="4"><%=I18n.t 'KMDRO' %></option>
+      </select>
+    </div>
+    <div class="row type">
+      <label for="dialog-select"><%=I18n.t 'Auditore number' %>:&nbsp</label>
+      <input type="text" class="form-control" id="dialog-classroom-number" placeholder=<%= I18n.t 'input auditore number' %>>
+    </div>
+    <div class="row btns">
+      <button class="btn btn-secondary" id="btnCancel" type="submit"><%= I18n.t 'Cancel' %></button>
+      <button class="btn btn-primary" id="btnSubmit" type="submit"><%= I18n.t 'Save' %></button>
+    </div>
+  </div>
+
+  <div class="dialog-container" id="save-confirm-dialog" title="<%= I18n.t 'You have unsaved changes!' %>">
+    <div class="row btns">
+      <button class="btn btn-secondary" id="btn-no-save" type="submit"><%=  I18n.t  'Not save' %></button>
+      <button class="btn btn-primary" id="btn-confirm-save" type="submit"><%= I18n.t 'Save' %></button>
+    </div>
+  </div>
+</div>

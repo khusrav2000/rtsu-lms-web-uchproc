@@ -567,6 +567,10 @@
                   <%= settings.label :enable_profiles, :en => "Enable Profiles" %>
                 </div>
                 <div>
+                  <%= settings.check_box :attendance_point_journal_relation, :checked => @account.settings[:relation_attendance_point_journal] %>
+                  <%= settings.label :attendance_point_journal_relation, :en => "Relation Attendande Journal with Point Journal" %>
+                </div>
+                <div>
                   <%= settings.check_box :limit_parent_app_web_access, :checked => @account.settings[:limit_parent_app_web_access] %>
                   <%= settings.label :limit_parent_app_web_access, :en => "Limit access to Canvas web from the Canvas Parent app" %>
                 </div>
