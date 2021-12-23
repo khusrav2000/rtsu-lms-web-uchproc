@@ -33,14 +33,13 @@ class ContextModulesController < ApplicationController
 
     def load_module_file_details
       attachment_tags = GuardRail.activate(:secondary) { @context.module_items_visible_to(@current_user).where(content_type: 'Attachment').preload(:content => :folder).to_a }
-      attachment_tags.inject({}) do |items, file_tag|
+      attachment_tags.each_with_object({}) do |file_tag, items|
         items[file_tag.id] = {
           id: file_tag.id,
           content_id: file_tag.content_id,
           content_details: content_details(file_tag, @current_user, :for_admin => true),
           module_id: file_tag.context_module_id
         }
-        items
       end
     end
 
@@ -214,7 +213,7 @@ class ContextModulesController < ApplicationController
           end
         end
       end
-      render status: 404, template: 'shared/errors/404_message'
+      render status: :not_found, template: 'shared/errors/404_message'
     end
   end
 
@@ -238,7 +237,7 @@ class ContextModulesController < ApplicationController
       assignment: 'assignments',
       quiz: 'quizzes/quizzes',
       discussion_topic: 'discussion_topics',
-      :'lti-quiz' => 'assignments'
+      :"lti-quiz" => 'assignments'
     }
 
     if @tag
@@ -254,11 +253,11 @@ class ContextModulesController < ApplicationController
             return_to: params[:return_to]
           )
         else
-          render status: 404, template: 'shared/errors/404_message'
+          render status: :not_found, template: 'shared/errors/404_message'
         end
       end
     else
-      render status: 404, template: 'shared/errors/404_message'
+      render status: :not_found, template: 'shared/errors/404_message'
     end
   end
 
@@ -273,7 +272,7 @@ class ContextModulesController < ApplicationController
       end
       @tag = params[:last] ? @tags.last : @tags.first
       unless @tag
-        flash[:notice] = t 'module_empty', %{There are no items in the module "%{module}"}, :module => @module.name
+        flash[:notice] = t 'module_empty', %(There are no items in the module "%{module}"), :module => @module.name
         redirect_to named_context_url(@context, :context_context_modules_url, :anchor => "module_#{@module.id}")
         return
       end
@@ -317,7 +316,7 @@ class ContextModulesController < ApplicationController
       first_module = @context.context_modules.not_deleted.first
 
       # A hash where the key is the module id and the value is the module position
-      order_before = Hash[@context.context_modules.not_deleted.pluck(:id, :position)]
+      order_before = @context.context_modules.not_deleted.pluck(:id, :position).to_h
 
       first_module.update_order(params[:order].split(","))
       # Need to invalidate the ordering cache used by context_module.rb
@@ -401,7 +400,7 @@ class ContextModulesController < ApplicationController
 
       if is_child_course || is_master_course
         tag_ids = GuardRail.activate(:secondary) do
-          tag_scope = @context.module_items_visible_to(@current_user).where(:content_type => %w{Assignment Attachment DiscussionTopic Quizzes::Quiz WikiPage})
+          tag_scope = @context.module_items_visible_to(@current_user).where(:content_type => %w[Assignment Attachment DiscussionTopic Quizzes::Quiz WikiPage])
           tag_scope = tag_scope.where(:id => params[:tag_id]) if params[:tag_id]
           tag_scope.pluck(:id)
         end
@@ -464,11 +463,11 @@ class ContextModulesController < ApplicationController
       previous_modules = @context.context_modules.active.where('position<?', @module.position).ordered.to_a
       previous_modules.reverse!
       valid_previous_modules = []
-      prereq_ids = @module.prerequisites.select { |p| p[:type] == 'context_module' }.map { |p| p[:id] }
+      prereq_ids = @module.prerequisites.select { |p| p[:type] == 'context_module' }.pluck(:id)
       previous_modules.each do |mod|
         if prereq_ids.include?(mod.id)
           valid_previous_modules << mod
-          prereq_ids += mod.prerequisites.select { |p| p[:type] == 'context_module' }.map { |p| p[:id] }
+          prereq_ids += mod.prerequisites.select { |p| p[:type] == 'context_module' }.pluck(:id)
         end
       end
       valid_previous_modules.reverse!
@@ -648,7 +647,7 @@ class ContextModulesController < ApplicationController
     @tag = @context.context_module_tags.not_deleted.find(params[:id])
     if authorized_action(@tag.context_module, @current_user, :update)
       @tag.title = params[:content_tag][:title] if params[:content_tag] && params[:content_tag][:title]
-      @tag.url = params[:content_tag][:url] if %w(ExternalUrl ContextExternalTool).include?(@tag.content_type) && params[:content_tag] && params[:content_tag][:url]
+      @tag.url = params[:content_tag][:url] if %w[ExternalUrl ContextExternalTool].include?(@tag.content_type) && params[:content_tag] && params[:content_tag][:url]
       @tag.indent = params[:content_tag][:indent] if params[:content_tag] && params[:content_tag][:indent]
       @tag.new_tab = params[:content_tag][:new_tab] if params[:content_tag] && params[:content_tag][:new_tab]
 
@@ -744,11 +743,11 @@ class ContextModulesController < ApplicationController
 
       preload_has_too_many_overrides(assignments, :assignment_id)
       preload_has_too_many_overrides(plain_quizzes, :quiz_id)
-      overrideables = (assignments + plain_quizzes).select { |o| !o.has_too_many_overrides }
+      overrideables = (assignments + plain_quizzes).reject(&:has_too_many_overrides)
 
       if overrideables.any?
         ActiveRecord::Associations::Preloader.new.preload(overrideables, :assignment_overrides)
-        overrideables.each { |o| o.has_no_overrides = true if o.assignment_overrides.size == 0 }
+        overrideables.each { |o| o.has_no_overrides = true if o.assignment_overrides.empty? }
       end
     end
   end

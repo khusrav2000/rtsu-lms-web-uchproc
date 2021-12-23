@@ -48,8 +48,8 @@ class MediaObject < ActiveRecord::Base
     @push_user_title = nil
   end
 
-  def self.find_by_media_id(media_id)
-    unless Rails.env.production?
+  def self.find_by(**kwargs)
+    if kwargs.key?(:media_id) && !Rails.env.production?
       raise "Do not look up MediaObjects by media_id - use the scope by_media_id instead to support migrated content."
     end
 
@@ -162,7 +162,7 @@ class MediaObject < ActiveRecord::Base
 
   # typically call this in a delayed job, since it has to contact kaltura
   def self.create_if_id_exists(media_id, **create_opts)
-    if media_id_exists?(media_id) && !by_media_id(media_id).any?
+    if media_id_exists?(media_id) && by_media_id(media_id).none?
       create!(**create_opts.merge(:media_id => media_id))
     end
   end
@@ -303,7 +303,7 @@ class MediaObject < ActiveRecord::Base
 
   def ensure_attachment
     return if self.attachment_id
-    return unless %w{Account Course Group User}.include?(self.context_type)
+    return unless %w[Account Course Group User].include?(self.context_type)
 
     sources = self.media_sources
     return unless sources.present?
@@ -318,7 +318,7 @@ class MediaObject < ActiveRecord::Base
                                     "folder_id" => Folder.media_folder(context).id
                                   })
 
-    url = self.data.dig(:download_url)
+    url = self.data[:download_url]
     url = sources.find { |s| s[:isOriginal] == '1' }&.dig(:url) if url.blank?
     url = sources.sort_by { |a| a[:bitrate].to_i }.first&.dig(:url) if url.blank?
 

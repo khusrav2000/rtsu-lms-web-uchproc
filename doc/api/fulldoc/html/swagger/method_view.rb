@@ -102,8 +102,8 @@ class MethodView < HashView
   def routes
     @routes ||= raw_routes.map do |raw_route|
       RouteView.new(raw_route, self)
-    end.select do |route|
-      route.api_path !~ /json$/
+    end.reject do |route|
+      route.api_path =~ /json$/
     end.uniq(&:swagger_path)
   end
 
@@ -127,7 +127,7 @@ class MethodView < HashView
       ''
     else
       @nickname_suffix ||= create_nickname_suffix
-      if @nickname_suffix[route.swagger_path].length > 0
+      if !@nickname_suffix[route.swagger_path].empty?
         "_#{@nickname_suffix[route.swagger_path]}"
       else
         ''

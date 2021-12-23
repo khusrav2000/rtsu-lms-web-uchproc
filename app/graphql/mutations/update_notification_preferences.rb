@@ -97,10 +97,10 @@ class Mutations::UpdateNotificationPreferences < Mutations::BaseMutation
     }
   rescue ActiveRecord::RecordNotFound
     raise GraphQL::ExecutionError, 'not found'
-  rescue ActiveRecord::RecordInvalid => invalid
-    errors_for(invalid.record)
-  rescue ::Mutations::UpdateNotificationPreferences::ValidationError => error
-    validation_error(error.message)
+  rescue ActiveRecord::RecordInvalid => e
+    errors_for(e.record)
+  rescue ::Mutations::UpdateNotificationPreferences::ValidationError => e
+    validation_error(e.message)
   end
 
   def validate_input(input)
@@ -122,7 +122,7 @@ class Mutations::UpdateNotificationPreferences < Mutations::BaseMutation
     ]
     # We require that the 4 arguments listed above be present in order
     # to update notification policies or policy overrides
-    if !policy_update_input.all? && !policy_update_input.none?
+    if !policy_update_input.all? && policy_update_input.any?
       err_klass = ::Mutations::UpdateNotificationPreferences::ValidationError
       raise err_klass, I18n.t('Notification policies requires the communication channel id, the notification category, and the frequency to update')
     end

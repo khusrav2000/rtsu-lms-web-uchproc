@@ -1552,7 +1552,7 @@ describe Assignment do
   end
 
   describe ".clean_up_duplicating_assignments" do
-    before { allow(described_class).to receive(:duplicating_for_too_long).and_return(double()) }
+    before { allow(described_class).to receive(:duplicating_for_too_long).and_return(double) }
 
     it "marks all assignments that have been duplicating for too long as failed_to_duplicate" do
       now = double('now')
@@ -1623,7 +1623,7 @@ describe Assignment do
   end
 
   describe ".cleanup_importing_assignments" do
-    before { allow(described_class).to receive(:importing_for_too_long).and_return(double()) }
+    before { allow(described_class).to receive(:importing_for_too_long).and_return(double) }
 
     it "marks all assignments that have been importing for too long as failed_to_import" do
       now = double('now')
@@ -2639,6 +2639,7 @@ describe Assignment do
   describe "#submission_type?" do
     shared_examples_for "submittable" do
       subject(:assignment) { Assignment.new }
+
       let(:be_type) { "be_#{submission_type}".to_sym }
       let(:build_type) { "build_#{submission_type}".to_sym }
 
@@ -3902,7 +3903,7 @@ describe Assignment do
     it "does not interpret non-11:59pm as all day with non-all-day prior value" do
       @assignment.due_at = fancy_midnight(:zone => 'Alaska') + 1.hour
       @assignment.save!
-      @assignment.due_at = fancy_midnight(:zone => 'Alaska') + 2.hour
+      @assignment.due_at = fancy_midnight(:zone => 'Alaska') + 2.hours
       @assignment.time_zone_edited = 'Alaska'
       @assignment.save!
       expect(@assignment.all_day).to eq false
@@ -4713,7 +4714,7 @@ describe Assignment do
   describe "#grants_right?" do
     before(:once) do
       assignment_model(course: @course)
-      @admin = account_admin_user()
+      @admin = account_admin_user
       teacher_in_course(:course => @course)
       @grading_period_group = @course.root_account.grading_period_groups.create!(title: "Example Group")
       @grading_period_group.enrollment_terms << @course.enrollment_term
@@ -5248,7 +5249,7 @@ describe Assignment do
       @quiz = @a.quiz
       expect(@quiz).not_to be_nil
       expect(@quiz.assignment_id).to eql(@a.id)
-      @quiz.quiz_questions.create!()
+      @quiz.quiz_questions.create!
       @quiz.generate_quiz_data
       @quiz.save!
       @a.quiz.reload
@@ -6388,7 +6389,7 @@ describe Assignment do
 
     context "assignments are frozen" do
       before :once do
-        @admin = account_admin_user()
+        @admin = account_admin_user
         teacher_in_course(:course => @course)
       end
 
@@ -7063,7 +7064,7 @@ describe Assignment do
       @students = create_users_in_course(@course, 3, return_type: :record)
 
       @assignment = @course.assignments.create! name: "zip upload test",
-                                                submission_types: %w(online_upload)
+                                                submission_types: %w[online_upload]
     end
 
     def zip_submissions
@@ -7163,7 +7164,7 @@ describe Assignment do
 
     describe "newly-created comments" do
       before do
-        @assignment = @course.assignments.create!(name: "Mute Comment Test", submission_types: %w(online_upload))
+        @assignment = @course.assignments.create!(name: "Mute Comment Test", submission_types: %w[online_upload])
       end
 
       let(:added_comment) { @assignment.submission_for_student(@student).submission_comments.last }
@@ -7860,7 +7861,7 @@ describe Assignment do
       expect(assignment.max_name_length).to eq(15)
     end
 
-    it "returns default of 255 if sis_assignment_name_length_input is not present " do
+    it "returns default of 255 if sis_assignment_name_length_input is not present" do
       expect(assignment.max_name_length).to eq(255)
     end
   end
@@ -9258,7 +9259,7 @@ describe Assignment do
 
       let(:params) { { moderated_grading: true, final_grader: @teacher, grader_count: 2, updating_user: @teacher } }
 
-      it "creates exactly one AnonymousOrModerationEvent on creation " do
+      it "creates exactly one AnonymousOrModerationEvent on creation" do
         expect {
           course.assignments.create!(params)
         }.to change { AnonymousOrModerationEvent.count }.by(1)

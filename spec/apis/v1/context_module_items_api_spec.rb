@@ -1132,7 +1132,7 @@ describe "Module Items API", type: :request do
 
     def override_assignment
       @due_at = Time.zone.now + 2.days
-      @unlock_at = Time.zone.now + 1.days
+      @unlock_at = Time.zone.now + 1.day
       @lock_at = Time.zone.now + 3.days
       @override = assignment_override_model(:assignment => @assignment, :due_at => @due_at, :unlock_at => @unlock_at, :lock_at => @lock_at)
       @override_student = @override.assignment_override_students.build
@@ -1186,6 +1186,7 @@ describe "Module Items API", type: :request do
             expect(json.map { |item| item['id'] }.sort).to eq @module1.content_tags.map(&:id).sort
           end
         end
+
         context 'without override' do
           it "excludes unassigned assignments" do
             json = api_call(:get, "/api/v1/courses/#{@course.id}/modules/#{@module1.id}/items",

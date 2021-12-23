@@ -68,7 +68,7 @@ class DockerfileWriter
 
     def <<(obj)
       if @contents[parent.out_file_suffix].nil?
-        @contents[parent.out_file_suffix] = String.new
+        @contents[parent.out_file_suffix] = +''
       end
 
       @contents[parent.out_file_suffix] << obj
@@ -126,4 +126,4 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-DockerfileWriter.new(**options).run()
+DockerfileWriter.new(**options).run

@@ -549,7 +549,7 @@ class Quizzes::Quiz < ActiveRecord::Base
 
   def active_quiz_questions_without_group
     if self.quiz_questions.loaded?
-      active_quiz_questions.select { |q| !q.quiz_group_id }
+      active_quiz_questions.reject(&:quiz_group_id)
     else
       active_quiz_questions.where(quiz_group_id: nil).to_a
     end
@@ -964,7 +964,7 @@ class Quizzes::Quiz < ActiveRecord::Base
   end
 
   def strip_html_answers(question)
-    return if !question || !question[:answers] || !(%w(multiple_choice_question multiple_answers_question).include? question[:question_type])
+    return if !question || !question[:answers] || !(%w[multiple_choice_question multiple_answers_question].include? question[:question_type])
 
     for answer in question[:answers] do
       answer[:text] = strip_tags(answer[:html]) if !answer[:html].blank? && answer[:text].blank?
@@ -1490,7 +1490,7 @@ class Quizzes::Quiz < ActiveRecord::Base
   end
 
   def self.class_names
-    %w(Quiz Quizzes::Quiz)
+    %w[Quiz Quizzes::Quiz]
   end
 
   def self.reflection_type_name

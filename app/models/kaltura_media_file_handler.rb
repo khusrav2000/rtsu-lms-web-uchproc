@@ -27,7 +27,7 @@ class KalturaMediaFileHandler
     client.startSession(CanvasKaltura::SessionType::ADMIN)
     files = []
     root_account_id = attachments.filter_map(&:root_account_id).first
-    attachments.select { |a| !a.media_object }.each do |attachment|
+    attachments.reject(&:media_object).each do |attachment|
       files << {
         :name => attachment.display_name,
         :url => attachment.public_download_url,
@@ -74,7 +74,7 @@ class KalturaMediaFileHandler
         Rails.logger.debug "waiting for bulk upload id: #{bulk_upload_id}"
         started_at = Time.now
         timeout = Setting.get('media_bulk_upload_timeout', 30.minutes.to_s).to_i
-        while !res[:ready]
+        until res[:ready]
           if Time.now > started_at + timeout
             refresh_later(res[:id], attachments, root_account_id)
             break

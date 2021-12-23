@@ -99,12 +99,12 @@ module BrandableCSS
     end
 
     def variables_map_with_image_urls
-      @variables_map_with_image_urls ||= variables_map.each_with_object({}) do |(key, config), memo|
-        memo[key] = if config['type'] == 'image'
-                      config.merge('default' => ActionController::Base.helpers.image_url(config['default']))
-                    else
-                      config
-                    end
+      @variables_map_with_image_urls ||= variables_map.transform_values do |config|
+        if config['type'] == 'image'
+          config.merge('default' => ActionController::Base.helpers.image_url(config['default']))
+        else
+          config
+        end
       end.freeze
     end
 
@@ -140,7 +140,7 @@ module BrandableCSS
     def skip_migration_check?
       # our canvas_rspec build doesn't even run `yarn install` or `gulp rev` so since
       # they are not expecting all the frontend assets to work, this check isn't useful
-      Rails.env.test? && !Rails.root.join('public', 'dist', 'rev-manifest.json').exist?
+      Rails.env.test? && !Rails.root.join('public/dist/rev-manifest.json').exist?
     end
 
     def default_variables_md5
@@ -177,7 +177,7 @@ module BrandableCSS
 
       # while in our sass, we want `url(/images/foo.png)`,
       # the Rails Asset Helpers expect us to not have the '/images/', eg: <%= image_tag('foo.png') %>
-      default = default.sub(/^\/images\//, '') if config['type'] == 'image'
+      default = default.sub(%r{^/images/}, '') if config['type'] == 'image'
       handle_urls(default, config, css_urls)
     end
 
@@ -295,8 +295,8 @@ module BrandableCSS
 
       file = APP_ROOT.join(CONFIG['paths']['bundles_with_deps'])
       if file.exist?
-        @combined_checksums = JSON.parse(file.read).each_with_object({}) do |(k, v), memo|
-          memo[k] = v.symbolize_keys.slice(:combinedChecksum, :includesNoVariables)
+        @combined_checksums = JSON.parse(file.read).transform_values do |v|
+          v.symbolize_keys.slice(:combinedChecksum, :includesNoVariables)
         end.freeze
       elsif defined?(Rails) && Rails.env.production?
         raise "#{file.expand_path} does not exist. You need to run brandable_css before you can serve css."
@@ -368,8 +368,8 @@ module BrandableCSS
     end
 
     def all_fingerprints_for(bundle_path)
-      variants.each_with_object({}) do |variant, object|
-        object[variant] = cache_for(bundle_path, variant)
+      variants.index_with do |variant|
+        cache_for(bundle_path, variant)
       end
     end
   end

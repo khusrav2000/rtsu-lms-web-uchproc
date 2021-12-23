@@ -272,7 +272,7 @@ describe CalendarEventsApiController, type: :request do
       contexts = [@course.asset_string]
 
       # second context the user cannot access
-      course_factory()
+      course_factory
       @course.calendar_events.create(:title => "unauthorized_course", :start_at => '2012-01-08 12:00:00')
       contexts.push(@course.asset_string)
 
@@ -1247,7 +1247,7 @@ describe CalendarEventsApiController, type: :request do
     it 'apis translate event descriptions in ics' do
       allow(HostUrl).to receive(:default_host).and_return('www.example.com')
       should_translate_user_content(@course, false) do |content|
-        @course.calendar_events.create!(:description => content, :start_at => Time.now + 1.hours, :end_at => Time.now + 2.hours)
+        @course.calendar_events.create!(:description => content, :start_at => Time.now + 1.hour, :end_at => Time.now + 2.hours)
         json = api_call(:get, "/api/v1/courses/#{@course.id}",
                         :controller => 'courses', :action => 'show', :format => 'json', :id => @course.id.to_s)
         get json['calendar']['ics']
@@ -1423,7 +1423,7 @@ describe CalendarEventsApiController, type: :request do
                           }
                         })
         conference = CalendarEvent.find(json['id']).web_conference
-        expect(conference.settings[:default_return_url]).to match(/\/courses\/#{@course.id}$/)
+        expect(conference.settings[:default_return_url]).to match(%r{/courses/#{@course.id}$})
         expect(conference.user).to eq @user
       end
 
@@ -1864,6 +1864,7 @@ describe CalendarEventsApiController, type: :request do
             expect(json.size).to eql 1
           end
         end
+
         context 'in a section only' do
           it "shows events for all active assignment" do
             json = api_call_as_user(@observer, :get, "/api/v1/calendar_events?type=assignment&start_date=2011-01-08&end_date=2099-01-08&context_codes[]=course_#{@course.id}", {

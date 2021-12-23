@@ -158,8 +158,8 @@ module Api
   MAX_ID = ((2**63) - 1)
   MAX_ID_LENGTH = MAX_ID.to_s.length
   MAX_ID_RANGE = (-MAX_ID...MAX_ID).freeze
-  ID_REGEX = %r{\A\d{1,#{MAX_ID_LENGTH}}\z}.freeze
-  UUID_REGEX = %r{\Auuid:(\w{40,})\z}.freeze
+  ID_REGEX = /\A\d{1,#{MAX_ID_LENGTH}}\z/.freeze
+  UUID_REGEX = /\Auuid:(\w{40,})\z/.freeze
 
   def self.sis_parse_id(id, lookups, _current_user = nil,
                         root_account: nil)
@@ -168,10 +168,10 @@ module Api
 
     id = id.to_s.strip
     case id
-    when %r{\Ahex:(lti_[\w_]+|sis_[\w_]+):(([0-9A-Fa-f]{2})+)\z}
+    when /\Ahex:(lti_[\w_]+|sis_[\w_]+):(([0-9A-Fa-f]{2})+)\z/
       sis_column = $1
       sis_id = [$2].pack('H*')
-    when %r{\A(lti_[\w_]+|sis_[\w_]+):(.+)\z}
+    when /\A(lti_[\w_]+|sis_[\w_]+):(.+)\z/
       sis_column = $1
       sis_id = $2
     when ID_REGEX
@@ -260,7 +260,7 @@ module Api
           raise ArgumentError, "missing scope for collection" unless sis_mapping[:scope]
 
           ids = columns[column]
-          if ids.any? { |id| id.is_a?(Array) }
+          if ids.any?(Array)
             ids_hash = {}
             ids.each do |id|
               id = Array(id)
@@ -329,7 +329,7 @@ module Api
     collection = paginate_collection!(collection, controller, pagination_args)
     hash = build_links_hash(base_url, meta_for_pagination(controller, collection))
     links = build_links_from_hash(hash)
-    controller.response.headers["Link"] = links.join(',') if links.length > 0
+    controller.response.headers["Link"] = links.join(',') unless links.empty?
     if response_args[:enhanced_return]
       { hash: hash, collection: collection }
     else
@@ -351,7 +351,7 @@ module Api
     meta = jsonapi_meta(collection, controller, base_url)
     hash = build_links_hash(base_url, meta_for_pagination(controller, collection))
     links = build_links_from_hash(hash)
-    controller.response.headers["Link"] = links.join(',') if links.length > 0
+    controller.response.headers["Link"] = links.join(',') unless links.empty?
     [collection, meta]
   end
 
@@ -420,7 +420,7 @@ module Api
 
   PAGINATION_PARAMS = [:current, :next, :prev, :first, :last].freeze
   LINK_PRIORITY = [:next, :last, :prev, :current, :first].freeze
-  EXCLUDE_IN_PAGINATION_LINKS = %w(page per_page access_token api_key).freeze
+  EXCLUDE_IN_PAGINATION_LINKS = %w[page per_page access_token api_key].freeze
   def self.build_links(base_url, opts = {})
     links = build_links_hash(base_url, opts)
     build_links_from_hash(links)
@@ -466,7 +466,7 @@ module Api
 
   def self.parse_pagination_links(link_header)
     link_header.split(",").map do |link|
-      url, rel = link.match(%r{^<([^>]+)>; rel="([^"]+)"}).captures
+      url, rel = link.match(/^<([^>]+)>; rel="([^"]+)"/).captures
       uri = URI.parse(url)
       raise(ArgumentError, "pagination url is not an absolute uri: #{url}") unless uri.is_a?(URI::HTTP)
 
@@ -621,7 +621,7 @@ module Api
                     (?<timezone>Z|[+-](?:2[0-3]|[0-1][0-9]):[0-5][0-9])?$/x.freeze
 
   # regex for valid dates
-  DATE_REGEX = /^\d{4}[- \/.](0[1-9]|1[012])[- \/.](0[1-9]|[12][0-9]|3[01])$/.freeze
+  DATE_REGEX = %r{^\d{4}[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])$}.freeze
 
   # regex for shard-aware ID
   ID = '(?:\d+~)?\d+'

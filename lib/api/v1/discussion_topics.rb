@@ -29,12 +29,12 @@ module Api::V1::DiscussionTopics
   include HtmlTextHelper
 
   # Public: DiscussionTopic fields to serialize.
-  ALLOWED_TOPIC_FIELDS = %w{
+  ALLOWED_TOPIC_FIELDS = %w[
     id title assignment_id delayed_post_at lock_at created_at
     last_reply_at posted_at root_topic_id podcast_has_student_posts
     discussion_type position allow_rating only_graders_can_rate sort_by_rating
     is_section_specific
-  }.freeze
+  ].freeze
 
   # Public: DiscussionTopic methods to serialize.
   ALLOWED_TOPIC_METHODS = [:user_name, :discussion_subentry_count].freeze
@@ -46,11 +46,11 @@ module Api::V1::DiscussionTopics
   # The ids of the root topics are always included.
   def get_root_topic_data(topics, fields)
     root_topic_ids = topics.pluck(:root_topic_id).reject(&:blank?).uniq
-    return {} unless root_topic_ids && root_topic_ids.length > 0
+    return {} unless root_topic_ids && !root_topic_ids.empty?
 
     fields_with_id = fields.unshift(:id)
     root_topics_array = DiscussionTopic.select(fields_with_id).find(root_topic_ids)
-    root_topics_array.map { |root_topic| [root_topic.id, root_topic] }.to_h
+    root_topics_array.index_by(&:id)
   end
 
   # Public: Serialize an array of DiscussionTopic objects for returning as JSON.
@@ -71,12 +71,10 @@ module Api::V1::DiscussionTopics
       opts[:context_user_count] = GuardRail.activate(:secondary) { context.enrollments.not_fake.active_or_pending_by_date_ignoring_access.count }
     end
     ActiveRecord::Associations::Preloader.new.preload(topics, [:user, :attachment, :root_topic, :context])
-    topics.inject([]) do |result, topic|
+    topics.each_with_object([]) do |topic, result|
       if topic.visible_for?(user)
         result << discussion_topic_api_json(topic, context || topic.context, user, session, opts, root_topics)
       end
-
-      result
     end
   end
 
@@ -137,7 +135,7 @@ module Api::V1::DiscussionTopics
 
     json[:todo_date] = topic.todo_date
 
-    if opts[:root_topic_fields] && opts[:root_topic_fields].length > 0
+    if opts[:root_topic_fields] && !opts[:root_topic_fields].empty?
       # If this is called from discussion_topics_api_json then we already
       # have the topics, so don't get them again.
       root_topics ||= get_root_topic_data([topic], opts[:root_topic_fields])
@@ -242,7 +240,7 @@ module Api::V1::DiscussionTopics
   #
   # Returns a hash.
   def serialize_entry(entry, user, context, session, includes)
-    allowed_fields  = %w{id created_at updated_at parent_id rating_count rating_sum}
+    allowed_fields  = %w[id created_at updated_at parent_id rating_count rating_sum]
     allowed_methods = []
     allowed_fields << 'editor_id' if entry.deleted? || entry.editor_id
     allowed_fields << 'user_id'   unless entry.deleted?

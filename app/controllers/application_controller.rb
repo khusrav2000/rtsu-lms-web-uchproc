@@ -738,7 +738,7 @@ class ApplicationController < ActionController::Base
 
   def check_pending_otp
     if session[:pending_otp] && params[:controller] != 'login/otp'
-      return render plain: "Please finish logging in", status: 403 if request.xhr?
+      return render plain: "Please finish logging in", status: :forbidden if request.xhr?
 
       reset_session
       redirect_to login_url
@@ -823,7 +823,7 @@ class ApplicationController < ActionController::Base
       # to a web browser - but you've lost your cookies! This breaks not only store_location,
       # but in the case of delegated authentication where the provider does an additional
       # redirect storing important information in session, makes it impossible to log in at all
-      render plain: '', status: 200
+      render plain: '', status: :ok
       return false
     end
     true
@@ -1533,12 +1533,12 @@ class ApplicationController < ActionController::Base
 
     @access = AssetUserAccess.log(user, @context, @accessed_asset) if @context
 
-    if @page_view.nil? && %w{participate submit}.include?(@accessed_asset[:level]) && page_views_enabled?
+    if @page_view.nil? && %w[participate submit].include?(@accessed_asset[:level]) && page_views_enabled?
       generate_page_view(user)
     end
 
     if @page_view
-      @page_view.participated = %w{participate submit}.include?(@accessed_asset[:level])
+      @page_view.participated = %w[participate submit].include?(@accessed_asset[:level])
       @page_view.asset_user_access = @access
     end
 
@@ -1679,7 +1679,7 @@ class ApplicationController < ActionController::Base
       template = exception.error_template if exception.respond_to?(:error_template)
       unless template
         template = "shared/errors/#{status.to_s[0, 3]}_message"
-        erbpath = Rails.root.join('app', 'views', "#{template}.html.erb")
+        erbpath = Rails.root.join("app/views/#{template}.html.erb")
         template = "shared/errors/500_message" unless erbpath.file?
       end
 
@@ -1979,27 +1979,27 @@ class ApplicationController < ActionController::Base
     # but we still use the assignment#new page to create the quiz.
     # also handles launch from existing quiz on quizzes page.
     if ref.present? && @assignment&.quiz_lti?
-      if (ref.include?('assignments/new') || ref =~ /courses\/(\d+\/quizzes.?|.*\?quiz_lti)/) && @context.root_account.feature_enabled?(:newquizzes_on_quiz_page)
+      if (ref.include?('assignments/new') || ref =~ %r{courses/(\d+/quizzes.?|.*\?quiz_lti)}) && @context.root_account.feature_enabled?(:newquizzes_on_quiz_page)
         return polymorphic_url([@context, :quizzes])
       end
 
-      if /courses\/\d+\/gradebook/i.match?(ref)
+      if %r{courses/\d+/gradebook}i.match?(ref)
         return polymorphic_url([@context, :gradebook])
       end
 
-      if /courses\/\d+$/i.match?(ref)
+      if %r{courses/\d+$}i.match?(ref)
         return polymorphic_url([@context])
       end
 
-      if /courses\/(\d+\/modules.?|.*\?module_item_id=)/.match?(ref)
+      if %r{courses/(\d+/modules.?|.*\?module_item_id=)}.match?(ref)
         return polymorphic_url([@context, :context_modules])
       end
 
-      if /\/courses\/.*\?quiz_lti/.match?(ref)
+      if %r{/courses/.*\?quiz_lti}.match?(ref)
         return polymorphic_url([@context, :quizzes])
       end
 
-      if /courses\/\d+\/assignments/.match?(ref)
+      if %r{courses/\d+/assignments}.match?(ref)
         return polymorphic_url([@context, :assignments])
       end
     end
@@ -2066,9 +2066,8 @@ class ApplicationController < ActionController::Base
 
   def conversations_path(params = {})
     if @current_user
-      query_string = params.slice(:context_id, :user_id, :user_name).inject([]) do |res, (k, v)|
+      query_string = params.slice(:context_id, :user_id, :user_name).each_with_object([]) do |(k, v), res|
         res << "#{k}=#{v}"
-        res
       end.join('&')
       "/conversations?#{query_string}"
     else
@@ -2513,7 +2512,7 @@ class ApplicationController < ActionController::Base
   helper_method :flash_notices
 
   def unsupported_browser
-    t("Your browser does not meet the minimum requirements for Canvas. Please visit the *Canvas Community* for a complete list of supported browsers.", :wrapper => view_context.link_to('\1', t(:'#community.basics_browser_requirements')))
+    t("Your browser does not meet the minimum requirements for Canvas. Please visit the *Canvas Community* for a complete list of supported browsers.", :wrapper => view_context.link_to('\1', t(:"#community.basics_browser_requirements")))
   end
 
   def browser_supported?

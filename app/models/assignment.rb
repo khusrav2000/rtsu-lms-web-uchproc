@@ -42,9 +42,9 @@ class Assignment < ActiveRecord::Base
 
   self.ignored_columns = %i[context_code]
 
-  ALLOWED_GRADING_TYPES = %w(points percent letter_grade gpa_scale pass_fail not_graded).freeze
-  OFFLINE_SUBMISSION_TYPES = %i(on_paper external_tool none not_graded wiki_page).freeze
-  SUBMITTABLE_TYPES = %w(online_quiz discussion_topic wiki_page).freeze
+  ALLOWED_GRADING_TYPES = %w[points percent letter_grade gpa_scale pass_fail not_graded].freeze
+  OFFLINE_SUBMISSION_TYPES = %i[on_paper external_tool none not_graded wiki_page].freeze
+  SUBMITTABLE_TYPES = %w[online_quiz discussion_topic wiki_page].freeze
   LTI_EULA_SERVICE = 'vnd.Canvas.Eula'
   AUDITABLE_ATTRIBUTES = %w[
     muted
@@ -456,7 +456,7 @@ class Assignment < ActiveRecord::Base
     end
   end
 
-  API_NEEDED_FIELDS = %w(
+  API_NEEDED_FIELDS = %w[
     id
     title
     context_id
@@ -504,7 +504,7 @@ class Assignment < ActiveRecord::Base
     grader_comments_visible_to_graders
     grader_names_visible_to_final_grader
     grader_count
-  ).freeze
+  ].freeze
 
   def external_tool?
     self.submission_types == 'external_tool'
@@ -546,7 +546,7 @@ class Assignment < ActiveRecord::Base
     new_value = new_value.split(/[\s,]+/) if new_value.is_a?(String)
 
     # remove the . if they put it on, and extra whitespace
-    new_value.map! { |v| v.strip.gsub(/\A\./, '').downcase } if new_value.is_a?(Array)
+    new_value.map! { |v| v.strip.delete_prefix('.').downcase } if new_value.is_a?(Array)
 
     write_attribute(:allowed_extensions, new_value)
   end
@@ -868,7 +868,7 @@ class Assignment < ActiveRecord::Base
     return false unless Canvas::Plugin.find(:vericite).try(:enabled?)
     return true if self.turnitin_settings[:current] && self.turnitin_settings[:vericite]
 
-    vericite = VeriCite::Client.new()
+    vericite = VeriCite::Client.new
     res = vericite.createOrUpdateAssignment(self, self.turnitin_settings)
 
     # make sure the defaults get serialized
@@ -1387,7 +1387,7 @@ class Assignment < ActiveRecord::Base
   def process_if_quiz
     if self.submission_types == "online_quiz"
       self.points_possible = quiz.points_possible if quiz&.available?
-      copy_attrs = %w(due_at lock_at unlock_at)
+      copy_attrs = %w[due_at lock_at unlock_at]
       if quiz && @saved_by != :quiz &&
          copy_attrs.any? { |attr| changes[attr] }
         copy_attrs.each { |attr| quiz.send "#{attr}=", send(attr) }
@@ -1459,11 +1459,11 @@ class Assignment < ActiveRecord::Base
 
   def interpret_grade(grade)
     case grade.to_s
-    when %r{^[+-]?\d*\.?\d+%$}
+    when /^[+-]?\d*\.?\d+%$/
       # interpret as a percentage
       percentage = grade.to_f / 100.0.to_d
       points_possible.to_f * percentage
-    when %r{^[+-]?\d*\.?\d+$}
+    when /^[+-]?\d*\.?\d+$/
       if uses_grading_standard && (standard_based_score = grading_standard_or_default.grade_to_score(grade))
         (points_possible || 0.0) * standard_based_score / 100.0
       else
@@ -1674,7 +1674,7 @@ class Assignment < ActiveRecord::Base
   end
 
   def self.assignment_type?(type)
-    %w(quiz attendance discussion_topic wiki_page external_tool).include? type.to_s
+    %w[quiz attendance discussion_topic wiki_page external_tool].include? type.to_s
   end
 
   def self.get_submission_type(assignment_type)
@@ -1715,7 +1715,7 @@ class Assignment < ActiveRecord::Base
 
   def each_submission_type
     if block_given?
-      submittable_types = %i(discussion_topic quiz)
+      submittable_types = %i[discussion_topic quiz]
       submittable_types << :wiki_page if self.context.try(:feature_enabled?, :conditional_release)
       submittable_types.each do |asg_type|
         submittable = self.send(asg_type)
@@ -1761,7 +1761,7 @@ class Assignment < ActiveRecord::Base
     can :submit
 
     given do |user, session|
-      (submittable_type? || %w(discussion_topic online_quiz).include?(submission_types)) &&
+      (submittable_type? || %w[discussion_topic online_quiz].include?(submission_types)) &&
         context.grants_right?(user, session, :participate_as_student) &&
         visible_to_user?(user)
     end
@@ -2312,7 +2312,7 @@ class Assignment < ActiveRecord::Base
                 when "online_url", "basic_lti_launch"
                   opts[:url].present?
                 when "online_upload"
-                  opts[:attachments].size > 0
+                  !opts[:attachments].empty?
                 else
                   true
                 end
@@ -2417,7 +2417,7 @@ class Assignment < ActiveRecord::Base
   # for group assignments, returns a single "student" for each
   # group's submission.  the students name will be changed to the group's
   # name.  for non-group assignments this just returns all visible users
-  def representatives(user:, includes: [:inactive], group_id: nil, section_id: nil)
+  def representatives(user:, includes: [:inactive], group_id: nil, section_id: nil, &block)
     return visible_students_for_speed_grader(user: user, includes: includes, group_id: group_id, section_id: section_id) unless grade_as_group?
 
     submissions = self.submissions.to_a
@@ -2438,7 +2438,7 @@ class Assignment < ActiveRecord::Base
     user_ids_who_arent_excused = submissions.reject(&:excused?).map(&:user_id).to_set
 
     enrollment_state =
-      Hash[self.context.all_accepted_student_enrollments.pluck(:user_id, :workflow_state)]
+      self.context.all_accepted_student_enrollments.pluck(:user_id, :workflow_state).to_h
 
     # prefer active over inactive, inactive over everything else
     enrollment_priority = { 'active' => 1, 'inactive' => 2 }
@@ -2470,8 +2470,8 @@ class Assignment < ActiveRecord::Base
 
     sorted_reps_with_others =
       Canvas::ICU.collate_by(reps_and_others) { |rep, _| rep.sortable_name }
-    if block_given?
-      sorted_reps_with_others.each { |r, o| yield r, o }
+    if block
+      sorted_reps_with_others.each(&block)
     end
     sorted_reps_with_others.map(&:first)
   end
@@ -2698,7 +2698,7 @@ class Assignment < ActiveRecord::Base
     { student_ids: student_ids,
       submissions: submissions,
       submission_ids: Set.new(submissions.pluck(:id)),
-      assessor_id_map: Hash[submissions.map { |s| [s.id, s.assessment_requests.map(&:assessor_asset_id)] }] }
+      assessor_id_map: submissions.map { |s| [s.id, s.assessment_requests.map(&:assessor_asset_id)] }.to_h }
   end
 
   def sorted_review_candidates(peer_review_params, current_submission, candidate_set)
@@ -2742,7 +2742,7 @@ class Assignment < ActiveRecord::Base
         child_topic = self.discussion_topic.child_topic_for(current_submission.user)
         if child_topic
           other_member_ids = child_topic.discussion_entries.except(:order).active.distinct.pluck(:user_id)
-          candidate_set = candidate_set & peer_review_params[:submissions].select { |s| other_member_ids.include?(s.user_id) }.map(&:id)
+          candidate_set &= peer_review_params[:submissions].select { |s| other_member_ids.include?(s.user_id) }.map(&:id)
         end
       end
     end
@@ -2968,10 +2968,10 @@ class Assignment < ActiveRecord::Base
   }
 
   scope :expecting_submission, -> do
-    where.not(submission_types: [nil, ''] + %w(none not_graded on_paper wiki_page))
+    where.not(submission_types: [nil, ''] + %w[none not_graded on_paper wiki_page])
   end
 
-  scope :gradeable, -> { where.not(submission_types: %w(not_graded wiki_page)) }
+  scope :gradeable, -> { where.not(submission_types: %w[not_graded wiki_page]) }
 
   scope :active, -> { where.not(workflow_state: 'deleted') }
   scope :before, lambda { |date| where("assignments.created_at<?", date) }
@@ -3063,11 +3063,11 @@ class Assignment < ActiveRecord::Base
   def expects_submission?
     submission_types.present? &&
       !expects_external_submission? &&
-      !%w(none not_graded wiki_page).include?(submission_types)
+      !%w[none not_graded wiki_page].include?(submission_types)
   end
 
   def expects_external_submission?
-    %w(on_paper external_tool).include?(submission_types)
+    %w[on_paper external_tool].include?(submission_types)
   end
 
   def non_digital_submission?
@@ -3142,9 +3142,9 @@ class Assignment < ActiveRecord::Base
   end
   protected :infer_comment_context_from_filename
 
-  FREEZABLE_ATTRIBUTES = %w{title description lock_at points_possible grading_type
+  FREEZABLE_ATTRIBUTES = %w[title description lock_at points_possible grading_type
                             submission_types assignment_group_id allowed_extensions
-                            group_category_id notify_of_update peer_reviews workflow_state}.freeze
+                            group_category_id notify_of_update peer_reviews workflow_state].freeze
   def frozen?
     !!(self.freeze_on_copy && self.copied &&
        PluginSetting.settings_for_plugin(:assignment_freezer))
@@ -3203,22 +3203,18 @@ class Assignment < ActiveRecord::Base
   # * Assignment
   # * AssignmentOverride and
   # * AssignmentOverrideStudent
-  def self.suspend_due_date_caching
+  def self.suspend_due_date_caching(&block)
     Assignment.suspend_callbacks(:update_cached_due_dates) do
       AssignmentOverride.suspend_callbacks(:update_cached_due_dates) do
-        AssignmentOverrideStudent.suspend_callbacks(:update_cached_due_dates) do
-          yield
-        end
+        AssignmentOverrideStudent.suspend_callbacks(:update_cached_due_dates, &block)
       end
     end
   end
 
   # Suspend callbacks that recalculate grading period grades
-  def self.suspend_grading_period_grade_recalculation
+  def self.suspend_grading_period_grade_recalculation(&block)
     Assignment.suspend_callbacks(:update_grading_period_grades) do
-      AssignmentOverride.suspend_callbacks(:update_grading_period_grades) do
-        yield
-      end
+      AssignmentOverride.suspend_callbacks(:update_grading_period_grades, &block)
     end
   end
 
@@ -3901,7 +3897,7 @@ class Assignment < ActiveRecord::Base
       end
       o
     end
-    override_ids = overrides.map { |ele| ele[:id] }.to_set
+    override_ids = overrides.pluck(:id).to_set
     self.assignment_overrides.reject { |o| override_ids.include? o[:id] } + overrides
   end
 

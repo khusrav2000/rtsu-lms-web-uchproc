@@ -31,7 +31,7 @@ class PageView < ActiveRecord::Base
   before_save :cap_interaction_seconds
   belongs_to :context, polymorphic: [:course, :account, :group, :user, :user_profile], polymorphic_prefix: true
 
-  CONTEXT_TYPES = %w{Course Account Group User UserProfile}.freeze
+  CONTEXT_TYPES = %w[Course Account Group User UserProfile].freeze
 
   attr_accessor :is_update
 
@@ -101,7 +101,7 @@ class PageView < ActiveRecord::Base
   end
 
   # the list of columns we display to users, export to csv, etc
-  EXPORTED_COLUMNS = %w(request_id user_id url context_id context_type asset_id asset_type controller action interaction_seconds created_at user_request render_time user_agent participated account_id real_user_id http_method remote_ip).freeze
+  EXPORTED_COLUMNS = %w[request_id user_id url context_id context_type asset_id asset_type controller action interaction_seconds created_at user_request render_time user_agent participated account_id real_user_id http_method remote_ip].freeze
 
   def self.page_views_enabled?
     !!page_view_method
@@ -192,20 +192,19 @@ class PageView < ActiveRecord::Base
     end
   end
 
-  def self.find_by_id(id)
+  def self.find_by(id:)
     if PageView.cassandra?
       PageView::EventStream.fetch([id]).first
     elsif PageView.pv4?
       nil
     else
-      where(request_id: id).first
+      super(request_id: id)
     end
   end
 
   def self.from_attributes(attrs, new_record = false)
-    @blank_template ||= columns.inject({}) { |h, c|
+    @blank_template ||= columns.each_with_object({}) { |c, h|
       h[c.name] = nil
-      h
     }
     attrs = attrs.slice(*@blank_template.keys)
     shard = PageView.global_storage_namespace? ? Shard.birth : Shard.current
@@ -328,7 +327,7 @@ class PageView < ActiveRecord::Base
   end
 
   class << self
-    def transaction(*args)
+    def transaction(*args, &block)
       if PageView.cassandra?
         # Rails 3 autosave associations re-assign the attributes;
         # for sharding to work, the page view's shard has to be
@@ -336,9 +335,7 @@ class PageView < ActiveRecord::Base
         # done by the transaction, which we're skipping. so
         # manually do that here
         if current_scope
-          current_scope.activate do
-            yield
-          end
+          current_scope.activate(&block)
         else
           yield
         end

@@ -76,7 +76,7 @@ class UserMerge
         conversation_ids: from_user.all_conversations.shard(from_user).pluck(:id),
         ignore_ids: from_user.ignores.shard(from_user).pluck(:id),
         user_past_lti_id_ids: from_user.past_lti_ids.shard(from_user).pluck(:id),
-        'Polling::Poll_ids': from_user.polls.shard(from_user).pluck(:id) }.each do |k, ids|
+        "Polling::Poll_ids": from_user.polls.shard(from_user).pluck(:id) }.each do |k, ids|
         merge_data.items.create!(user: from_user, item_type: k, item: ids) unless ids.empty?
       end
     end
@@ -128,10 +128,10 @@ class UserMerge
       Attachment.delay.migrate_attachments(from_user, target_user)
 
       updates = {}
-      %w(access_tokens asset_user_accesses calendar_events collaborations
+      %w[access_tokens asset_user_accesses calendar_events collaborations
          context_module_progressions group_memberships ignores
          page_comments Polling::Poll rubric_assessments user_services
-         web_conference_participants web_conferences wiki_pages).each do |key|
+         web_conference_participants web_conferences wiki_pages].each do |key|
         updates[key] = "user_id"
       end
       updates['submission_comments'] = 'author_id'
@@ -202,10 +202,10 @@ class UserMerge
     return from_user.preferences if from_user.shard == target_user.shard
 
     preferences = from_user.preferences.dup
-    %i{custom_colors course_nicknames}.each do |pref|
+    %i[custom_colors course_nicknames].each do |pref|
       preferences.delete(pref)
       new_pref = {}
-      from_user.preferences.dig(pref)&.each do |key, value|
+      from_user.preferences[pref]&.each do |key, value|
         new_key = translate_course_id_or_asset_string(key)
         new_pref[new_key] = value
       end
@@ -230,7 +230,7 @@ class UserMerge
         # tl;dr do the same thing as shard_aware_preferences
         case key
         when "custom_colors"
-          value = Hash[value.map { |id, color| [translate_course_id_or_asset_string(id), color] }]
+          value = value.transform_keys { |id| translate_course_id_or_asset_string(id) }
         when "course_nicknames"
           sub_key = translate_course_id_or_asset_string(sub_key)
         end
@@ -335,7 +335,7 @@ class UserMerge
       scope = scope.where.not(id: to_retire_ids) unless to_retire_ids.empty?
       unless scope.empty?
         merge_data.build_more_data(scope, data: data)
-        scope.touch_all()
+        scope.touch_all
         scope.update_all(["user_id=?, position=position+?, root_account_ids='{?}'", target_user, max_position, target_user.root_account_ids])
       end
     end
@@ -598,7 +598,7 @@ class UserMerge
   def handle_submissions
     [
       [:assignment_id, :submissions],
-      [:quiz_id, :'quizzes/quiz_submissions']
+      [:quiz_id, :"quizzes/quiz_submissions"]
     ].each do |unique_id, table|
       # Submissions are a special case since there's a unique index
       # on the table, and if both the old user and the new user

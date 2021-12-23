@@ -362,7 +362,7 @@ describe NotificationMessageCreator do
       expect(@notification.default_frequency).to eql("never")
       u1 = user_model(:name => "user 1", :workflow_state => "registered")
       communication_channel(u1, { username: 'user1@example.com', active_cc: true })
-      @a = @course.assignments.create()
+      @a = @course.assignments.create
       messages = NotificationMessageCreator.new(@notification, @a, :to_list => u1).create_message
       expect(messages).not_to be_empty
       expect(messages.length).to be(1)
@@ -431,16 +431,16 @@ describe NotificationMessageCreator do
       allow(User).to receive(:max_messages_per_day).and_return(1)
       User.max_messages_per_day.times do
         messages = NotificationMessageCreator.new(@notification, @assignment, :to_list => @user).create_message
-        expect(messages.select { |m| m.to != 'dashboard' }).not_to be_empty
+        expect(messages.reject { |m| m.to == 'dashboard' }).not_to be_empty
       end
       expect(DelayedMessage.count).to eql(0)
       messages = NotificationMessageCreator.new(@notification, @assignment, :to_list => @user).create_message
-      expect(messages.select { |m| m.to != 'dashboard' }).to be_empty
+      expect(messages.reject { |m| m.to == 'dashboard' }).to be_empty
       expect(DelayedMessage.count).to eql(1)
       expect(NotificationPolicy.count).to eq 2
       # should not create more dummy policies
       messages = NotificationMessageCreator.new(@notification, @assignment, :to_list => @user).create_message
-      expect(messages.select { |m| m.to != 'dashboard' }).to be_empty
+      expect(messages.reject { |m| m.to == 'dashboard' }).to be_empty
       expect(NotificationPolicy.count).to eq 2
     end
 
@@ -635,7 +635,7 @@ describe NotificationMessageCreator do
     end
 
     it "respects user locales" do
-      I18n.backend.stub(:'en-SHOUTY' => { messages: { test_name: { email: { subject: "THIS IS *5*!!!!?!11eleventy1" } } } }) do
+      I18n.backend.stub(:"en-SHOUTY" => { messages: { test_name: { email: { subject: "THIS IS *5*!!!!?!11eleventy1" } } } }) do
         @user.locale = 'en-SHOUTY'
         @user.save(validate: false)
         messages = NotificationMessageCreator.new(@notification, @assignment, :to_list => @user).create_message

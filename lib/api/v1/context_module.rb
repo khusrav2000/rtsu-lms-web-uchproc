@@ -26,16 +26,16 @@ module Api::V1::ContextModule
   include Api::V1::Locked
   include Api::V1::Assignment
 
-  MODULE_JSON_ATTRS = %w(id position name unlock_at).freeze
+  MODULE_JSON_ATTRS = %w[id position name unlock_at].freeze
 
-  MODULE_ITEM_JSON_ATTRS = %w(id position title indent).freeze
+  MODULE_ITEM_JSON_ATTRS = %w[id position title indent].freeze
 
   ITEM_TYPE = {
     Assignment: 'assignment',
     Attachment: 'file',
     DiscussionTopic: 'topic',
     Quiz: 'quiz',
-    'Quizzes::Quiz': 'quiz',
+    "Quizzes::Quiz": 'quiz',
     WikiPage: 'page'
   }.freeze
 
@@ -44,7 +44,7 @@ module Api::V1::ContextModule
     hash = api_json(context_module, current_user, session, :only => MODULE_JSON_ATTRS)
     hash['require_sequential_progress'] = !!context_module.require_sequential_progress?
     hash['publish_final_grade'] = context_module.publish_final_grade?
-    hash['prerequisite_module_ids'] = context_module.prerequisites.reject { |p| p[:type] != 'context_module' }.map { |p| p[:id] }
+    hash['prerequisite_module_ids'] = context_module.prerequisites.select { |p| p[:type] == 'context_module' }.pluck(:id)
     if progression
       hash['state'] = progression.workflow_state
       hash['completed_at'] = progression.completed_at
@@ -97,7 +97,7 @@ module Api::V1::ContextModule
 
     # add content_id, if applicable
     # (note that wiki page ids are not exposed by the api)
-    unless %w(WikiPage ContextModuleSubHeader ExternalUrl).include? content_tag.content_type
+    unless %w[WikiPage ContextModuleSubHeader ExternalUrl].include? content_tag.content_type
       hash['content_id'] = content_tag.content_id
     end
 

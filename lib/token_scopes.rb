@@ -96,7 +96,7 @@ class TokenScopes
   end
 
   def self.all_scopes
-    @_all_scopes ||= [USER_INFO_SCOPE[:scope], CD2_SCOPE[:scope], *api_routes.map { |route| route[:scope] }, *LTI_SCOPES.keys, *LTI_HIDDEN_SCOPES.keys].freeze
+    @_all_scopes ||= [USER_INFO_SCOPE[:scope], CD2_SCOPE[:scope], *api_routes.pluck(:scope), *LTI_SCOPES.keys, *LTI_HIDDEN_SCOPES.keys].freeze
   end
 
   def self.detailed_scopes
@@ -107,7 +107,7 @@ class TokenScopes
   def self.api_routes
     return @_api_routes if @_api_routes
 
-    routes = Rails.application.routes.routes.select { |route| /^\/api\/(v1|sis)/ =~ route.path.spec.to_s }.map do |route|
+    routes = Rails.application.routes.routes.select { |route| %r{^/api/(v1|sis)} =~ route.path.spec.to_s }.map do |route|
       {
         controller: route.defaults[:controller]&.to_sym,
         action: route.defaults[:action]&.to_sym,

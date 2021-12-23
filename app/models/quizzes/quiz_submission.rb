@@ -165,7 +165,7 @@ class Quizzes::QuizSubmission < ActiveRecord::Base
   end
 
   def temporary_data
-    raise "Cannot view temporary data for completed quiz" unless !self.completed?
+    raise "Cannot view temporary data for completed quiz" if self.completed?
     raise "Cannot view temporary data for completed quiz" if graded?
 
     (self.submission_data || {}).with_indifferent_access
@@ -174,7 +174,7 @@ class Quizzes::QuizSubmission < ActiveRecord::Base
   def question_answered?(id)
     keys = temporary_data.keys.select { |key|
       # find keys with answers for this question; skip question_x_marked and _read
-      (key =~ /question_#{id}(_|$)/) && !(key =~ /_(marked|read)$/)
+      (key =~ /question_#{id}(_|$)/) && key !~ /_(marked|read)$/
     }
 
     if keys.present?
@@ -801,7 +801,7 @@ class Quizzes::QuizSubmission < ActiveRecord::Base
   scope :for_user_ids, lambda { |user_ids| where(:user_id => user_ids) }
   scope :logged_out, -> { where("temporary_user_code is not null AND NOT was_preview") }
   scope :not_settings_only, -> { where("quiz_submissions.workflow_state<>'settings_only'") }
-  scope :completed, -> { where(:workflow_state => %w(complete pending_review)) }
+  scope :completed, -> { where(:workflow_state => %w[complete pending_review]) }
 
   # Excludes teacher preview submissions.
   #
@@ -964,7 +964,7 @@ class Quizzes::QuizSubmission < ActiveRecord::Base
 
   def filter_attributes_for_user(hash, user, session)
     if submission.present? && !submission.user_can_read_grade?(user, session)
-      secret_keys = %w(score kept_score)
+      secret_keys = %w[score kept_score]
       hash.except!(*secret_keys)
     end
   end

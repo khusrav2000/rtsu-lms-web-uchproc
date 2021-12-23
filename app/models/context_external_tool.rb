@@ -146,7 +146,7 @@ class ContextExternalTool < ActiveRecord::Base
 
     def visible?(visibility, user, context, session = nil)
       visibility = visibility.to_s
-      return true unless %w(public members admins).include?(visibility)
+      return true unless %w[public members admins].include?(visibility)
       return true if visibility == 'public'
       return true if visibility == 'members' &&
                      context.grants_any_right?(user, session, :participate_as_student, :read_as_admin)
@@ -295,7 +295,7 @@ class ContextExternalTool < ActiveRecord::Base
       extension_keys += custom_keys
     end
     extension_keys += {
-      :visibility => lambda { |v| %w{members admins public}.include?(v) || v.nil? }
+      :visibility => lambda { |v| %w[members admins public].include?(v) || v.nil? }
     }.to_a
 
     # merge with existing settings so that no caller can complain
@@ -687,7 +687,7 @@ class ContextExternalTool < ActiveRecord::Base
 
     settings.delete(:editor_button) unless editor_button(:icon_url) || editor_button(:canvas_icon_class)
 
-    sync_placements!(Lti::ResourcePlacement::PLACEMENTS.select { |type| !!settings[type] }.map(&:to_s))
+    sync_placements!(Lti::ResourcePlacement::PLACEMENTS.select { |type| settings[type] }.map(&:to_s))
     true
   end
 
@@ -803,7 +803,7 @@ class ContextExternalTool < ActiveRecord::Base
     url = ContextExternalTool.standardize_url(url)
     host = Addressable::URI.parse(url).normalize.host rescue nil
     port = Addressable::URI.parse(url).normalize.port rescue nil
-    d = domain.downcase.gsub(/http[s]?:\/\//, '')
+    d = domain.downcase.gsub(%r{https?://}, '')
     !!(host && ('.' + host + (port ? ":#{port}" : '')).match(/\.#{d}\z/))
   end
 

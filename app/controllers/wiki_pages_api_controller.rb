@@ -548,7 +548,7 @@ class WikiPagesApiController < ApplicationController
   end
 
   def get_wiki_page
-    GuardRail.activate(%w{update update_front_page}.include?(params[:action]) ? :primary : :secondary) do
+    GuardRail.activate(%w[update update_front_page].include?(params[:action]) ? :primary : :secondary) do
       @wiki = @context.wiki
 
       # attempt to find an existing page
@@ -588,7 +588,7 @@ class WikiPagesApiController < ApplicationController
 
   def get_update_params(allowed_fields = Set[])
     # normalize parameters
-    page_params = params[:wiki_page] ? params[:wiki_page].permit(*%w(title body notify_of_update published front_page editing_roles)) : {}
+    page_params = params[:wiki_page] ? params[:wiki_page].permit(*%w[title body notify_of_update published front_page editing_roles]) : {}
 
     if page_params.key?(:published)
       published_value = page_params.delete(:published)
@@ -599,7 +599,7 @@ class WikiPagesApiController < ApplicationController
 
     if page_params.key?(:editing_roles)
       editing_roles = page_params[:editing_roles].split(',').map(&:strip)
-      invalid_roles = editing_roles.reject { |role| %w(teachers students members public).include?(role) }
+      invalid_roles = editing_roles.reject { |role| %w[teachers students members public].include?(role) }
       unless invalid_roles.empty?
         @page.errors.add(:editing_roles, t(:invalid_editing_roles, 'The provided editing roles are invalid'))
         return :bad_request
@@ -639,7 +639,7 @@ class WikiPagesApiController < ApplicationController
     end
 
     # check rejected fields
-    rejected_fields = rejected_fields - allowed_fields
+    rejected_fields -= allowed_fields
     unless rejected_fields.empty?
       @page.errors.add(:published, t(:cannot_update_published, 'You are not allowed to update the published state of this wiki page')) if rejected_fields.include?(:published)
       @page.errors.add(:title, t(:cannot_update_title, 'You are not allowed to update the title of this wiki page')) if rejected_fields.include?(:title)

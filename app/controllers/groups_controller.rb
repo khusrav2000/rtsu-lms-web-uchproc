@@ -150,10 +150,10 @@ class GroupsController < ApplicationController
   include Context
   include K5Mode
 
-  SETTABLE_GROUP_ATTRIBUTES = %w(
+  SETTABLE_GROUP_ATTRIBUTES = %w[
     name description join_level is_public group_category avatar_attachment
     storage_quota_mb max_membership leader
-  ).freeze
+  ].freeze
 
   include TextHelper
 
@@ -620,7 +620,7 @@ class GroupsController < ApplicationController
           end
         end
 
-        if !@group.errors.any?
+        if @group.errors.none?
           @group.users.touch_all
           flash[:notice] = t('notices.update_success', 'Group was successfully updated.')
           format.html { redirect_to clean_return_to(params[:return_to]) || group_url(@group) }
@@ -780,7 +780,7 @@ class GroupsController < ApplicationController
     end
 
     if (includes.include? 'active_status') && (@context.context.is_a? Course)
-      enrollments = Enrollment.where(user_id: json_users.map { |u| u[:id] }, course_id: @context.context_id)
+      enrollments = Enrollment.where(user_id: json_users.pluck(:id), course_id: @context.context_id)
 
       inactive_students = enrollments.group_by(&:user_id).select { |_id, es| es.all?(&:hard_inactive?) }.map(&:first)
       json_users.each do |user|

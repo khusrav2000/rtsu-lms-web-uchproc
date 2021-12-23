@@ -77,7 +77,7 @@ module ApplicationHelper
       .cache
       .fetch(['short_name_lookup', code].cache_key) do
         Context.find_by_asset_string(code).short_name
-      rescue StandardError
+      rescue
         ''
       end
   end
@@ -140,7 +140,7 @@ module ApplicationHelper
   end
 
   def message_user_path(user, context = nil)
-    context = context || @context
+    context ||= @context
 
     # If context is a group that belongs to a course, use the course as the context instead
     context = context.context if context.is_a?(Group) && context.context.is_a?(Course)
@@ -380,26 +380,26 @@ module ApplicationHelper
     tabs.select do |tab|
       if begin
         tab[:id] == @context.class::TAB_COLLABORATIONS
-      rescue StandardError
+      rescue
         false
       end
         Collaboration.any_collaborations_configured?(@context) &&
           !@context.feature_enabled?(:new_collaborations)
       elsif begin
         quiz_lti_tab?(tab)
-      rescue StandardError
+      rescue
         false
       end
         new_quizzes_navigation_placements_enabled?(@context)
       elsif begin
         tab[:id] == @context.class::TAB_COLLABORATIONS_NEW
-      rescue StandardError
+      rescue
         false
       end
         @context.feature_enabled?(:new_collaborations)
       elsif begin
         tab[:id] == @context.class::TAB_CONFERENCES
-      rescue StandardError
+      rescue
         false
       end
         feature_enabled?(:web_conferences)
@@ -408,7 +408,7 @@ module ApplicationHelper
           (
             begin
               @context.class::TAB_SETTINGS
-            rescue StandardError
+            rescue
               nil
             end
           )
@@ -653,7 +653,7 @@ module ApplicationHelper
     uri =
       begin
         URI.parse(src)
-      rescue StandardError
+      rescue
         nil
       end
     if uri
@@ -723,7 +723,7 @@ module ApplicationHelper
   def cache(name = {}, options = {}, &block)
     unless options && options[:no_locale]
       name = name.cache_key if name.respond_to?(:cache_key)
-      name = name + "/#{I18n.locale}" if name.is_a?(String)
+      name += "/#{I18n.locale}" if name.is_a?(String)
     end
     super
   end
@@ -770,7 +770,7 @@ module ApplicationHelper
   end
 
   def help_link_data
-    { 'track-category': 'help system', 'track-label': 'help button' }
+    { "track-category": 'help system', "track-label": 'help button' }
   end
 
   def help_link

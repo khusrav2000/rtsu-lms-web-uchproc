@@ -414,7 +414,7 @@ class FoldersController < ApplicationController
 
     if (folder_params[:folder_id] && (folder_params[:parent_folder_path] || folder_params[:parent_folder_id])) ||
        (folder_params[:parent_folder_path] && folder_params[:parent_folder_id])
-      render :json => { :message => t('only_one_folder', "Can't set folder path and folder id") }, :status => 400
+      render :json => { :message => t('only_one_folder', "Can't set folder path and folder id") }, :status => :bad_request
       return
     elsif folder_params[:folder_id]
       folder_params.delete(:folder_id)
@@ -492,13 +492,13 @@ class FoldersController < ApplicationController
     @folder = Folder.find(params[:id])
     if authorized_action(@folder, @current_user, :delete)
       if @folder.root_folder?
-        render :json => { :message => t('no_deleting_root', "Can't delete the root folder") }, :status => 400
+        render :json => { :message => t('no_deleting_root', "Can't delete the root folder") }, :status => :bad_request
       elsif @folder.context.is_a?(Course) &&
             MasterCourses::ChildSubscription.is_child_course?(@folder.context) &&
             MasterCourses::FolderHelper.locked_folder_ids_for_course(@folder.context).include?(@folder.id)
-        render :json => { :message => "Can't delete folder containing files locked by Blueprint Course" }, :status => 400
+        render :json => { :message => "Can't delete folder containing files locked by Blueprint Course" }, :status => :bad_request
       elsif @folder.has_contents? && params[:force] != 'true'
-        render :json => { :message => t('no_deleting_folders_with_content', "Can't delete a folder with content") }, :status => 400
+        render :json => { :message => t('no_deleting_folders_with_content', "Can't delete a folder with content") }, :status => :bad_request
       else
         @context = @folder.context
         @folder.destroy
@@ -570,7 +570,7 @@ class FoldersController < ApplicationController
       if authorized_action(@attachment, @current_user, :create)
         on_duplicate, name = params[:on_duplicate].presence, params[:name].presence
         duplicate_options = (on_duplicate == 'rename' && name) ? { name: name } : {}
-        return render :json => { :message => "on_duplicate must be 'overwrite' or 'rename'" }, :status => :bad_request if on_duplicate && %w(overwrite rename).exclude?(on_duplicate)
+        return render :json => { :message => "on_duplicate must be 'overwrite' or 'rename'" }, :status => :bad_request if on_duplicate && %w[overwrite rename].exclude?(on_duplicate)
         if on_duplicate.nil? && @dest_folder.active_file_attachments.where(display_name: @source_file.display_name).exists?
           return render :json => { :message => "file already exists; set on_duplicate to 'rename' or 'overwrite'" }, :status => :conflict
         end

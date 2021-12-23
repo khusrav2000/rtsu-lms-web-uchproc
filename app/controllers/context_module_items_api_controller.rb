@@ -322,7 +322,7 @@ class ContextModuleItemsApiController < ApplicationController
           @tag.context_module_action(@current_user, :read)
           redirect_to @tag.url
         else
-          render(:status => 400, :json => { :message => "incorrect module item type" })
+          render(:status => :bad_request, :json => { :message => "incorrect module item type" })
         end
       end
     end
@@ -412,7 +412,7 @@ class ContextModuleItemsApiController < ApplicationController
       elsif @tag
         render :json => @tag.errors, :status => :bad_request
       else
-        render :status => 400, :json => { :message => t(:invalid_content, "Could not find content") }
+        render :status => :bad_request, :json => { :message => t(:invalid_content, "Could not find content") }
       end
     end
   end
@@ -472,7 +472,7 @@ class ContextModuleItemsApiController < ApplicationController
       return render :json => { :message => "missing module item parameter" }, :status => :bad_request unless params[:module_item]
 
       @tag.title = params[:module_item][:title] if params[:module_item][:title]
-      @tag.url = params[:module_item][:external_url] if %w(ExternalUrl ContextExternalTool).include?(@tag.content_type) && params[:module_item][:external_url]
+      @tag.url = params[:module_item][:external_url] if %w[ExternalUrl ContextExternalTool].include?(@tag.content_type) && params[:module_item][:external_url]
       @tag.indent = params[:module_item][:indent] if params[:module_item][:indent]
       @tag.new_tab = value_to_boolean(params[:module_item][:new_tab]) if params[:module_item][:new_tab]
       if (target_module_id = params[:module_item][:module_id]) && target_module_id.to_i != @tag.context_module_id
@@ -729,7 +729,7 @@ class ContextModuleItemsApiController < ApplicationController
         )
         render json: json
       else
-        render :status => 400, :json => { :message => t("Item cannot be duplicated") }
+        render :status => :bad_request, :json => { :message => t("Item cannot be duplicated") }
       end
     end
   end

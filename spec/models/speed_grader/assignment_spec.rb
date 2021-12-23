@@ -45,7 +45,7 @@ describe SpeedGrader::Assignment do
         @course.assignments.create!(
           group_category_id: category.id,
           grade_group_students_individually: false,
-          submission_types: %w(text_entry)
+          submission_types: %w[text_entry]
         )
       end
       let(:homework_params) do
@@ -263,10 +263,10 @@ describe SpeedGrader::Assignment do
     it "includes only students and sections with overrides for differentiated assignments" do
       json = SpeedGrader::Assignment.new(@assignment, @teacher).json
 
-      expect(json[:context][:students].map { |s| s[:id] }).to include(@student1.id.to_s)
-      expect(json[:context][:students].map { |s| s[:id] }).not_to include(@student2.id.to_s)
-      expect(json[:context][:active_course_sections].map { |cs| cs[:id] }).to include(@section1.id.to_s)
-      expect(json[:context][:active_course_sections].map { |cs| cs[:id] }).not_to include(@section2.id.to_s)
+      expect(json[:context][:students].pluck(:id)).to include(@student1.id.to_s)
+      expect(json[:context][:students].pluck(:id)).not_to include(@student2.id.to_s)
+      expect(json[:context][:active_course_sections].pluck(:id)).to include(@section1.id.to_s)
+      expect(json[:context][:active_course_sections].pluck(:id)).not_to include(@section2.id.to_s)
     end
 
     it "sorts student view students last" do
@@ -280,10 +280,10 @@ describe SpeedGrader::Assignment do
       @assignment.save!
       json = SpeedGrader::Assignment.new(@assignment, @teacher).json
 
-      expect(json[:context][:students].map { |s| s[:id] }).to include(@student1.id.to_s)
-      expect(json[:context][:students].map { |s| s[:id] }).to include(@student2.id.to_s)
-      expect(json[:context][:active_course_sections].map { |cs| cs[:id] }).to include(@section1.id.to_s)
-      expect(json[:context][:active_course_sections].map { |cs| cs[:id] }).to include(@section2.id.to_s)
+      expect(json[:context][:students].pluck(:id)).to include(@student1.id.to_s)
+      expect(json[:context][:students].pluck(:id)).to include(@student2.id.to_s)
+      expect(json[:context][:active_course_sections].pluck(:id)).to include(@section1.id.to_s)
+      expect(json[:context][:active_course_sections].pluck(:id)).to include(@section2.id.to_s)
     end
   end
 
@@ -711,7 +711,7 @@ describe SpeedGrader::Assignment do
         @assignment = @course.assignments.create!(
           group_category_id: @group_category.id,
           grade_group_students_individually: false,
-          submission_types: %w(text_entry)
+          submission_types: %w[text_entry]
         )
       end
 
@@ -1028,12 +1028,12 @@ describe SpeedGrader::Assignment do
       let(:submission) { Submission.find_or_initialize_by(assignment: @assignment, user: @student) }
 
       let(:urls) do
-        %w(
+        %w[
           https://abcdef.com/uuurrrlll00
           https://abcdef.com/uuurrrlll01
           https://abcdef.com/uuurrrlll02
           https://abcdef.com/uuurrrlll03
-        )
+        ]
       end
 
       let(:url_grades) do

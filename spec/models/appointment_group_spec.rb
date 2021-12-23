@@ -59,8 +59,8 @@ describe AppointmentGroup do
       )
 
       expect(group).to be_valid
-      selected = [c1section1.asset_string, c1section2.asset_string, c2section1.asset_string].sort()
-      expect(group.sub_context_codes.sort()).to eql selected
+      selected = [c1section1.asset_string, c1section2.asset_string, c2section1.asset_string].sort
+      expect(group.sub_context_codes.sort).to eql selected
     end
 
     it "ignores invalid sub context types" do
@@ -573,7 +573,7 @@ describe AppointmentGroup do
     end
 
     it "respects the current_only option" do
-      @ag.update(:new_appointments => [[(Time.zone.now - 2.hour).to_s, (Time.zone.now - 1.hour).to_s]])
+      @ag.update(:new_appointments => [[(Time.zone.now - 2.hours).to_s, (Time.zone.now - 1.hour).to_s]])
       expect(@ag.available_slots(current_only: true)).to eql 4
     end
   end

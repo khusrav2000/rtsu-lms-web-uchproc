@@ -40,8 +40,8 @@ class Attachment < ActiveRecord::Base
     PERMITTED_ATTRIBUTES
   end
 
-  EXCLUDED_COPY_ATTRIBUTES = %w{id root_attachment_id uuid folder_id user_id
-                                filename namespace workflow_state root_account_id}.freeze
+  EXCLUDED_COPY_ATTRIBUTES = %w[id root_attachment_id uuid folder_id user_id
+                                filename namespace workflow_state root_account_id].freeze
 
   CLONING_ERROR_TYPE = 'attachment_clone_url'
 
@@ -163,8 +163,10 @@ class Attachment < ActiveRecord::Base
       find_with_possibly_replaced(super)
     end
 
-    def find_by_id(id)
-      find_with_possibly_replaced(where(id: id).first)
+    def find_by(**kwargs)
+      return super unless kwargs.keys == [:id]
+
+      find_with_possibly_replaced(super)
     end
 
     def find_all_by_id(ids)
@@ -199,7 +201,7 @@ class Attachment < ActiveRecord::Base
     end
   end
 
-  RELATIVE_CONTEXT_TYPES = %w(Course Group User Account).freeze
+  RELATIVE_CONTEXT_TYPES = %w[Course Group User Account].freeze
   # returns true if the context is a type that supports relative file paths
   def self.relative_context?(context_class)
     RELATIVE_CONTEXT_TYPES.include?(context_class.to_s)
@@ -226,7 +228,7 @@ class Attachment < ActiveRecord::Base
       @after_attachment_saved_workflow_state = nil
     end
 
-    if %w(pending_upload processing).include?(workflow_state)
+    if %w[pending_upload processing].include?(workflow_state)
       # we don't call .process here so that we don't have to go through another whole save cycle
       self.workflow_state = 'processed'
     end
@@ -311,7 +313,7 @@ class Attachment < ActiveRecord::Base
         Attachment.where(:id => self).update_all(:cloned_item_id => self.cloned_item.id) # don't touch it for no reason
       end
     end
-    existing = context.attachments.active.find_by_id(self)
+    existing = context.attachments.active.find_by(id: self)
 
     options[:cloned_item_id] ||= self.cloned_item_id
     options[:migration_id] ||= CC::CCHelper.create_key(self)
@@ -775,7 +777,7 @@ class Attachment < ActiveRecord::Base
         valid_name = false
         self.shard.activate do
           iter_count = 1
-          while !valid_name
+          until valid_name
             existing_names = self.folder.active_file_attachments.where.not(id: self.id).pluck(:display_name)
             new_name = opts[:name] || self.display_name
             self.display_name = Attachment.make_unique_filename(new_name, existing_names, iter_count)
@@ -914,7 +916,7 @@ class Attachment < ActiveRecord::Base
 
   def content_type_with_text_match
     # treats all text/X files as text/plain (except text/html)
-    (content_type.to_s.match(/^text\/.*/) && content_type.to_s != "text/html") ? "text/plain" : content_type
+    (content_type.to_s.match(%r{^text/.*}) && content_type.to_s != "text/html") ? "text/plain" : content_type
   end
 
   # Returns an IO-like object containing the contents of the attachment file.
@@ -939,7 +941,7 @@ class Attachment < ActiveRecord::Base
   # created if necessary.
   def open(opts = {}, &block)
     if instfs_hosted?
-      if block_given?
+      if block
         streaming_download(&block)
       else
         create_tempfile(opts) do |tempfile|
@@ -1515,7 +1517,7 @@ class Attachment < ActiveRecord::Base
   end
 
   def self.file_removed_path
-    Rails.root.join('public', 'file_removed', 'file_removed.pdf')
+    Rails.root.join('public/file_removed/file_removed.pdf')
   end
 
   # find the file_removed file on instfs (or upload it)
@@ -1725,9 +1727,9 @@ class Attachment < ActiveRecord::Base
     !!@skip_3rd_party_submits
   end
 
-  def self.skip_media_object_creation(&block)
+  def self.skip_media_object_creation
     @skip_media_object_creation = true
-    block.call
+    yield
   ensure
     @skip_media_object_creation = false
   end
@@ -1858,7 +1860,7 @@ class Attachment < ActiveRecord::Base
   end
 
   def self.find_from_path(path, context)
-    list = path.split("/").select { |f| !f.empty? }
+    list = path.split("/").reject(&:empty?)
     if list[0] != Folder.root_folders(context).first.name
       list.unshift(Folder.root_folders(context).first.name)
     end
@@ -1950,7 +1952,7 @@ class Attachment < ActiveRecord::Base
   end
   protected :automatic_thumbnail_sizes
 
-  DYNAMIC_THUMBNAIL_SIZES = %w(640x>).freeze
+  DYNAMIC_THUMBNAIL_SIZES = %w[640x>].freeze
 
   # the list of allowed thumbnail sizes to be generated dynamically
   def self.dynamic_thumbnail_sizes
@@ -2020,7 +2022,7 @@ class Attachment < ActiveRecord::Base
 
     handle_duplicates(duplicate_handling || 'overwrite')
     nil # the rescue returns true if the file failed and is retryable, nil if successful
-  rescue StandardError => e
+  rescue => e
     failed_retryable = false
     self.file_state = 'errored'
     self.workflow_state = 'errored'

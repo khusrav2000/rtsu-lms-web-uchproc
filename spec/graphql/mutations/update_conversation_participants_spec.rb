@@ -59,7 +59,7 @@ describe Mutations::UpdateConversationParticipants do
     expect(participant.starred).to be_falsey
 
     result = execute_with_input(query)
-    expect(result.dig('errors')).to be_nil
+    expect(result['errors']).to be_nil
     expect(result.dig('data', 'updateConversationParticipants', 'errors')).to be_nil
     updated_attributes = result.dig('data', 'updateConversationParticipants', 'conversationParticipants')
     expect(updated_attributes).to include({
@@ -76,7 +76,7 @@ describe Mutations::UpdateConversationParticipants do
 
   describe "error handling" do
     def expect_error(result, message)
-      errors = result.dig('errors') || result.dig('data', 'updateConversationParticipants', 'errors')
+      errors = result['errors'] || result.dig('data', 'updateConversationParticipants', 'errors')
       expect(errors).not_to be_nil
       expect(errors[0]['message']).to match(/#{message}/)
     end
@@ -113,10 +113,10 @@ describe Mutations::UpdateConversationParticipants do
         expect(participant2.starred).to be_falsey
 
         result = execute_with_input(query)
-        expect(result.dig('errors')).to be_nil
+        expect(result['errors']).to be_nil
         expect(result.dig('data', 'updateConversationParticipants', 'errors')).to be_nil
         updated_attrs = result.dig('data', 'updateConversationParticipants', 'conversationParticipants')
-        expect(updated_attrs.map { |i| i["label"] }).to match_array %w(starred starred)
+        expect(updated_attrs.map { |i| i["label"] }).to match_array %w[starred starred]
 
         participant1 = participant1.reload
         expect(participant1.starred).to be_truthy
@@ -130,7 +130,7 @@ describe Mutations::UpdateConversationParticipants do
       let(:invalid_id) { Conversation.maximum(:id)&.next || 0 }
 
       def expect_error(result, id, message)
-        errors = result.dig('errors') || result.dig('data', 'updateConversationParticipants', 'errors')
+        errors = result['errors'] || result.dig('data', 'updateConversationParticipants', 'errors')
         expect(errors).not_to be_nil
         error = errors.find { |i| i["attribute"] == id.to_s }
         expect(error['message']).to match(/#{message}/)

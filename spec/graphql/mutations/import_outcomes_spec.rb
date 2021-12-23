@@ -135,7 +135,7 @@ describe Mutations::ImportOutcomes do
 
   def assert_tree_exists(groups, db_parent_group)
     group_titles = db_parent_group.child_outcome_groups.active.pluck(:title)
-    expect(group_titles.sort).to eql(groups.map { |g| g[:title] }.sort)
+    expect(group_titles.sort).to eql(groups.pluck(:title).sort)
 
     groups.each do |group|
       outcome_titles = group[:outcomes] || []
@@ -179,7 +179,7 @@ describe Mutations::ImportOutcomes do
     end
 
     def expect_error(result, message)
-      errors = result.dig('errors')
+      errors = result['errors']
       expect(errors).not_to be_nil
       expect(errors[0]['message']).to match(/#{message}/)
     end
@@ -199,7 +199,7 @@ describe Mutations::ImportOutcomes do
         }
       GQL
       result = execute_query(query, ctx)
-      errors = result.dig('errors')
+      errors = result['errors']
       expect(errors).not_to be_nil
       expect(errors.length).to eq 1
       expect(

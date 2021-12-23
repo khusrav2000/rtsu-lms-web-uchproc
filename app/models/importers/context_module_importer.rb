@@ -155,7 +155,7 @@ module Importers
             end
           end
         end
-        item.prerequisites = preqs if preqs.length > 0 || migration.for_master_course_import?
+        item.prerequisites = preqs if !preqs.empty? || migration.for_master_course_import?
       end
       item.save!
 
@@ -190,7 +190,7 @@ module Importers
             c_reqs << req
           end
         end
-        if c_reqs.length > 0 || migration.for_master_course_import? # allow clearing requirements on sync
+        if !c_reqs.empty? || migration.for_master_course_import? # allow clearing requirements on sync
           item.completion_requirements = c_reqs
           item.save
         end
@@ -292,7 +292,7 @@ module Importers
           external_tool_url = migration.process_domain_substitutions(external_tool_url)
           if external_tool_id.nil?
             migration.add_warning(t(:foreign_lti_tool,
-                                    %q{The account External Tool for module item "%{title}" must be configured before the item can be launched},
+                                    'The account External Tool for module item "%{title}" must be configured before the item can be launched',
                                     :title => title))
           end
 

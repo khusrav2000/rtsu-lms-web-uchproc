@@ -438,7 +438,7 @@ describe CoursesController do
         enrollment2 = student_in_course user: @student, course: course2, active_all: true
 
         # future date that doesn't count
-        course3 = Account.default.courses.create! start_at: 1.weeks.from_now, conclude_at: 2.weeks.from_now,
+        course3 = Account.default.courses.create! start_at: 1.week.from_now, conclude_at: 2.weeks.from_now,
                                                   restrict_enrollments_to_course_dates: false,
                                                   name: 'C'
         course3.offer!
@@ -2007,7 +2007,7 @@ describe CoursesController do
       expect(response).to be_successful
       @course.reload
       expect(@course.students.map(&:name)).to include("Sam")
-      expect(@course.student_enrollments.find_by_role_id(role.id)).to_not be_nil
+      expect(@course.student_enrollments.find_by(role_id: role.id)).to_not be_nil
     end
 
     it "allows TAs to enroll Observers (by default)" do
@@ -3096,7 +3096,7 @@ describe CoursesController do
       expect(feed).not_to be_nil
       expect(feed.entries).not_to be_empty
       expect(feed.links.first.rel).to match(/self/)
-      expect(feed.links.first.href).to match(/http:\/\//)
+      expect(feed.links.first.href).to match(%r{http://})
     end
 
     it "includes an author for each entry" do

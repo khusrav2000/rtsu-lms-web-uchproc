@@ -146,7 +146,7 @@ describe "threaded discussions" do
       @enrollment.save!
 
       # Reset discussion created_at time to two minutes ago
-      @topic.update_attribute(:posted_at, Time.zone.now - 2.minute)
+      @topic.update_attribute(:posted_at, Time.zone.now - 2.minutes)
 
       # Create reply message and reset created_at to one minute ago
       @topic.reply_from(user: @student, html: "New test reply")
@@ -219,7 +219,7 @@ describe "threaded discussions" do
       entry_text = 'new entry'
       Discussion.visit(@course, @topic)
 
-      fj('label[for="showDeleted"]').click()
+      fj('label[for="showDeleted"]').click
       add_reply(entry_text)
       entry = DiscussionEntry.last
       delete_entry(entry)

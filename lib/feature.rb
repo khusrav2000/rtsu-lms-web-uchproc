@@ -29,7 +29,7 @@ class Feature
     @state = 'allowed'
     opts.each do |key, val|
       next unless ATTRS.include?(key)
-      next if key == :state && !%w(hidden off allowed on allowed_on).include?(val)
+      next if key == :state && !%w[hidden off allowed on allowed_on].include?(val)
 
       instance_variable_set "@#{key}", val
     end
@@ -132,9 +132,9 @@ class Feature
   STATE_DISABLED = 'disabled'
 
   VALID_STATES = [STATE_ON, STATE_DEFAULT_OFF, STATE_DEFAULT_ON, STATE_HIDDEN, STATE_DISABLED].freeze
-  VALID_APPLIES_TO = %w(Course Account RootAccount User SiteAdmin).freeze
-  VALID_ENVS = %i(development ci beta test production).freeze
-  VALID_TYPES = %w(feature_option setting).freeze
+  VALID_APPLIES_TO = %w[Course Account RootAccount User SiteAdmin].freeze
+  VALID_ENVS = %i[development ci beta test production].freeze
+  VALID_TYPES = %w[feature_option setting].freeze
 
   DISABLED_FEATURE = Feature.new.freeze
 
@@ -226,10 +226,9 @@ class Feature
   def default_transitions(context, orig_state)
     valid_states = [STATE_OFF, STATE_ON]
     valid_states += [STATE_DEFAULT_OFF, STATE_DEFAULT_ON] if context.is_a?(Account)
-    (valid_states - [orig_state]).inject({}) do |transitions, state|
-      transitions[state] = { 'locked' => ([STATE_DEFAULT_OFF, STATE_DEFAULT_ON].include?(state) && ((@applies_to == 'RootAccount' &&
+    (valid_states - [orig_state]).index_with do |state|
+      { 'locked' => ([STATE_DEFAULT_OFF, STATE_DEFAULT_ON].include?(state) && ((@applies_to == 'RootAccount' &&
         context.is_a?(Account) && context.root_account? && !context.site_admin?) || @applies_to == "SiteAdmin")) }
-      transitions
     end
   end
 

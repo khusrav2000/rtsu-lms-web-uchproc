@@ -111,7 +111,7 @@ class OutcomeImportsApiController < ApplicationController
   end
 
   rescue_from InvalidContentType do
-    render :json => { :error => t('Invalid content type, UTF-8 required') }, :status => 400
+    render :json => { :error => t('Invalid content type, UTF-8 required') }, :status => :bad_request
   end
 
   # @API Import Outcomes
@@ -195,7 +195,7 @@ class OutcomeImportsApiController < ApplicationController
   #
   # @returns OutcomeImport
   def show
-    if authorized_action(@context, @current_user, %i(import_outcomes manage_outcomes))
+    if authorized_action(@context, @current_user, %i[import_outcomes manage_outcomes])
       begin
         @import = if params[:id] == 'latest'
                     @context.latest_outcome_import or raise ActiveRecord::RecordNotFound

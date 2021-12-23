@@ -567,7 +567,7 @@ describe MasterCourses::MasterMigration do
       run_master_migration
 
       q_to = @copy_to.quizzes.where(:migration_id => mig_id(q)).first
-      copied_answers = Hash[q_to.quiz_questions.to_a.map { |qq| [qq.id, qq.question_data.to_hash["answers"]] }]
+      copied_answers = q_to.quiz_questions.to_a.map { |qq| [qq.id, qq.question_data.to_hash["answers"]] }.to_h
       expect(copied_answers.values.flatten.all? { |a| a["id"] != 0 }).to be_truthy
       q.quiz_questions.each do |qq|
         qq_to = q_to.quiz_questions.where(:migration_id => mig_id(qq)).first
@@ -959,7 +959,7 @@ describe MasterCourses::MasterMigration do
       ]
       rub.save!
       rub.associate_with(@copy_from, @copy_from)
-      Rubric.where(:id => rub.id).update_all(:updated_at => 5.minute.from_now)
+      Rubric.where(:id => rub.id).update_all(:updated_at => 5.minutes.from_now)
 
       run_master_migration
 
@@ -993,7 +993,7 @@ describe MasterCourses::MasterMigration do
       ]
       rub.save!
       rub.associate_with(@copy_from, @copy_from)
-      Rubric.where(:id => rub.id).update_all(:updated_at => 5.minute.from_now)
+      Rubric.where(:id => rub.id).update_all(:updated_at => 5.minutes.from_now)
 
       run_master_migration
 
@@ -2910,8 +2910,8 @@ describe MasterCourses::MasterMigration do
         page = @copy_from.wiki_pages.create!(:title => "some page")
         page_tag = mod1.add_item({ :id => page.id, :type => 'wiki_page', :indent => 1 })
 
-        body = %{<p>Link to assignment module item: <a href="/courses/%s/assignments/%s?module_item_id=%s">some assignment</a></p>
-          <p>Link to page module item: <a href="/courses/%s/pages/%s?module_item_id=%s">some page</a></p>}
+        body = %(<p>Link to assignment module item: <a href="/courses/%s/assignments/%s?module_item_id=%s">some assignment</a></p>
+          <p>Link to page module item: <a href="/courses/%s/pages/%s?module_item_id=%s">some page</a></p>)
         topic = @copy_from.discussion_topics.create!(:title => "some topic",
                                                      :message => body % [@copy_from.id, asmnt.id, assmt_tag.id, @copy_from.id, page.url, page_tag.id])
 

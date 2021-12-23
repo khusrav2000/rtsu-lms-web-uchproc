@@ -38,7 +38,7 @@ module Api::V1::OutcomeResults
   def outcome_result_json(result)
     hash = api_json(result, @current_user, session, {
                       methods: :submitted_or_assessed_at,
-                      only: %w(id score mastery possible percent hide_points hidden)
+                      only: %w[id score mastery possible percent hide_points hidden]
                     })
     hash[:links] = {
       user: result.user.id.to_s,
@@ -239,7 +239,7 @@ module Api::V1::OutcomeResults
       row << I18n.t(:student_id, 'Student ID')
       outcomes.each do |outcome|
         pathParts = outcome_paths.find { |x| x[:id] == outcome.id }[:parts]
-        path = pathParts.map { |x| x[:name] }.join(' > ')
+        path = pathParts.pluck(:name).join(' > ')
         row << I18n.t(:outcome_path_result, "%{path} result", :path => path)
         row << I18n.t(:outcome_path_mastery_points, "%{path} mastery points", :path => path)
       end

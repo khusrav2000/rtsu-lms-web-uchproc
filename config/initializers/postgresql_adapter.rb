@@ -23,13 +23,13 @@ class QuotedValue < String
 end
 
 module PostgreSQLAdapterExtensions
-  def receive_timeout_wrapper
+  def receive_timeout_wrapper(&block)
     return yield unless @config[:receive_timeout]
 
-    Timeout.timeout(@config[:receive_timeout], PG::ConnectionBad, "receive timeout") { yield }
+    Timeout.timeout(@config[:receive_timeout], PG::ConnectionBad, "receive timeout", &block)
   end
 
-  %I{begin_db_transaction create_savepoint active?}.each do |method|
+  %I[begin_db_transaction create_savepoint active?].each do |method|
     class_eval <<~RUBY, __FILE__, __LINE__ + 1
       def #{method}(*)
         receive_timeout_wrapper { super }
@@ -139,11 +139,11 @@ module PostgreSQLAdapterExtensions
     result.map do |row|
       index_name = row[0]
       unique = row[1] == 't'
-      indkey = row[2].split(" ")
+      indkey = row[2].split
       inddef = row[3]
       oid = row[4]
 
-      columns = Hash[query(<<~SQL.squish, "SCHEMA")]
+      columns = query(<<~SQL.squish, "SCHEMA").to_h
         SELECT a.attnum, a.attname
         FROM pg_attribute a
         WHERE a.attrelid = #{oid}
@@ -154,7 +154,7 @@ module PostgreSQLAdapterExtensions
 
       # add info on sort order for columns (only desc order is explicitly specified, asc is the default)
       desc_order_columns = inddef.scan(/(\w+) DESC/).flatten
-      orders = desc_order_columns.any? ? Hash[desc_order_columns.map { |order_column| [order_column, :desc] }] : {}
+      orders = desc_order_columns.any? ? desc_order_columns.index_with { :desc } : {}
 
       ActiveRecord::ConnectionAdapters::IndexDefinition.new(table_name, index_name, unique, column_names, orders: orders)
     end

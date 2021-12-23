@@ -414,7 +414,7 @@ describe FilesController do
       user_session(@teacher)
       get 'show', params: { course_id: @course.id, id: @old_file.id, preview: 1 }
       expect(response).to be_redirect
-      expect(response.location).to match(/\/courses\/#{@course.id}\/files\/#{@file.id}/)
+      expect(response.location).to match(%r{/courses/#{@course.id}/files/#{@file.id}})
     end
 
     describe "as a student" do
@@ -1509,7 +1509,7 @@ describe FilesController do
 
   describe "public_url" do
     before :once do
-      assignment_model :course => @course, :submission_types => %w(online_upload)
+      assignment_model :course => @course, :submission_types => %w[online_upload]
       attachment_model :context => @student
       @submission = @assignment.submit_homework @student, :attachments => [@attachment]
     end

@@ -202,7 +202,7 @@ class GradeCalculator
   def create_course_grade_live_event(old_score, score)
     return if LIVE_EVENT_FIELDS.all? { |f| old_score.send(f) == score.send(f) }
 
-    old_score_values = LIVE_EVENT_FIELDS.map { |f| [f, old_score.send(f)] }.to_h
+    old_score_values = LIVE_EVENT_FIELDS.index_with { |f| old_score.send(f) }
     Canvas::LiveEvents.course_grade_change(score, old_score_values, old_score.enrollment)
   end
 
@@ -421,8 +421,8 @@ class GradeCalculator
 
   def group_score_rows
     enrollments_by_user.keys.map do |user_id|
-      current_group_scores = @current_groups[user_id].map { |group| [group[:global_id], group] }.to_h
-      final_group_scores = @final_groups[user_id].map { |group| [group[:global_id], group] }.to_h
+      current_group_scores = @current_groups[user_id].index_by { |group| group[:global_id] }
+      final_group_scores = @final_groups[user_id].index_by { |group| group[:global_id] }
       @groups.map do |group|
         agid = group.global_id
         current = current_group_scores[agid]
@@ -763,9 +763,8 @@ class GradeCalculator
     end
 
     assignments_by_group_id = visible_assignments.group_by(&:assignment_group_id)
-    submissions_by_assignment_id = Hash[
-      submissions.map { |s| [s.assignment_id, s] }
-    ]
+    submissions_by_assignment_id =
+      submissions.index_by(&:assignment_id)
 
     @groups.map do |group|
       assignments = assignments_by_group_id[group.id] || []
@@ -867,7 +866,7 @@ class GradeCalculator
   end
 
   def drop_pointed(submissions, cant_drop, n_highest, n_lowest)
-    max_total = (submissions + cant_drop).map { |s| s[:total] }.max
+    max_total = (submissions + cant_drop).pluck(:total).max
 
     kept = keep_highest(submissions, cant_drop, n_highest, max_total)
     keep_lowest(kept, cant_drop, n_lowest, max_total)
@@ -881,13 +880,13 @@ class GradeCalculator
     keep_helper(submissions, cant_drop, keep, max_total, keep_mode: :lowest) { |*args| big_f_worst(*args) }
   end
 
-  # @submissions: set of droppable submissions
-  # @cant_drop: submissions that are not eligible for dropping
-  # @keep: number of submissions to keep from +submissions+
-  # @max_total: the highest number of points possible
-  # @big_f_blk: sorting block for the big_f function
+  # @param submissions [Array<Submission>] set of droppable submissions
+  # @param cant_drop [Array<Submission>] submissions that are not eligible for dropping
+  # @param keep [Integer] number of submissions to keep from +submissions+
+  # @param max_total [Float] the highest number of points possible
+  # @yield sorting block for the big_f function
   # returns +keep+ +submissions+
-  def keep_helper(submissions, cant_drop, keep, max_total, keep_mode: nil, &big_f_blk)
+  def keep_helper(submissions, cant_drop, keep, max_total, keep_mode: nil)
     return submissions if submissions.size <= keep
 
     unpointed, pointed = (submissions + cant_drop).partition { |s|
@@ -919,7 +918,7 @@ class GradeCalculator
       q_low  = grades.first
       q_mid  = (q_low + q_high) / 2
 
-      x, kept = big_f_blk.call(q_mid, submissions, cant_drop, keep)
+      x, kept = yield(q_mid, submissions, cant_drop, keep)
       threshold = 1 / (2 * keep * (max_total**2))
       until q_high - q_low < threshold
         x < 0 ?
@@ -930,7 +929,7 @@ class GradeCalculator
         # bail if we can't can't ever satisfy the threshold (floats!)
         break if q_mid == q_high || q_mid == q_low
 
-        x, kept = big_f_blk.call(q_mid, submissions, cant_drop, keep)
+        x, kept = yield(q_mid, submissions, cant_drop, keep)
       end
     end
 
@@ -980,7 +979,7 @@ class GradeCalculator
   end
 
   def gather_dropped_from_group_scores(group_sums)
-    dropped = group_sums.map { |sum| sum[:dropped] }
+    dropped = group_sums.pluck(:dropped)
     dropped.flatten!
     dropped.uniq!
     dropped

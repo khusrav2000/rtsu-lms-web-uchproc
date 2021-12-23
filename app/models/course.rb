@@ -341,13 +341,13 @@ class Course < ActiveRecord::Base
     create_with(account_id: 0, root_account_id: 0, enrollment_term_id: 0, workflow_state: 'deleted').find_or_create_by!(id: 0)
   end
 
-  def self.skip_updating_account_associations(&block)
+  def self.skip_updating_account_associations
     if @skip_updating_account_associations
-      block.call
+      yield
     else
       begin
         @skip_updating_account_associations = true
-        block.call
+        yield
       ensure
         @skip_updating_account_associations = false
       end
@@ -367,8 +367,8 @@ class Course < ActiveRecord::Base
   def update_enrollment_states_if_necessary
     return if saved_change_to_id # new object, nothing to possibly invalidate
 
-    if (saved_changes.keys & %w{restrict_enrollments_to_course_dates account_id enrollment_term_id}).any? ||
-       (self.restrict_enrollments_to_course_dates? && (saved_changes.keys & %w{start_at conclude_at}).any?) ||
+    if (saved_changes.keys & %w[restrict_enrollments_to_course_dates account_id enrollment_term_id]).any? ||
+       (self.restrict_enrollments_to_course_dates? && (saved_changes.keys & %w[start_at conclude_at]).any?) ||
        (self.saved_change_to_workflow_state? && (completed? || self.workflow_state_before_last_save == 'completed'))
       # a lot of things can change the date logic here :/
 
@@ -422,7 +422,7 @@ class Course < ActiveRecord::Base
   def modules_visible_to(user, array_is_okay: false)
     if self.grants_right?(user, :view_unpublished_items)
       if array_is_okay && association(:context_modules).loaded?
-        context_modules.select { |cm| !cm.deleted? }
+        context_modules.reject(&:deleted?)
       else
         context_modules.not_deleted
       end
@@ -537,7 +537,7 @@ class Course < ActiveRecord::Base
 
   def validate_default_view
     if self.default_view_changed?
-      if !%w{assignments feed modules syllabus wiki}.include?(self.default_view)
+      if !%w[assignments feed modules syllabus wiki].include?(self.default_view)
         self.errors.add(:default_view, t("Home page is not valid"))
         return false
       elsif self.default_view == 'wiki' && !(self.wiki_id && self.wiki.has_front_page?)
@@ -891,8 +891,8 @@ class Course < ActiveRecord::Base
       none :
       where("EXISTS (?)", CourseAccountAssociation.where("course_account_associations.course_id=courses.id AND course_account_associations.account_id IN (?)", account_ids))
   }
-  scope :published, -> { where(workflow_state: %w(available completed)) }
-  scope :unpublished, -> { where(workflow_state: %w(created claimed)) }
+  scope :published, -> { where(workflow_state: %w[available completed]) }
+  scope :unpublished, -> { where(workflow_state: %w[created claimed]) }
 
   scope :deleted, -> { where(:workflow_state => 'deleted') }
 
@@ -1050,7 +1050,7 @@ class Course < ActiveRecord::Base
   def user_has_been_instructor?(user)
     return unless user
     if @user_ids_by_enroll_type
-      return preloaded_user_has_been?(user, %w{TaEnrollment TeacherEnrollment})
+      return preloaded_user_has_been?(user, %w[TaEnrollment TeacherEnrollment])
     end
 
     # enrollments should be on the course's shard
@@ -1062,7 +1062,7 @@ class Course < ActiveRecord::Base
   def user_has_been_admin?(user)
     return unless user
     if @user_ids_by_enroll_type
-      return preloaded_user_has_been?(user, %w{TaEnrollment TeacherEnrollment DesignerEnrollment})
+      return preloaded_user_has_been?(user, %w[TaEnrollment TeacherEnrollment DesignerEnrollment])
     end
 
     fetch_on_enrollments('user_has_been_admin', user) do
@@ -1084,7 +1084,7 @@ class Course < ActiveRecord::Base
   def user_has_been_student?(user)
     return unless user
     if @user_ids_by_enroll_type
-      return preloaded_user_has_been?(user, %w{StudentEnrollment StudentViewEnrollment})
+      return preloaded_user_has_been?(user, %w[StudentEnrollment StudentViewEnrollment])
     end
 
     fetch_on_enrollments('user_has_been_student', user) do
@@ -1097,7 +1097,7 @@ class Course < ActiveRecord::Base
 
     if @user_ids_by_enroll_type
       self.shard.activate do
-        return !@user_ids_by_enroll_type.values.any? { |arr| arr.include?(user.id) }
+        return @user_ids_by_enroll_type.values.none? { |arr| arr.include?(user.id) }
       end
     end
 
@@ -1996,8 +1996,8 @@ class Course < ActiveRecord::Base
       grade_publishing_status_translation(e.grade_publishing_status, e.grade_publishing_message)
     end
     overall_status = "error"
-    overall_status = "unpublished" unless found_statuses.size > 0
-    overall_status = %w{error unpublished pending publishing published unpublishable}.detect { |s| found_statuses.include?(s) } || overall_status
+    overall_status = "unpublished" if found_statuses.empty?
+    overall_status = %w[error unpublished pending publishing published unpublishable].detect { |s| found_statuses.include?(s) } || overall_status
     [enrollments, overall_status]
   end
 
@@ -2113,7 +2113,7 @@ class Course < ActiveRecord::Base
 
     Enrollment.where(:id => (all_enrollment_ids.to_set - posted_enrollment_ids.to_set).to_a).update_all(:grade_publishing_status => "unpublishable", :grade_publishing_message => nil)
 
-    raise errors[0] if errors.size > 0
+    raise errors[0] unless errors.empty?
   end
 
   def generate_grade_publishing_csv_output(enrollments, publishing_user, publishing_pseudonym, include_final_grade_overrides: false)
@@ -2648,10 +2648,9 @@ class Course < ActiveRecord::Base
   end
 
   def all_dates
-    (self.calendar_events.active + self.assignments.active).inject([]) { |list, e|
+    (self.calendar_events.active + self.assignments.active).each_with_object([]) { |e, list|
       list << e.end_at if e.end_at
       list << e.start_at if e.start_at
-      list
     }.compact.flatten.map(&:to_date).uniq rescue []
   end
 
@@ -2670,19 +2669,17 @@ class Course < ActiveRecord::Base
   end
 
   # helper method to DRY-up some similar methods that all can be cached based on a user's enrollments
-  def fetch_on_enrollments(key, user, opts = nil)
+  def fetch_on_enrollments(key, user, opts = nil, &block)
     self.shard.activate do
       RequestCache.cache(key, user, self, opts) do
         Rails.cache.fetch_with_batched_keys([key, self.global_asset_string, opts].compact.cache_key, batch_object: user, batched_keys: :enrollments) do
-          GuardRail.activate(:primary) do
-            yield
-          end
+          GuardRail.activate(:primary, &block)
         end
       end
     end
   end
 
-  ADMIN_TYPES = %w{TeacherEnrollment TaEnrollment DesignerEnrollment}.freeze
+  ADMIN_TYPES = %w[TeacherEnrollment TaEnrollment DesignerEnrollment].freeze
   def section_visibilities_for(user, opts = {})
     fetch_on_enrollments('section_visibilities_for', user, opts) do
       workflow_not = opts[:excluded_workflows] || 'deleted'
@@ -2764,7 +2761,7 @@ class Course < ActiveRecord::Base
       scope
     when :sections, :sections_limited
       scope.where("enrollments.course_section_id IN (?) OR (enrollments.limit_privileges_to_course_section=? AND enrollments.type IN ('TeacherEnrollment', 'TaEnrollment', 'DesignerEnrollment'))",
-                  visibilities.map { |s| s[:course_section_id] }, false)
+                  visibilities.pluck(:course_section_id), false)
     when :restricted
       user_ids = visibilities.filter_map { |s| s[:associated_user_id] }
       scope.where(enrollments: { user_id: (user_ids + [user&.id]).compact })
@@ -2805,10 +2802,10 @@ class Course < ActiveRecord::Base
     # See also MessageableUsers (same logic used to get users across multiple courses) (should refactor)
     case visibility
     when :full then scope
-    when :sections then scope.where(enrollments: { course_section_id: visibilities.map { |s| s[:course_section_id] } })
+    when :sections then scope.where(enrollments: { course_section_id: visibilities.pluck(:course_section_id) })
     when :restricted then scope.where(enrollments: { user_id: (visibilities.filter_map { |s| s[:associated_user_id] } + [user]) })
     when :limited then scope.where(enrollments: { type: ['StudentEnrollment', 'TeacherEnrollment', 'TaEnrollment', 'StudentViewEnrollment'] })
-    when :sections_limited then scope.where(enrollments: { course_section_id: visibilities.map { |s| s[:course_section_id] } })
+    when :sections_limited then scope.where(enrollments: { course_section_id: visibilities.pluck(:course_section_id) })
                                      .where(enrollments: { type: ['StudentEnrollment', 'TeacherEnrollment', 'TaEnrollment', 'StudentViewEnrollment'] })
     else scope.none
     end
@@ -3208,7 +3205,7 @@ class Course < ActiveRecord::Base
       end
 
       if tabs_that_can_be_marked_hidden_unused.present?
-        ar_types = active_record_types(only_check: tabs_that_can_be_marked_hidden_unused.map { |t| t[:relation] })
+        ar_types = active_record_types(only_check: tabs_that_can_be_marked_hidden_unused.pluck(:relation))
         tabs_that_can_be_marked_hidden_unused.each do |t|
           if !ar_types[t[:relation]] && (!t[:additional_check] || !t[:additional_check].call)
             # that means there are none of this type of thing in the DB
@@ -3734,7 +3731,7 @@ class Course < ActiveRecord::Base
     end
   end
 
-  %w{student_count teacher_count primary_enrollment_type primary_enrollment_role_id primary_enrollment_rank primary_enrollment_state primary_enrollment_date invitation}.each do |method|
+  %w[student_count teacher_count primary_enrollment_type primary_enrollment_role_id primary_enrollment_rank primary_enrollment_state primary_enrollment_date invitation].each do |method|
     class_eval <<~RUBY
       def #{method}
         read_attribute(:#{method}) || @#{method}

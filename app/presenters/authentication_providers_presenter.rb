@@ -35,14 +35,14 @@ class AuthenticationProvidersPresenter
     AuthenticationProvider.valid_auth_types.filter_map do |auth_type|
       klass = AuthenticationProvider.find_sti_class(auth_type)
       next unless klass.enabled?(account)
-      next if klass.singleton? && configs.any? { |aac| aac.is_a?(klass) }
+      next if klass.singleton? && configs.any?(klass)
 
       klass
     end
   end
 
   def needs_unknown_user_url?
-    configs.any? { |c| c.is_a?(AuthenticationProvider::Delegated) }
+    configs.any?(AuthenticationProvider::Delegated)
   end
 
   def login_url_options(aac)
@@ -59,7 +59,7 @@ class AuthenticationProvidersPresenter
   end
 
   def ldap_config?
-    ldap_configs.size > 0
+    !ldap_configs.empty?
   end
 
   def ldap_ips

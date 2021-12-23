@@ -284,10 +284,10 @@ class CalendarEventsApiController < ApplicationController
   include Api::V1::CalendarEvent
   include CalendarConferencesHelper
 
-  before_action :require_user, :except => %w(public_feed index)
+  before_action :require_user, :except => %w[public_feed index]
   before_action :get_calendar_context, :only => :create
   before_action :require_user_or_observer, :only => [:user_index]
-  before_action :require_authorization, :only => %w(index user_index)
+  before_action :require_authorization, :only => %w[index user_index]
 
   RECURRING_EVENT_LIMIT = 200
 
@@ -587,12 +587,12 @@ class CalendarEventsApiController < ApplicationController
                                          cancel_existing: value_to_boolean(params[:cancel_existing]),
                                          comments: params['comments'])
         render :json => event_json(reservation, @current_user, session)
-      rescue CalendarEvent::ReservationError => err
+      rescue CalendarEvent::ReservationError => e
         reservations = participant ? @event.appointment_group.reservations_for(participant) : []
         render :json => [{
           :attribute => 'reservation',
           :type => 'calendar_event',
-          :message => err.message,
+          :message => e.message,
           :reservations => reservations.map { |r| event_json(r, @current_user, session) }
         }],
                :status => :bad_request
@@ -1260,7 +1260,7 @@ class CalendarEventsApiController < ApplicationController
 
   def apply_assignment_overrides(events, user)
     ActiveRecord::Associations::Preloader.new.preload(events, [:context, :assignment_overrides])
-    events.each { |e| e.has_no_overrides = true if e.assignment_overrides.size == 0 }
+    events.each { |e| e.has_no_overrides = true if e.assignment_overrides.empty? }
 
     if AssignmentOverrideApplicator.should_preload_override_students?(events, user, "calendar_events_api")
       AssignmentOverrideApplicator.preload_assignment_override_students(events, user)
@@ -1270,12 +1270,12 @@ class CalendarEventsApiController < ApplicationController
       ActiveRecord::Associations::Preloader.new.preload(events, [:rubric, :rubric_association])
       # improves locked_json performance
 
-      student_events = events.select { |e| !e.context.grants_right?(user, session, :read_as_admin) }
+      student_events = events.reject { |e| e.context.grants_right?(user, session, :read_as_admin) }
       Assignment.preload_context_module_tags(student_events) if student_events.any?
     end
 
     courses_user_has_been_enrolled_in = DatesOverridable.precache_enrollments_for_multiple_assignments(events, user)
-    events = events.inject([]) do |assignments, assignment|
+    events = events.each_with_object([]) do |assignment, assignments|
       if courses_user_has_been_enrolled_in[:student].include?(assignment.context_id)
         assignment = assignment.overridden_for(user)
         assignment.infer_all_day(Time.zone)
@@ -1303,7 +1303,6 @@ class CalendarEventsApiController < ApplicationController
           end
         end
       end
-      assignments
     end
 
     if !@all_events && !@undated
@@ -1443,7 +1442,7 @@ class CalendarEventsApiController < ApplicationController
     get_options(codes, user)
 
     # if specific context codes were requested, ensure the user can access them
-    if codes && codes.length > 0
+    if codes && !codes.empty?
       selected_context_codes = Set.new(@context_codes)
       codes.each do |c|
         unless selected_context_codes.include?(c)

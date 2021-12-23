@@ -27,7 +27,7 @@ module CanvasI18nFallbacks
   # definition that led to this pattern match. It is not 100%
   # strictly implemented but this will be more than sufficient
   # for Canvas
-  LANG_PAT = %r{
+  LANG_PAT = /
     ^
     ([a-z]{2,3})                               # language
     (-[a-z]{4})?                               # optional script
@@ -36,7 +36,7 @@ module CanvasI18nFallbacks
     ((?:-[a-wy-z](?:-[a-z0-9]{2,8})*)*)        # optional extensions
     (-x(?:-[a-z0-9]{1,8})+)*                   # optional private use
     $
-  }ix.freeze
+  /ix.freeze
 
   # This fallback order is more intelligent than simply lopping off
   # elements from the end. For instance, in Canvas we use the private
@@ -61,7 +61,7 @@ module CanvasI18nFallbacks
 
     return [] unless result
 
-    existing_elements = result.captures.map { |e| !!e && e.length > 0 }
+    existing_elements = result.captures.map { |e| !!e && !e.empty? }
 
     order = []
     FALLBACK_ORDER.each do |a|
@@ -131,7 +131,7 @@ module I18nliner
     def infer_pluralization_hash(default, *args)
       if default.is_a?(Array) && default.all? { |a| a.is_a?(Array) && a.size == 2 && a.first.is_a?(Symbol) }
         # this was a pluralization hash but rails 4 made it an array in the view helpers
-        return Hash[default]
+        return default.to_h
       end
 
       super
@@ -242,7 +242,7 @@ module NumberLocalizer
   end
 
   def form_proper_noun_singular_genitive(noun)
-    if I18n.locale.to_s.start_with?('de') && %{s ß x z}.include?(noun.last)
+    if I18n.locale.to_s.start_with?('de') && %(s ß x z).include?(noun.last)
       "#{noun}'"
     else
       I18n.t("#proper_noun_singular_genitive", "%{noun}'s", noun: noun)
@@ -313,7 +313,7 @@ module I18nTemplate
   def render(view, *args)
     old_i18nliner_scope = view.i18nliner_scope
     if @virtual_path
-      view.i18nliner_scope = I18nliner::Scope.new(@virtual_path.gsub(/\/_?/, '.'))
+      view.i18nliner_scope = I18nliner::Scope.new(@virtual_path.gsub(%r{/_?}, '.'))
     end
     super
   ensure

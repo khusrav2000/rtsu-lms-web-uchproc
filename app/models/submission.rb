@@ -22,7 +22,7 @@ require 'atom'
 require 'anonymity'
 
 class Submission < ActiveRecord::Base
-  self.ignored_columns = %w{has_admin_comment has_rubric_assessment process_attempts context_code}
+  self.ignored_columns = %w[has_admin_comment has_rubric_assessment process_attempts context_code]
 
   include Canvas::GradeValidations
   include CustomValidations
@@ -671,7 +671,7 @@ class Submission < ActiveRecord::Base
 
   def plaintext_body
     self.extend HtmlTextHelper
-    strip_tags((self.body || "").gsub(/<\s*br\s*\/>/, "\n<br/>").gsub(/<\/p>/, "</p>\n"))
+    strip_tags((self.body || "").gsub(%r{<\s*br\s*/>}, "\n<br/>").gsub(%r{</p>}, "</p>\n"))
   end
 
   TURNITIN_STATUS_RETRY = 11
@@ -763,7 +763,7 @@ class Submission < ActiveRecord::Base
     submission_response.each do |res_asset_string, response|
       self.turnitin_data[res_asset_string].merge!(response)
       self.turnitin_data_changed!
-      if !response[:object_id] && !(attempt < TURNITIN_RETRY)
+      if !response[:object_id] && attempt >= TURNITIN_RETRY
         self.turnitin_data[res_asset_string][:status] = 'error'
       end
     end
@@ -906,7 +906,7 @@ class Submission < ActiveRecord::Base
   end
 
   def turnitinable?
-    %w(online_upload online_text_entry).include?(submission_type) &&
+    %w[online_upload online_text_entry].include?(submission_type) &&
       assignment.turnitin_enabled?
   end
 
@@ -926,7 +926,7 @@ class Submission < ActiveRecord::Base
       self.vericite_data_hash.each_value do |data|
         next unless data.is_a?(Hash) && data[:object_id]
 
-        update_scores = update_scores || vericite_recheck_score(data)
+        update_scores ||= vericite_recheck_score(data)
       end
       # we have found at least one score that is stale, call VeriCite and save the results
       if update_scores
@@ -995,12 +995,12 @@ class Submission < ActiveRecord::Base
       # check to see if the score is stale, if so, delete it and fetch again
       recheck_score = vericite_recheck_score(data)
       # keep track whether all scores are updates or if any are new
-      recheck_score_all = recheck_score_all && recheck_score
+      recheck_score_all &&= recheck_score
       # look up scores if:
       if recheck_score || data[:similarity_score].blank?
         if attempt < VERICITE_STATUS_RETRY
           data[:similarity_score_check_time] = Time.now.to_i
-          vericite ||= VeriCite::Client.new()
+          vericite ||= VeriCite::Client.new
           res = vericite.generateReport(self, asset_string)
           if res[:similarity_score]
             # keep track of when we updated the score so that we can ask VC again once it is stale (i.e. cache for 20 mins)
@@ -1053,7 +1053,7 @@ class Submission < ActiveRecord::Base
 
   def vericite_report_url(asset_string, user, session)
     if self.vericite_data_hash && self.vericite_data_hash[asset_string] && self.vericite_data_hash[asset_string][:similarity_score]
-      vericite = VeriCite::Client.new()
+      vericite = VeriCite::Client.new
       if self.grants_right?(user, :grade)
         vericite.submissionReportUrl(self, user, asset_string)
       elsif can_view_plagiarism_report('vericite', user, session)
@@ -1074,7 +1074,7 @@ class Submission < ActiveRecord::Base
     end
     return unless vericiteable? && Canvas::Plugin.find(:vericite).try(:enabled?)
 
-    vericite = VeriCite::Client.new()
+    vericite = VeriCite::Client.new
     reset_vericite_assets
 
     # Make sure the assignment exists and user is enrolled
@@ -1104,7 +1104,7 @@ class Submission < ActiveRecord::Base
       # keep track of when we first submitted
       self.vericite_data_hash[res_asset_string][:submit_time] = Time.now.to_i if self.vericite_data_hash[res_asset_string][:submit_time].blank?
       self.vericite_data_changed!
-      if !response[:object_id] && !(attempt < VERICITE_RETRY)
+      if !response[:object_id] && attempt >= VERICITE_RETRY
         self.vericite_data_hash[res_asset_string][:status] = 'error'
       elsif response[:object_id]
         # success, make sure any error messages are cleared
@@ -1193,7 +1193,7 @@ class Submission < ActiveRecord::Base
   end
 
   def vericiteable?
-    %w(online_upload online_text_entry).include?(submission_type) &&
+    %w[online_upload online_text_entry].include?(submission_type) &&
       assignment.vericite_enabled?
   end
 
@@ -1756,7 +1756,7 @@ class Submission < ActiveRecord::Base
       attachment_ids << s.attachment_id if s.attachment_id
       [[s, index], attachment_ids]
     end
-    Hash[submissions_with_index_and_attachment_ids]
+    submissions_with_index_and_attachment_ids.to_h
   end
   private_class_method :group_attachment_ids_by_submission_and_index
 
@@ -1817,7 +1817,7 @@ class Submission < ActiveRecord::Base
   def self.bulk_load_attachments_for_submissions(submissions, preloads: nil)
     submissions = Array(submissions)
     attachment_ids_by_submission =
-      Hash[submissions.map { |s| [s, s.attachment_associations.map(&:attachment_id)] }]
+      submissions.index_with { |s| s.attachment_associations.map(&:attachment_id) }
     bulk_attachment_ids = attachment_ids_by_submission.values.flatten.uniq
     if bulk_attachment_ids.empty?
       attachments_by_id = {}
@@ -1830,7 +1830,7 @@ class Submission < ActiveRecord::Base
     attachments_by_submission = submissions.map do |s|
       [s, attachments_by_id.values_at(*attachment_ids_by_submission[s]).flatten.compact.uniq]
     end
-    Hash[attachments_by_submission]
+    attachments_by_submission.to_h
   end
 
   def includes_attachment?(attachment)
@@ -1956,7 +1956,7 @@ class Submission < ActiveRecord::Base
 
   def grade_change_audit(force_audit: self.assignment_changed_not_sub, skip_insert: false)
     newly_graded = self.saved_change_to_workflow_state? && self.workflow_state == 'graded'
-    grade_changed = (self.saved_changes.keys & %w(grade score excused)).present?
+    grade_changed = (self.saved_changes.keys & %w[grade score excused]).present?
     return true unless newly_graded || grade_changed || force_audit
 
     if grade_change_event_author_id.present?
@@ -2204,7 +2204,7 @@ class Submission < ActiveRecord::Base
   end
 
   def participating_instructors
-    commenting_instructors.present? ? commenting_instructors : context.participating_instructors.to_a.uniq
+    commenting_instructors.presence || context.participating_instructors.to_a.uniq
   end
 
   def possible_participants_ids
@@ -2486,7 +2486,7 @@ class Submission < ActiveRecord::Base
 
   def filter_attributes_for_user(hash, user, session)
     unless user_can_read_grade?(user, session)
-      %w(score grade published_score published_grade entered_score entered_grade).each do |secret_attr|
+      %w[score grade published_score published_grade entered_score entered_grade].each do |secret_attr|
         hash.delete secret_attr
       end
     end

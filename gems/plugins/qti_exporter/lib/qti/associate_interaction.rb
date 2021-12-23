@@ -59,7 +59,7 @@ module Qti
         get_all_answers_from_body
       end
 
-      get_feedback()
+      get_feedback
       ensure_correct_format
 
       @question
@@ -83,7 +83,7 @@ module Qti
           # raise warning if the left hand side of the answers also has images
           @question[:import_warnings] ||= []
           @question[:import_warnings] << I18n.t(:qti_img_matching_question, "Imported matching question contains images on both sides, which is unsupported")
-        elsif @question[:matches].any? { |m| m[:match_id].present? && !@question[:answers].any? { |a| a[:match_id] == m[:match_id] } }
+        elsif @question[:matches].any? { |m| m[:match_id].present? && @question[:answers].none? { |a| a[:match_id] == m[:match_id] } }
           # or if there are distractors
           @question[:import_warnings] ||= []
           @question[:import_warnings] << I18n.t(:qti_img_matching_question_distractors, "Imported matching question contains images inside the choices, and could not be fixed because it also contains distractors")
@@ -314,9 +314,9 @@ module Qti
     def check_for_meta_matches
       if (long_matches = @doc.search('instructureMetadata matchingMatch'))
         @question[:matches].each_with_index do |match, i|
-          match[:text] = long_matches[i].text.strip.gsub(/ +/, " ") if long_matches[i]
+          match[:text] = long_matches[i].text.strip.squeeze(' ') if long_matches[i]
         end
-        if long_matches.size > 0 && long_matches.size != @question[:matches].size
+        if !long_matches.empty? && long_matches.size != @question[:matches].size
           @question[:qti_warning] = "The matching options for this question may have been incorrectly imported."
         end
       end
