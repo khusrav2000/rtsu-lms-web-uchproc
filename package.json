@@ -174,7 +174,8 @@
     "use-debounce": "^3",
     "use-media-set": "^1.1",
     "uuid": "^3.2.1",
-    "yarn-deduplicate": "^3.0.1"
+    "yarn-deduplicate": "^3.0.1",
+    "react-data-grid": "7.0.0-canary.30"
   },
   "devDependencies": {
     "@apollo/react-common": "~3.0.1",
