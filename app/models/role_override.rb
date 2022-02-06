@@ -1367,6 +1367,15 @@ class RoleOverride < ActiveRecord::Base
         true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
         applies_to_concluded: true
       },
+      topic_delete: {
+        label: -> { t('permissions.topic_delete', 'Delete topic') },
+        label_v2: -> { t("Topic - delete") },
+        group: "uchproc_topic",
+        group_label: lambda { t("Topic") },
+        available_to: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor AccountMembership),
+        true_for: %w(AccountAdmin TeacherEnrollment TaEnrollment AccountAdvisor),
+        applies_to_concluded: true
+      },
       :student_points => {
         :label => lambda { t("Student points") },
         :label_v2 => lambda { t("Student points") },
@@ -1378,6 +1387,13 @@ class RoleOverride < ActiveRecord::Base
         :label_v2 => lambda { t("Student attendance") },
         :available_to => %w(StudentEnrollment),
         :true_for => %w(StudentEnrollment)
+      },
+      :uchproc_timetable => {
+        :label => lambda { t("Timetable class") },
+        :label_v2 => lambda { t("Timetable class") },
+        :account_only => true,
+        :available_to => %w(AccountAdmin AccountMembership),
+        :true_for => %w(AccountAdmin)
       },
       :manage_students => {
         :label => lambda {

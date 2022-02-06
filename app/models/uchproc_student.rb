@@ -4,7 +4,7 @@ class UchprocStudent < ActiveRecord::Base
 
   belongs_to :uchproc_class, :foreign_key => 'kkr'
   belongs_to :uchproc_group, class_name: "UchprocGroup", foreign_key:  "kgr"
-
+  has_many  :uchproc_student_attendance, class_name: "UchprocStudentAttendance", foreign_key: "kst"
   validates :nst, length: { minimum: 2 }
   validates :nstt, length: { minimum: 2 }
   validates :nkart, length: { minimum: 10 }

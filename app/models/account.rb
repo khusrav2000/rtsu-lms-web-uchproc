@@ -1742,7 +1742,7 @@ class Account < ActiveRecord::Base
   TAB_SEARCH = 18
   TAB_BRAND_CONFIGS = 19
   TAB_EPORTFOLIO_MODERATION = 20
-
+  TAB_TIMETABLE = 21
   # site admin tabs
   TAB_PLUGINS = 14
   TAB_JOBS = 15
@@ -1770,6 +1770,7 @@ class Account < ActiveRecord::Base
       tabs = []
       tabs << { :id => TAB_COURSES, :label => t('#account.tab_courses', "Courses"), :css_class => 'courses', :href => :account_path } if user && self.grants_right?(user, :read_course_list)
       tabs << { :id => TAB_USERS, :label => t("People"), :css_class => 'users', :href => :account_users_path } if user && self.grants_right?(user, :read_roster)
+      tabs << { :id => TAB_TIMETABLE, :label => t("Timetable"), :css_class => 'timetable', :href => :account_timetable_index_path } if user && self.grants_right?(user, :uchproc_timetable)
       tabs << { :id => TAB_STATISTICS, :label => t('#account.tab_statistics', "Statistics"), :css_class => 'statistics', :href => :statistics_account_path } if user && self.grants_right?(user, :view_statistics)
       tabs << { :id => TAB_PERMISSIONS, :label => t('#account.tab_permissions', "Permissions"), :css_class => 'permissions', :href => :account_permissions_path } if user && self.grants_right?(user, :manage_role_overrides)
       if user && self.grants_right?(user, :manage_outcomes)

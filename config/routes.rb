@@ -30,7 +30,6 @@ CanvasRails::Application.routes.draw do
   # The subgraph endpoint is for use only with the federated API Gateway. See
   # `app/graphql/README.md` for details.
   get 'graphiql', to: 'graphql#graphiql'
-
   resources :submissions, only: [] do
     resources :submission_comments, path: :comments, only: :index, defaults: { format: :pdf }
     resources :docviewer_audit_events, only: [:create], constraints: { format: :json }
@@ -653,7 +652,8 @@ CanvasRails::Application.routes.draw do
     post 'users' => 'users#create', as: :add_user
     get 'users/:user_id/delete' => 'accounts#confirm_delete_user', as: :confirm_delete_user
     delete 'users/:user_id' => 'accounts#remove_user', as: :delete_user
-
+    #uchproc
+    resources :timetable, only: :index
     # create/delete are handled by specific routes just above
     resources :users, only: [:new, :edit, :show, :update]
     resources :account_notifications, only: [:create, :update, :destroy]
@@ -2406,8 +2406,21 @@ CanvasRails::Application.routes.draw do
       get 'uchproc/group/:ugroup_id/last/courses', action: :courses_current_period
       get 'uchproc/group/:ugroup_id/last/attendance/courses', action: :courses_for_att_current_period
       get 'uchproc/group/:ugroup_id/courses/:kvd/tema', action: :tema
-
-
+    end
+    scope(controller: :topic) do
+      post 'isutema/:kvd', action: :create
+      get 'isutema/:kvd', action: :subjects_by_kvd
+      put 'isutema/:id', action: :update
+      delete 'isutema/:id', action: :destroy
+    end
+    scope(controller: :uchproc_student_attendance) do
+      get 'student/attendance/kvd/:kvd', action: :attendance
+      put 'student/attendance/:kvd', action: :update
+    end
+    scope(controller: :timetable_api) do
+      get  'timetable/:grp_id', action: :show
+      post 'timetable/:grp_id', action: :create
+    end
     scope(controller: :eportfolios_api) do
       get 'users/:user_id/eportfolios', action: :index, as: :eportfolios
       get 'eportfolios/:id', action: :show

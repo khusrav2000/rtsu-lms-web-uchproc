@@ -18,5 +18,9 @@ class CourseExt < ActiveRecord::Base
     end
     kvd
   end
+  def self.course_by_att_kvd(kvd)
+    course_ext = CourseExt.where(:isu_tblvdtkr_id => kvd).first
+    return course_ext.course
+  end
 end
 
