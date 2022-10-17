@@ -131,7 +131,7 @@
               <div class="menu-item__text"><%= dashboard_title %></div>
             </a>
           </li>
-          <% if @current_user %>
+          <% if @current_user && @current_user.adminable_accounts.present? %>
             <li class="menu-item ic-app-header__menu-list-item <%= 'ic-app-header__menu-list-item--active' if active_path?('/courses') %>">
               <button id="global_nav_courses_link" class="ic-app-header__menu-list-link">
                 <div class="menu-item-icon-container" aria-hidden="true">
@@ -143,7 +143,7 @@
               </button>
             </li>
           <% end %>
-          <% if @current_user && @current_user.current_active_groups? %>
+          <% if @current_user && @current_user.current_active_groups? && @current_user.adminable_accounts.present? %>
             <li class="menu-item ic-app-header__menu-list-item <%= ' ic-app-header__menu-list-item--active' if active_path?('/groups') %>">
               <button id="global_nav_groups_link" class="ic-app-header__menu-list-link">
                 <div class="menu-item-icon-container" aria-hidden="true">
@@ -155,8 +155,8 @@
               </button>
             </li>
           <% end %>
-          <% if @current_user && @current_user.can_access_journals?%>
-            <% #@current_user.current_active_journals %>
+          <% if @current_user %>
+            <% #&& @current_user.can_access_journals? %>
             <li class="menu-item ic-app-header__menu-list-item <%= ' ic-app-header__menu-list-item--active' if active_path?('/journals') %>">
               <a id="global_nav_journals_link" role="button" href="/journals" class="ic-app-header__menu-list-link">
                 <div class="menu-item-icon-container" aria-hidden="true">
@@ -168,6 +168,7 @@
               </a>
             </li>
           <% end %>
+          <% if @current_user && @current_user.can_access_journals? %>
           <li class="menu-item ic-app-header__menu-list-item <%= ' ic-app-header__menu-list-item--active' if active_path?('/calendar') %>">
             <a id="global_nav_calendar_link" href="/calendar" class="ic-app-header__menu-list-link">
               <div class="menu-item-icon-container" aria-hidden="true">
@@ -178,6 +179,7 @@
               </div>
             </a>
           </li>
+          <% end %>
           <li class="menu-item ic-app-header__menu-list-item <%= ' ic-app-header__menu-list-item--active' if active_path?('/conversations') %>">
             <a id="global_nav_conversations_link" href="/conversations" class="ic-app-header__menu-list-link">
               <div class="menu-item-icon-container">
@@ -189,7 +191,7 @@
               </div>
             </a>
           </li>
-          <% if PageView.page_views_enabled? %>
+          <% if PageView.page_views_enabled? && @current_user.can_access_journals? %>
             <li class="menu-item ic-app-header__menu-list-item" <%= ' ic-app-header__menu-list-item--active' if active_path?('/history') %>>
               <button id="global_nav_history_link" class="ic-app-header__menu-list-link">
                 <div class="menu-item-icon-container" aria-hidden="true">
@@ -204,6 +206,7 @@
           <% unless @current_user.nil? %>
             <%= render(:partial => 'external_tools/global_nav_menu_items') %>
           <% end %>
+          <% if @current_user && @current_user.can_access_journals? %>
           <li class="ic-app-header__menu-list-item">
            <%= link_to help_link_url,
                 :id => 'global_nav_help_link',
@@ -223,6 +226,7 @@
               </div>
             <% end %>
           </li>
+          <% end %>
         </ul>
       </div>
       <div class="ic-app-header__secondary-navigation">

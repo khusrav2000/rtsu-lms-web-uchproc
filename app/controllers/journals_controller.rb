@@ -36,20 +36,22 @@ class JournalsController < ApplicationController
   def index
     respond_to do |format|
       items = []
-      if @current_user.can_access_any_account_journals?([:point_journal_view, :point_journal_edit]) ||
-         @current_user.can_access_any_course_journals?([:point_journal_view, :point_journal_edit])
-        items <<  BASE_ITEMS[0]
-      end
-      if @current_user.can_access_any_account_journals?([:attendance_journal_view, :attendance_journal_edit]) ||
-        @current_user.can_access_any_course_journals?([:attendance_journal_view, :attendance_journal_edit])
-        items << BASE_ITEMS[1]
-      end
-      if @current_user.can_access_any_account_journals?([:student_points]) || @current_user.can_access_any_course_journals?([:student_points])
-        items << BASE_ITEMS[2]
-      end
-      if @current_user.can_access_any_account_journals?([:student_attendance]) || @current_user.can_access_any_course_journals?([:student_attendance])
-        items << BASE_ITEMS[3]
-      end
+      #if @current_user.can_access_any_account_journals?([:point_journal_view, :point_journal_edit]) ||
+      #   @current_user.can_access_any_course_journals?([:point_journal_view, :point_journal_edit])
+      #  items <<  BASE_ITEMS[0]
+      #end
+      items << BASE_ITEMS[0]
+      #if @current_user.can_access_any_account_journals?([:attendance_journal_view, :attendance_journal_edit]) ||
+      #  @current_user.can_access_any_course_journals?([:attendance_journal_view, :attendance_journal_edit])
+      #  items << BASE_ITEMS[1]
+      #end
+      items << BASE_ITEMS[1]
+      #if @current_user.can_access_any_account_journals?([:student_points]) || @current_user.can_access_any_course_journals?([:student_points])
+      #  items << BASE_ITEMS[2]
+      #end
+      #if @current_user.can_access_any_account_journals?([:student_attendance]) || @current_user.can_access_any_course_journals?([:student_attendance])
+      #  items << BASE_ITEMS[3]
+      #end
       format.html do
         @journals = items
       end

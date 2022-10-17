@@ -2399,6 +2399,7 @@ CanvasRails::Application.routes.draw do
       put  'courses/:course_id/students/:student_id/points', action: :student_points_update
       get 'courses/:course_id/my_points', action: :my_points
     end
+    
     scope(controller: :uchproc_group_api) do
       get 'isugrp/', action: :index
       get 'isugrp/:isu_grp_id', action: :show

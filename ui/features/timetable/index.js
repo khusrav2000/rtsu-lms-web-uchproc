@@ -1,1 +1,1 @@
-import './jquery/index'
+//import './jquery/index'

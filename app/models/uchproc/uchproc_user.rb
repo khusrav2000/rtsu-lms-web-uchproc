@@ -9,6 +9,7 @@ module  Uchproc
       params[:pseudonym][:unique_id].strip! if params[:pseudonym][:unique_id].is_a?(String)
       sis_user_id = params[:pseudonym].delete(:sis_user_id)
       integration_id = params[:pseudonym].delete(:integration_id)
+      uchproc_token = params[:pseudonym].delete(:uchproc_token)
       @pseudonym = nil
       @user = nil
       if sis_user_id && value_to_boolean(params[:enable_sis_reactivation])
@@ -30,15 +31,19 @@ module  Uchproc
         end
       end
       Rails.logger.info "Account IS #{{:account => @account}}"
+      Rails.logger.info "Pseudonym is #{{:ps => @pseudonym}}"
+      Rails.logger.info "Unique is #{{:un => params[:pseudonym][:unique_id]}}"
       if @pseudonym.nil?
         @pseudonym = @account.pseudonyms.active.by_unique_id(params[:pseudonym][:unique_id]).first
         # Setting it to nil will cause us to try and create a new one, and give user the login already exists error
         #@pseudonym = nil if @pseudonym && @record_id.nil? && !['creation_pending', 'pending_approval'].include?(@pseudonym.user.workflow_state)
         @pseudonym = nil if @pseudonym && !['creation_pending', 'pending_approval'].include?(@pseudonym.user.workflow_state)
       end
+
       Rails.logger.info "Pseudonym IS #{{:user => @pseudonym}}"
       @user ||= @pseudonym&.user
       @user ||= @account.shard.activate { User.new }
+      #Rails.logger.info "user is #{{us: => @user}}"
       use_pairing_code = params[:user] && params[:user][:initial_enrollment_type] == 'observer' && @domain_root_account.self_registration?
       force_validations = value_to_boolean(params[:force_validations])
       manage_user_logins = true
@@ -153,6 +158,7 @@ module  Uchproc
       @pseudonym.attributes = pseudonym_params
       @pseudonym.sis_user_id = sis_user_id
       @pseudonym.integration_id = integration_id
+      @pseudonym.uchproc_token = uchproc_token
 
       @pseudonym.account = @account
       @pseudonym.workflow_state = 'active'
@@ -206,11 +212,15 @@ module  Uchproc
       end
       @user
     end
+
+
+    
     def update_user(params)
       params[:pseudonym] ||= {}
       params[:pseudonym][:unique_id].strip! if params[:pseudonym][:unique_id].is_a?(String)
       sis_user_id = params[:pseudonym].delete(:sis_user_id)
       integration_id = params[:pseudonym].delete(:integration_id)
+      uchproc_token = params[:pseudonym].delete(:uchproc_token)
       @pseudonym = nil
       @user = nil
       if sis_user_id && value_to_boolean(params[:enable_sis_reactivation])
@@ -247,6 +257,7 @@ module  Uchproc
       @pseudonym.attributes = pseudonym_params
       @pseudonym.sis_user_id = sis_user_id
       @pseudonym.integration_id = integration_id
+      @pseudonym.uchproc_token = uchproc_token
 
       @user ||= @pseudonym&.user
       if params[:user]

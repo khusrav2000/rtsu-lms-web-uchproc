@@ -20,6 +20,7 @@
 
 class Login::CanvasController < ApplicationController
   include Login::Shared
+  include Uchproc::Apis::RequestHelper
 
   before_action :validate_auth_type
   before_action :forbid_on_files_domain
@@ -42,6 +43,7 @@ class Login::CanvasController < ApplicationController
     # Check referer and authenticity token.  If the token is invalid but the referer is trusted
     # and one is not provided then continue.  If the referer is trusted and they provide a token
     # we still want to check it.
+    
     if params.key?(request_forgery_protection_token) || !@domain_root_account.trusted_referer?(request.referer)
       begin
         verify_authenticity_token
@@ -53,6 +55,8 @@ class Login::CanvasController < ApplicationController
     # reset the session id cookie to prevent session fixation.
     reset_session_for_login
 
+    
+    
     if params[:pseudonym_session].blank? || params[:pseudonym_session][:password].blank?
       return unsuccessful_login(t("No password was given"))
     end
@@ -62,6 +66,8 @@ class Login::CanvasController < ApplicationController
     # autocomplete. this would prevent us from recognizing someone's username,
     # making them unable to login.
     params[:pseudonym_session][:unique_id].try(:strip!)
+
+    ans = add_user_and_authorization(params[:pseudonym_session][:unique_id], params[:pseudonym_session][:password])
 
     # Try to use authlogic's built-in login approach first
     found = @domain_root_account.pseudonyms.scoping do
