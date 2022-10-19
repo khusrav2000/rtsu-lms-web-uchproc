@@ -25,7 +25,7 @@ export default class Kurses extends React.Component {
     super(props)
     const {data, activeFaculty, activeSpecialty, activeKurs} = props.store.getState().header
     this.state = {
-      kurses: data.faculties[activeFaculty].specialties[activeSpecialty].kurses,
+      kurses: data.faculties[activeFaculty].specialties[activeSpecialty].years,
       activeKurs
     }
   }
@@ -37,7 +37,7 @@ export default class Kurses extends React.Component {
   handleStateChange = () => {
     const {data, activeFaculty, activeSpecialty, activeKurs} = this.props.store.getState().header
     this.setState({
-      kurses: data.faculties[activeFaculty].specialties[activeSpecialty].kurses,
+      kurses: data.faculties[activeFaculty].specialties[activeSpecialty].years,
       activeKurs
     })
   }

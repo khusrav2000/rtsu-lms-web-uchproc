@@ -38,13 +38,8 @@ export default class CoursesForm extends React.Component {
   }
 
   handleStateChange = () => {
-    const {
-      courses,
-      isLoading,
-      activeGroupID,
-      activeCourse,
-      loadingSuccess
-    } = this.props.store.getState().course
+    const {courses, isLoading, activeGroupID, activeCourse, loadingSuccess} =
+      this.props.store.getState().course
     this.setState({
       courses,
       isLoading,
@@ -58,14 +53,14 @@ export default class CoursesForm extends React.Component {
     const {data, activeFaculty, activeSpecialty, activeKurs, activeGroup, isLoading} = header
     if (!isEmpty(data) && !isLoading) {
       const selectedGroupId =
-        data.faculties[activeFaculty].specialties[activeSpecialty].kurses[activeKurs].groups[
+        data.faculties[activeFaculty].specialties[activeSpecialty].years[activeKurs].groups[
           activeGroup
         ].id
 
       if (selectedGroupId !== activeGroupId) {
         this.props.store.dispatch(CourseActions.loadingCourses(selectedGroupId))
         axios
-          .get('/api/v1/uchproc/group/' + selectedGroupId.toString() + '/last/courses')
+          .get('/api/v1/uchproc/group/' + selectedGroupId.toString() + '/courses')
           .then(res => {
             this.props.store.dispatch(CourseActions.gotCourses(res.data, selectedGroupId))
           })

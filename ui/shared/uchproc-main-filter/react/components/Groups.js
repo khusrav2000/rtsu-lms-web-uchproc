@@ -23,15 +23,10 @@ import I18n from 'i18n!UchprocMainFilter'
 export default class Groups extends React.Component {
   constructor(props) {
     super(props)
-    const {
-      data,
-      activeFaculty,
-      activeSpecialty,
-      activeKurs,
-      activeGroup
-    } = props.store.getState().header
+    const {data, activeFaculty, activeSpecialty, activeKurs, activeGroup} =
+      props.store.getState().header
     this.state = {
-      groups: data.faculties[activeFaculty].specialties[activeSpecialty].kurses[activeKurs].groups,
+      groups: data.faculties[activeFaculty].specialties[activeSpecialty].years[activeKurs].groups,
       activeGroup
     }
   }
@@ -41,15 +36,10 @@ export default class Groups extends React.Component {
   }
 
   handleStateChange = () => {
-    const {
-      data,
-      activeFaculty,
-      activeSpecialty,
-      activeKurs,
-      activeGroup
-    } = this.props.store.getState().header
+    const {data, activeFaculty, activeSpecialty, activeKurs, activeGroup} =
+      this.props.store.getState().header
     this.setState({
-      groups: data.faculties[activeFaculty].specialties[activeSpecialty].kurses[activeKurs].groups,
+      groups: data.faculties[activeFaculty].specialties[activeSpecialty].years[activeKurs].groups,
       activeGroup
     })
   }

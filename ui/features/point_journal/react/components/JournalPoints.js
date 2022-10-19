@@ -53,13 +53,8 @@ export default class JournalPoints extends React.Component {
   }
 
   handleStateChange = () => {
-    const {
-      points,
-      journalHeader,
-      isLoading,
-      activeCourseID,
-      loadingSuccess
-    } = this.props.store.getState().journal
+    const {points, journalHeader, isLoading, activeCourseID, loadingSuccess} =
+      this.props.store.getState().journal
     this.setState({
       points,
       journalHeader,
@@ -96,7 +91,7 @@ export default class JournalPoints extends React.Component {
     const {courses, activeCourse} = course
     const isLoadingCourse = course.isLoading
     if (!isEmpty(courses) && !isLoadingCourse) {
-      const selectedCourseId = courses[activeCourse].isu_kvd
+      const selectedCourseId = courses[activeCourse].point_id
       // const selectedCourseId = 48782
       if (selectedCourseId !== activeCourseID) {
         this.props.store.dispatch(JournalActions.loadingJournalData(selectedCourseId))

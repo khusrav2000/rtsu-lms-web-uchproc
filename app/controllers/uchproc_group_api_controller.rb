@@ -22,6 +22,7 @@ class UchprocGroupApiController < ApplicationController
 
   include Api::V1::UchprocGroup
   include Api::V1::UchprocCourse
+  include Uchproc::Apis::RequestHelper
 
   def create
   end
@@ -50,15 +51,35 @@ class UchprocGroupApiController < ApplicationController
   end
 
   def courses
-    group_id = params[:ugroup_id]
-    courses = UchprocTblvdkr.select('isu_tblvdkr.isu_tblvdkr_id,isu_tblvdkr.kgr, isu_prk.npr, isu_sot.nst, isu_tblvdkr.kolkr')
-                               .joins(:uchproc_course)
-                               .joins(:uchproc_user)
-                               .where('kgr = ?', group_id)
+    token = @current_user.pseudonyms.first.uchproc_token
+    group_id = params[:uchproc_group_id]
+    courses = get_courses_by(group_id, token)
 
+    if courses[:error]
+      if courses[:logout]
+        logout_current_user
+        flash[:logged_out] = true
+        redirect_to login_url
+        return
+      end
+      render :json => {:error => courses[:error]}, :status => courses[:status]
+      return
+    end
 
-    render :json => courses_json(courses, "")
+    render :json => courses[:payload]
   end
+
+  # OLD version
+  # def courses
+  #   group_id = params[:ugroup_id]
+  #   courses = UchprocTblvdkr.select('isu_tblvdkr.isu_tblvdkr_id,isu_tblvdkr.kgr, isu_prk.npr, isu_sot.nst, isu_tblvdkr.kolkr')
+  #                              .joins(:uchproc_course)
+  #                              .joins(:uchproc_user)
+  #                              .where('kgr = ?', group_id)
+
+
+  #   render :json => courses_json(courses, "")
+  # end
 
 
   def courses_current_period
