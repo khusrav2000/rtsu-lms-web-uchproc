@@ -60,7 +60,7 @@ export default class CoursesForm extends React.Component {
       if (selectedGroupId !== activeGroupId) {
         this.props.store.dispatch(CourseActions.loadingCourses(selectedGroupId))
         axios
-          .get('/api/v1/uchproc/group/' + selectedGroupId.toString() + '/courses')
+          .get('/api/v1/uchproc/group/' + selectedGroupId.toString() + '/point_journal/courses')
           .then(res => {
             this.props.store.dispatch(CourseActions.gotCourses(res.data, selectedGroupId))
           })

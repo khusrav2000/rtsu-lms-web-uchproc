@@ -50,10 +50,29 @@ class UchprocGroupApiController < ApplicationController
     render :json => group_json(group,@current_user,@sessions,[])
   end
 
-  def courses
+  def point_journal_courses
     token = @current_user.pseudonyms.first.uchproc_token
     group_id = params[:uchproc_group_id]
-    courses = get_courses_by(group_id, token)
+    courses = get_point_journal_courses_by(group_id, token)
+
+    if courses[:error]
+      if courses[:logout]
+        logout_current_user
+        flash[:logged_out] = true
+        redirect_to login_url
+        return
+      end
+      render :json => {:error => courses[:error]}, :status => courses[:status]
+      return
+    end
+
+    render :json => courses[:payload]
+  end
+
+  def attendance_journal_courses
+    token = @current_user.pseudonyms.first.uchproc_token
+    group_id = params[:uchproc_group_id]
+    courses = get_attendance_journal_courses_by(group_id, token)
 
     if courses[:error]
       if courses[:logout]

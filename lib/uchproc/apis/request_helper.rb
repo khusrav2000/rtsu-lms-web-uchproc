@@ -1,9 +1,11 @@
 module Uchproc::Apis::RequestHelper
-  @@base_url = "http://192.168.123.37:8022"
+  @@base_url = "http://192.168.123.33:8022"
   @@service = "mobi"
   require 'uri'
   require 'net/http'
   require 'json'
+
+  @@academic_year = "Л2015/16"
 
   def request_error(code) 
     if code == 2
@@ -117,7 +119,7 @@ module Uchproc::Apis::RequestHelper
     uri = URI("#{@@base_url}/faculties")
 
     body = {}
-    body[:academic_year] = "Л2021/22"
+    body[:academic_year] = @@academic_year
     body[:external_ref] = "test 1"
     body[:service_name] = "mobi"
 
@@ -139,12 +141,13 @@ module Uchproc::Apis::RequestHelper
     return request_error(res_body["code"])
   end
 
-  def get_courses_by(group_id, token)
-    uri = URI("#{@@base_url}/courses")
+  def get_point_journal_courses_by(group_id, token)
+    uri = URI("#{@@base_url}/courses/pt")
 
     puts group_id
     body = {}
     body[:group_id] = group_id.to_i
+    body[:academic_year] = @@academic_year
     body[:external_ref] = "test 1"
     body[:service_name] = "mobi"
     body[:userUchprocCode] = 0
@@ -162,6 +165,93 @@ module Uchproc::Apis::RequestHelper
     if res_body["code"] == 1
       return {
         :payload => res_body["payload"]["courses"]
+      }
+    end
+    return request_error(res_body["code"])
+  end
+
+  def get_attendance_journal_courses_by(group_id, token)
+    uri = URI("#{@@base_url}/courses/at")
+
+    puts group_id
+    body = {}
+    body[:group_id] = group_id.to_i
+    body[:academic_year] = @@academic_year
+    body[:external_ref] = "test 1"
+    body[:service_name] = "mobi"
+    body[:userUchprocCode] = 0
+
+    puts body
+    header = {'Content-Type': 'text/json', "Token": token, "Service": @@service}
+    http = Net::HTTP.new(uri.host, uri.port)
+    req = Net::HTTP::Post.new(uri.request_uri, header)
+    req.body = body.to_json
+    res = http.request(req)
+    res_body = JSON.parse(res.body)
+
+    puts "code = #{res_body["code"]}"
+
+    if res_body["code"] == 1
+      return {
+        :payload => res_body["payload"]["courses"]
+      }
+    end
+    return request_error(res_body["code"])
+  end
+
+  def get_points(token, course_id)
+    uri = URI("#{@@base_url}/point_journal/get")
+
+    puts course_id
+    body = {}
+    body[:course_id] = course_id.to_i
+    body[:limit] = 0
+    body[:external_ref] = "test 1"
+    body[:service_name] = "mobi"
+    body[:userUchprocCode] = 0
+
+    puts body
+    header = {'Content-Type': 'text/json', "Token": token, "Service": @@service}
+    http = Net::HTTP.new(uri.host, uri.port)
+    req = Net::HTTP::Get.new(uri.request_uri, header)
+    req.body = body.to_json
+    res = http.request(req)
+    res_body = JSON.parse(res.body)
+
+    puts "code = #{res_body["code"]}"
+
+    if res_body["code"] == 1
+      return {
+        :payload => res_body["payload"]
+      }
+    end
+    return request_error(res_body["code"])
+  end
+
+  def update_points(token, course_id, points)
+    uri = URI("#{@@base_url}/point_journal/update")
+
+    puts course_id
+    body = {}
+    body[:course_id] = course_id.to_i
+    body[:external_ref] = "test 1"
+    body[:points] = points
+    body[:service_name] = "mobi"
+
+    puts body
+    header = {'Content-Type': 'text/json', "Token": token, "Service": @@service}
+    http = Net::HTTP.new(uri.host, uri.port)
+    req = Net::HTTP::Post.new(uri.request_uri, header)
+    req.body = body.to_json
+    res = http.request(req)
+    res_body = JSON.parse(res.body)
+
+    puts "code = #{res_body["code"]}"
+    print res_body
+
+    if res_body["code"] == 1
+      return {
+        :payload => res_body["payload"]
       }
     end
     return request_error(res_body["code"])

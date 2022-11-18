@@ -80,7 +80,8 @@ export default class JournalPoints extends React.Component {
     axios
       .get('/api/v1/courses/' + courseId.toString() + '/point_journal')
       .then(res => {
-        this.props.store.dispatch(JournalActions.gotJournalData(res.data.points, res.data.header))
+       
+        this.props.store.dispatch(JournalActions.gotJournalData(res.data.students, res.data.header))
       })
       .catch(() => {
         this.props.store.dispatch(JournalActions.errorLoadingJournalData())
@@ -98,8 +99,9 @@ export default class JournalPoints extends React.Component {
         axios
           .get('/api/v1/courses/' + selectedCourseId.toString() + '/point_journal')
           .then(res => {
+            console.log(res.data.header)
             this.props.store.dispatch(
-              JournalActions.gotJournalData(res.data.points, res.data.header)
+              JournalActions.gotJournalData(res.data.students, res.data.header)
             )
           })
           .catch(() => {
@@ -119,19 +121,17 @@ export default class JournalPoints extends React.Component {
     return this.state.points.map(row => {
       if (rating === 'FIRST_RATING') {
         return {
-          fullName: row.full_name,
-          studentId: row.student_id,
+          name: row.name,
+          studentId: row.id,
           recordBook: row.record_book,
-          weekPoint: row.rating.first.weeks[index],
-          absenseThreshold: row.absence_threshold
+          weekPoint: row.first_rating[index]
         }
       } else {
         return {
-          fullName: row.full_name,
-          studentId: row.student_id,
+          name: row.name,
+          studentId: row.id,
           recordBook: row.record_book,
-          weekPoint: row.rating.second.weeks[index],
-          absenseThreshold: row.absence_threshold
+          weekPoint: row.second_rating[index]
         }
       }
     })
@@ -151,6 +151,8 @@ export default class JournalPoints extends React.Component {
   }
 
   tableHead() {
+    console.log("12312312312")
+    console.log(this.state.journalHeader.rating.first)
     const firstRating = this.state.journalHeader.rating.first
     const secondRating = this.state.journalHeader.rating.second
     return (
@@ -175,7 +177,6 @@ export default class JournalPoints extends React.Component {
                 afterSave={this.afterPointRegistrationSave}
                 courseID={this.state.activeCourseID}
                 isEditable={week.is_editable}
-                attendancePermissions={week.attendance_permission}
               >
                 <Button size="small" variant={week.is_editable ? 'success' : 'ghost'}>
                   {week.number}
@@ -201,9 +202,8 @@ export default class JournalPoints extends React.Component {
                 weekPoints={this.weekPoints('SECOND_RATING', index)}
                 journalHeader={this.state.journalHeader}
                 afterSave={this.afterPointRegistrationSave}
-                courseID={this.state.activeCourseID}
+                courseID={parseInt(this.state.activeCourseID, 10)}
                 isEditable={week.is_editable}
-                attendancePermissions={week.attendance_permission}
               >
                 <Button size="small" variant={week.is_editable ? 'success' : 'ghost'}>
                   {week.number}
@@ -261,12 +261,12 @@ export default class JournalPoints extends React.Component {
   }
 
   tableRow(row, index) {
-    const firstRating = row.rating.first.weeks
-    const secondRating = row.rating.second.weeks
+    const firstRating = row.first_rating
+    const secondRating = row.second_rating
     return (
       <tr>
         <td className="row-number">{index + 1}</td>
-        <td className="full_name">{row.full_name}</td>
+        <td className="full_name">{row.name}</td>
         {this.state.showFirstRatingWeeks &&
           firstRating.map(week => (
             <td>
@@ -274,7 +274,7 @@ export default class JournalPoints extends React.Component {
             </td>
           ))}
         <td>
-          <input type="text" value={row.rating.first.total.toFixed(2)} />
+          <input type="text" value={row.first_rating_sum.toFixed(2)} />
         </td>
         {this.state.showSecondRatingWeeks &&
           secondRating.map(week => (
@@ -283,29 +283,9 @@ export default class JournalPoints extends React.Component {
             </td>
           ))}
         <td>
-          <input type="text" value={row.rating.second.total.toFixed(2)} />
+          <input type="text" value={row.second_rating_sum.toFixed(2)} />
         </td>
-        <td>
-          <input type="text" value={row.exam.toFixed(2)} />
-        </td>
-        <td>
-          <input type="text" value={row.exam_fx.toFixed(2)} />
-        </td>
-        <td>
-          <input type="text" value={row.exam_f.toFixed(2)} />
-        </td>
-        <td>
-          <input type="text" value={row.total_point.toFixed(2)} />
-        </td>
-        <td>
-          <input type="text" value={row.assessment_exact} />
-        </td>
-        <td className="assessment_word">
-          <input type="text" value={row.assessment_word} />
-        </td>
-        <td>
-          <input type="text" value={row.assessment} />
-        </td>
+        
       </tr>
     )
   }

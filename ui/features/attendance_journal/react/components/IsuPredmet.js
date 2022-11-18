@@ -18,9 +18,8 @@
 
 import React from 'react'
 import axios from 'axios'
-import LoadingIndicator from  '@canvas/loading-indicator'
+import LoadingIndicator from '@canvas/loading-indicator'
 import JournalActions from '../actions/JournalActions'
-import IsuTema from './IsuTema'
 import I18n from 'i18n!account_course_user_search'
 
 class IsuPredmet extends React.Component {
@@ -39,15 +38,10 @@ class IsuPredmet extends React.Component {
   }
 
   handleStateChange = () => {
-    const {
-      data,
-      activeFaculty,
-      activeSpecialty,
-      activeKurs,
-      activeGroup
-    } = this.props.store.getState().header
+    const {data, activeFaculty, activeSpecialty, activeKurs, activeGroup} =
+      this.props.store.getState().header
     const grpID =
-      data.faculties[activeFaculty].specialties[activeSpecialty].kurses[activeKurs].groups[
+      data.faculties[activeFaculty].specialties[activeSpecialty].years[activeKurs].groups[
         activeGroup
       ].id
     if (this.state.grp !== grpID) {
@@ -56,7 +50,7 @@ class IsuPredmet extends React.Component {
           isLoading: true,
           grp: grpID
         },
-        function() {
+        function () {
           this.loadSubjects(grpID)
         }
       )
@@ -66,13 +60,13 @@ class IsuPredmet extends React.Component {
   loadSubjects(grp) {
     // console.log("Loading Subjects with GroupID: "+grp)
     axios
-      .get('/api/v1/uchproc/group/' + grp + '/last/courses')
+      .get('/api/v1/uchproc/group/' + grp + '/attendance_journal/courses')
       .then(res => {
-        this.setState({subjects: res.data, kvd: res.data[0].isu_kvd, isLoading: false})
+        this.setState({subjects: res.data, kvd: res.data[0].attendance_id, isLoading: false})
         // console.log('------------Subjects loaded successfull--------',this.state.subjects)
         this.props.store.dispatch(JournalActions.setActiveKvdID(this.state.kvd))
       })
-      .catch(err => {
+      .catch(() => {
         //  console.error(this.props.url, err.toString())
         alert('Не удалось загрузить данные')
         this.setState({isLoading: false})
@@ -114,14 +108,14 @@ class IsuPredmet extends React.Component {
             </tr>
           </thead>
           <tbody>
-            {this.state.subjects.map((item, index) => (
+            {this.state.subjects.map(item => (
               <tr
-                className={item.isu_kvd === this.state.kvd ? 'selected' : ''}
-                onClick={this._subjectClick.bind(this, item.isu_kvd)}
+                className={item.attendance_id === this.state.kvd ? 'selected' : ''}
+                onClick={this._subjectClick.bind(this, item.attendance_id)}
               >
                 <td className="course-name-column">{item.course_name.trim()}</td>
                 <td className="teacher-column">{item.teacher_name.trim()}</td>
-                <td className="credit-column">{item.kolkr}</td>
+                <td className="credit-column">{item.credits_count}</td>
               </tr>
             ))}
           </tbody>

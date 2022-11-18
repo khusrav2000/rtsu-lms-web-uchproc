@@ -2393,7 +2393,7 @@ CanvasRails::Application.routes.draw do
 
     #uchproc
     scope(controller: :point_journal_api) do
-      get 'courses/:course_id/point_journal', action: :points
+      get 'courses/:uchproc_course_id/point_journal', action: :points
       post 'courses/:course_id/point_journal', action: :update_week_points
       put  'courses/:course_id/students/:student_id/points', action: :student_points_update
       get 'courses/:course_id/my_points', action: :my_points
@@ -2406,7 +2406,8 @@ CanvasRails::Application.routes.draw do
     scope(controller: :uchproc_group_api) do
       get 'isugrp/', action: :index
       get 'isugrp/:isu_grp_id', action: :show
-      get 'uchproc/group/:uchproc_group_id/courses', action: :courses
+      get 'uchproc/group/:uchproc_group_id/point_journal/courses', action: :point_journal_courses
+      get 'uchproc/group/:uchproc_group_id/attendance_journal/courses', action: :attendance_journal_courses
       get 'uchproc/group/:ugroup_id/last/courses', action: :courses_current_period
       get 'uchproc/group/:ugroup_id/last/attendance/courses', action: :courses_for_att_current_period
       get 'uchproc/group/:ugroup_id/courses/:kvd/tema', action: :tema

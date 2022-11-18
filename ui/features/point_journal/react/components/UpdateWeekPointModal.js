@@ -41,8 +41,7 @@ export default class UpdateWeekPointModal extends React.Component {
     journalHeader: object.isRequired,
     afterSave: func.isRequired,
     courseID: number.isRequired,
-    isEditable: bool.isRequired,
-    attendancePermissions: object.isRequired
+    isEditable: bool.isRequired
   }
 
   constructor(props) {
@@ -54,15 +53,8 @@ export default class UpdateWeekPointModal extends React.Component {
       activeColumn: 1,
       activeSaveButton: true
     }
-    MAX_POINTS = [
-      props.journalHeader.max_week_point,
-      props.journalHeader.max_lecture_att,
-      props.journalHeader.max_practical_att,
-      props.journalHeader.max_practical_act,
-      props.journalHeader.max_KMDRO_att,
-      props.journalHeader.max_KMDRO_act,
-      props.journalHeader.max_KMD
-    ]
+    console.log(this.state.weekPoints)
+    MAX_POINTS = [props.journalHeader.max_week_point]
   }
 
   componentDidMount() {
@@ -75,6 +67,7 @@ export default class UpdateWeekPointModal extends React.Component {
 
   onSubmit = () => {
     this.setState({activeSaveButton: false})
+    console.log("asdasd", this.state.weekPoints)
     axios({
       url: `/api/v1/courses/${this.props.courseID}/point_journal`,
       method: 'POST',
@@ -184,7 +177,7 @@ export default class UpdateWeekPointModal extends React.Component {
   onBlur(row, column) {
     if (column == 0) {
       this.setState(prevState => {
-        let point = Math.min(parseFloat(prevState.weekPoints[row].weekPoint.point), MAX_POINTS[0])
+        const point = Math.min(parseFloat(prevState.weekPoints[row].weekPoint.point), MAX_POINTS[0])
         return update(prevState, {
           weekPoints: {
             [row]: {
@@ -225,166 +218,38 @@ export default class UpdateWeekPointModal extends React.Component {
     })
   }
 
-  getInputFields(row) {
-    return [
-      {
-        column: 1,
-        value: row.weekPoint.divided.lecture_att
-      },
-      {
-        column: 2,
-        value: row.weekPoint.divided.practical_att
-      },
-      {
-        column: 3,
-        value: row.weekPoint.divided.practical_act
-      },
-      {
-        column: 4,
-        value: row.weekPoint.divided.KMDRO_att
-      },
-      {
-        column: 5,
-        value: row.weekPoint.divided.KMDRO_act
-      },
-      {
-        column: 6,
-        value: row.weekPoint.divided.KMD
-      }
-    ]
-  }
 
-  isDisableColumn(column) {
-    if (column === 1 && this.props.attendancePermissions.lecture) {
-      return false
-    } else if ((column === 2 || column === 3) && this.props.attendancePermissions.practical) {
-      return false
-    } else if ((column === 4 || column === 5) && this.props.attendancePermissions.kmdro) {
-      return false
-    } else if (column === 6) {
-      return false
-    } else {
-      return true
-    }
-  }
-
-  sendPermissionMessage(column) {
-    const url = `${window.location.protocol}//${window.location.hostname}/courses/${this.props.courseID}/attendance`
-    console.log('url', url)
-    const content = {}
-    if (column === 1 && !this.props.attendancePermissions.lecture) {
-      content.html = `<div> ${I18n.t(
-        'You have not completed any lecture type topics. ' +
-        'Please add one lecture to the attendance journal using the link %{url}',
-        {
-          url: `<a href="${url}">
-                   ${url}
-                 </a>`
-        }
-      )} </div>`
-      $.flashWarning(content, 10000)
-    } else if ((column === 2 || column === 3) && !this.props.attendancePermissions.practical) {
-      content.html = `<div> ${I18n.t(
-        'You have not completed any topics such as seminar or practice. ' +
-        'Please add at least one seminar or practice to your attendance journal using the link %{url}',
-        {
-          url: `<a href="${url}">
-                   ${url}
-                 </a>`
-        }
-      )} </div>`
-      $.flashWarning(content, 10000)
-    } else if ((column === 4 || column === 5) && !this.props.attendancePermissions.kmdro) {
-      content.html = `<div> ${I18n.t(
-        'You have not completed any topics such as seminar or practice. ' +
-        'Please add at least one laboratory work or kmdro to the attendance log using the link %{url}',
-        {
-          url: `<a href="${url}">
-                   ${url}
-                 </a>`
-        }
-      )} </div>`
-      $.flashWarning(content, 10000)
-    }
-  }
-
-  modalBody() {
-    return (
-      <table className="table table-bordered table-sm table-hover table-point-registration">
-        <thead>
-        <tr>
-          <th>{I18n.t('Sum')}</th>
-          <th>{I18n.t('Lecture attendance')}</th>
-          <th>{I18n.t('Practical attendance')}</th>
-          <th>{I18n.t('Practical activity')}</th>
-          <th>{I18n.t('KMDRO attendance')}</th>
-          <th>{I18n.t('KMDRO activity')}</th>
-          <th>{I18n.t('KMD')}</th>
-          <th>{I18n.t('Student full name')}</th>
-          <th>{I18n.t('Record book number')}</th>
-        </tr>
-        </thead>
-        <tbody>
-        {this.state.weekPoints.map((row, index) => (
-          <tr className={row.absenseThreshold ? 'absent-limit-student' : ''}>
-            <td>
-              <input type="text" value={row.weekPoint.point} disabled />
-            </td>
-            {this.getInputFields(row).map(({column, value}) => (
-              <td onClick={() => this.sendPermissionMessage(column)}>
-                <input
-                  id={`point_${index}_${column}`}
-                  type="text"
-                  disabled={this.isDisableColumn(column) || row.absenseThreshold}
-                  onKeyDown={event => this.onKeyPress(event, index, column)}
-                  onKeyUp={event => this.onKeyUp(event, index, column)}
-                  maxLength="5"
-                  value={value}
-                  onFocus={event => this.onFocusRow(index, column, event)}
-                  onChange={event => this.onChange(event, index, column)}
-                  onBlur={() => this.onBlur(index, column)}
-                />
-              </td>
-            ))}
-            <td className="student-information-align">{row.fullName}</td>
-            <td className="student-information-align">{row.recordBook}</td>
-          </tr>
-        ))}
-        </tbody>
-      </table>
-    )
-  }
 
   modalBodyByTotal() {
     return (
       <table className="table table-bordered table-sm table-hover table-point-registration">
         <thead>
-        <tr>
-          <th>{I18n.t('Sum')}</th>
-          <th>{I18n.t('Student full name')}</th>
-          <th>{I18n.t('Record book number')}</th>
-        </tr>
+          <tr>
+            <th>{I18n.t('Sum')}</th>
+            <th>{I18n.t('Student full name')}</th>
+            <th>{I18n.t('Record book number')}</th>
+          </tr>
         </thead>
         <tbody>
-        {this.state.weekPoints.map((row, index) => (
-          <tr className={row.absenseThreshold ? 'absent-limit-student' : ''}>
-            <td>
-              <input
-                id={`point_${index}_${0}`}
-                type="text"
-                disabled={row.absenseThreshold}
-                onKeyDown={event => this.onKeyPress(event, index, 0)}
-                onKeyUp={event => this.onKeyUp(event, index, 0)}
-                maxLength="5"
-                value={row.weekPoint.point}
-                onFocus={event => this.onFocusRow(index, 0, event)}
-                onChange={event => this.onChange(event, index, 0)}
-                onBlur={() => this.onBlur(index, 0)}/>
-            </td>
-            <td className="student-information-align">{row.fullName}</td>
-            <td className="student-information-align">{row.recordBook}</td>
-          </tr>
-        ))}
+          {this.state.weekPoints.map((row, index) => (
+            <tr>
+              <td>
+                <input
+                  id={`point_${index}_${0}`}
+                  type="text"
+                  onKeyDown={event => this.onKeyPress(event, index, 0)}
+                  onKeyUp={event => this.onKeyUp(event, index, 0)}
+                  maxLength="5"
+                  value={row.weekPoint.point}
+                  onFocus={event => this.onFocusRow(index, 0, event)}
+                  onChange={event => this.onChange(event, index, 0)}
+                  onBlur={() => this.onBlur(index, 0)}
+                />
+              </td>
+              <td className="student-information-align">{row.name}</td>
+              <td className="student-information-align">{row.recordBook}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     )
@@ -399,7 +264,7 @@ export default class UpdateWeekPointModal extends React.Component {
           open={this.state.open}
           size="large"
         >
-          <Modal.Body>{this.props.journalHeader.journal_point_type == "ByTotal" ? this.modalBodyByTotal() : this.modalBody()}</Modal.Body>
+          <Modal.Body>{this.modalBodyByTotal()}</Modal.Body>
           <Modal.Footer>
             <Button onClick={this.close}>{I18n.t('Cancel')}</Button> &nbsp;
             <Button
