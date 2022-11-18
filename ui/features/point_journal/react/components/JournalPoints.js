@@ -80,7 +80,6 @@ export default class JournalPoints extends React.Component {
     axios
       .get('/api/v1/courses/' + courseId.toString() + '/point_journal')
       .then(res => {
-       
         this.props.store.dispatch(JournalActions.gotJournalData(res.data.students, res.data.header))
       })
       .catch(() => {
@@ -151,7 +150,7 @@ export default class JournalPoints extends React.Component {
   }
 
   tableHead() {
-    console.log("12312312312")
+    console.log('12312312312')
     console.log(this.state.journalHeader.rating.first)
     const firstRating = this.state.journalHeader.rating.first
     const secondRating = this.state.journalHeader.rating.second
@@ -285,7 +284,6 @@ export default class JournalPoints extends React.Component {
         <td>
           <input type="text" value={row.second_rating_sum.toFixed(2)} />
         </td>
-        
       </tr>
     )
   }

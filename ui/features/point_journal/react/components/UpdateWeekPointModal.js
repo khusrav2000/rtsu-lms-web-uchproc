@@ -67,7 +67,7 @@ export default class UpdateWeekPointModal extends React.Component {
 
   onSubmit = () => {
     this.setState({activeSaveButton: false})
-    console.log("asdasd", this.state.weekPoints)
+    console.log('asdasd', this.state.weekPoints)
     axios({
       url: `/api/v1/courses/${this.props.courseID}/point_journal`,
       method: 'POST',
@@ -217,8 +217,6 @@ export default class UpdateWeekPointModal extends React.Component {
       })
     })
   }
-
-
 
   modalBodyByTotal() {
     return (
